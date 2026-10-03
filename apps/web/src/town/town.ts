@@ -5,15 +5,17 @@
  * and stops as soon as the player is standing still with no queued path or held key.
  */
 import { DELTA, TownGrid, dirBetween, type Dir } from "./grid.ts";
-import { COLS, OBJECTS, ROWS, SPAWN, TILE, type Point, type TownObject } from "./map.ts";
+import { TILE, type Point, type TownObject } from "./map.ts";
+import { INTERIORS, TOWN, type Scene } from "./scenes.ts";
 import { PLAYER_PALETTE, SPRITE_H, SPRITE_W, TWIN_PALETTE, bakeSprites, type SpriteSheet } from "./sprites.ts";
-import { bakeWorld } from "./world.ts";
 
 export interface TownConfig {
   places: Record<string, { name: string; href: string }>;
   links: Record<string, { label: string; url: string | null }>;
   /** Called when the visitor enters a place. Return a promise that resolves after navigation. */
   onEnterPlace: (placeId: string, href: string) => void;
+  /** Called when the visitor interacts with an object whose target is an event. */
+  onEvent?: (name: string) => void;
 }
 
 const STEP_MS = 150;
@@ -29,22 +31,33 @@ const LETTER_DIRS: Record<string, Dir> = { w: "up", a: "left", s: "down", d: "ri
 const dirFor = (e: KeyboardEvent): Dir | undefined => KEY_DIRS[e.code] ?? KEY_DIRS[e.key] ?? LETTER_DIRS[(e.key ?? "").toLowerCase()];
 
 export class Town {
-  private readonly grid = new TownGrid();
+  private scene: Scene = TOWN;
+  private grid = new TownGrid();
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly world = bakeWorld();
+  /** Each scene's art is baked on first visit and kept. */
+  private readonly baked = new Map<string, HTMLCanvasElement>([[TOWN.id, TOWN.bake()]]);
+  private world = this.baked.get(TOWN.id)!;
   private readonly playerSprites: SpriteSheet = bakeSprites(PLAYER_PALETTE);
   private readonly twinSprites: SpriteSheet = bakeSprites(TWIN_PALETTE, { headphones: true });
   private readonly labels = new Map<string, HTMLElement>();
   private readonly bubble: HTMLElement;
   /** The link in the open bubble, followed when the visitor presses Enter. */
   private bubbleLink: HTMLAnchorElement | null = null;
+  /** Typewriter timer (retro scenes) and the timer that fades the bubble away. */
+  private typer = 0;
+  private dismiss = 0;
+  /**
+   * In retro scenes, the machine (prop) whose box was just shown. Bumping it again stays quiet until
+   * the visitor steps away, so standing against a machine doesn't keep re-opening its box.
+   */
+  private quietObj: string | null = null;
   private readonly live: HTMLElement;
   private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
   // Player state
-  private pos: Point = { ...SPAWN };
-  private from: Point = { ...SPAWN };
+  private pos: Point = { ...TOWN.spawn };
+  private from: Point = { ...TOWN.spawn };
   private facing: Dir = "down";
   private stepStart = 0;
   private moving = false;
@@ -66,6 +79,12 @@ export class Town {
     this.canvas = root.querySelector("canvas")!;
     this.ctx = this.canvas.getContext("2d", { alpha: false })!;
     this.bubble = root.querySelector("[data-town-bubble]")!;
+    // In retro scenes (the arcade), bubbles fade away on their own, but not while someone is
+    // pointing at or tabbing through one. Town bubbles stay until closed.
+    this.bubble.addEventListener("pointerenter", () => this.holdBubble());
+    this.bubble.addEventListener("focusin", () => this.holdBubble());
+    this.bubble.addEventListener("pointerleave", () => this.scheduleDismiss());
+    this.bubble.addEventListener("focusout", () => this.scheduleDismiss());
     this.live = root.querySelector("[data-town-live]")!;
     this.buildLabels();
     this.bindInput();
@@ -75,28 +94,55 @@ export class Town {
 
   // ───────────────────────────── public API ─────────────────────────────
 
-  /** Place the player next to a location (Map menu jumps, deep links). */
-  teleportToPlace(placeId: string) {
-    const obj = OBJECTS.find((o) => o.target.type === "place" && o.target.id === placeId);
+  get sceneId() {
+    return this.scene.id;
+  }
+
+  hasInterior(placeId: string) {
+    return placeId in INTERIORS;
+  }
+
+  /**
+   * Switch maps: "town", or the id of a place with an interior. The visitor appears at the
+   * scene's entrance. Returns false if already there.
+   */
+  enterScene(id: string) {
+    const scene = id === TOWN.id ? TOWN : INTERIORS[id];
+    if (!scene || scene === this.scene) return false;
+    this.scene = scene;
+    this.grid = new TownGrid(scene.objects, scene.ground);
+    if (!this.baked.has(scene.id)) this.baked.set(scene.id, scene.bake());
+    this.world = this.baked.get(scene.id)!;
+    this.root.dataset.scene = scene.id;
+    this.root.toggleAttribute("data-retro", !!scene.retro);
+    this.placePlayer(scene.spawn, scene.face);
+    this.buildLabels();
+    this.resize();
+    if (scene.intro) this.showNote(scene.intro.title, scene.intro.text);
+    if (!this.reducedMotion.matches) {
+      this.canvas.animate([{ filter: "brightness(0)" }, { filter: "brightness(1)" }], { duration: 450, easing: "ease-out" });
+    }
+    return true;
+  }
+
+  /** Place the player next to a location (Map menu jumps, deep links, leaving a building). */
+  teleportToPlace(placeId: string, facing?: Dir) {
+    const obj = this.scene.objects.find((o) => o.target.type === "place" && o.target.id === placeId);
     if (!obj) return;
-    const { at, face } = this.grid.arrivalTile(obj, SPAWN);
-    this.path = [];
-    this.pendingInteract = null;
-    this.moving = false;
-    this.pos = { ...at };
-    this.from = { ...at };
-    this.facing = face;
-    this.marker = null;
-    this.hideBubble();
-    this.centerCamera(true);
-    this.requestFrame();
+    const { at, face } = this.grid.arrivalTile(obj, this.scene.spawn);
+    this.placePlayer(at, facing ?? face);
   }
 
   setActivePlace(placeId: string | null) {
     for (const [id, el] of this.labels) {
-      const obj = OBJECTS.find((o) => o.id === id)!;
+      const obj = this.scene.objects.find((o) => o.id === id)!;
       el.toggleAttribute("aria-current", obj.target.type === "place" && obj.target.id === placeId);
     }
+  }
+
+  /** Show a short message in the bubble, e.g. a hint on entering a room. */
+  showNote(title: string, text: string) {
+    this.showLinkBubble({ id: "note", kind: "prop", x: 0, y: 0, w: 0, h: 0, target: { type: "note", text }, label: title, style: "" });
   }
 
   /** Keep the player centred in the part of the town that isn't covered by overlays. */
@@ -109,6 +155,27 @@ export class Town {
 
   focus() {
     this.canvas.focus({ preventScroll: true });
+  }
+
+  /** Stop listening to movement keys, e.g. while a full-screen game covers the town. */
+  setEnabled(on: boolean) {
+    this.enabled = on;
+    this.held.length = 0;
+  }
+
+  private placePlayer(at: Point, facing: Dir) {
+    this.path = [];
+    this.held.length = 0;
+    this.pendingInteract = null;
+    this.moving = false;
+    this.pos = { ...at };
+    this.from = { ...at };
+    this.facing = facing;
+    this.marker = null;
+    this.quietObj = null;
+    this.hideBubble();
+    this.centerCamera(true);
+    this.requestFrame();
   }
 
   // ───────────────────────────── input ─────────────────────────────
@@ -140,7 +207,9 @@ export class Town {
       this.pendingInteract = null;
       this.marker = null;
       if (!this.held.includes(dir)) this.held.push(dir);
-      this.hideBubble();
+      // Town bubbles close as you walk off; retro (arcade) bubbles fade on their own instead,
+      // so holding a key against a machine doesn't flicker its box.
+      if (!this.scene.retro) this.hideBubble();
       // Start the step now, so a quick tap (keyup before the next frame) still moves one tile.
       if (!this.moving) this.startNextStep(performance.now());
       this.requestFrame();
@@ -249,6 +318,7 @@ export class Town {
     if (!next) return;
     this.from = { ...this.pos };
     this.pos = next;
+    this.quietObj = null;
     this.moving = true;
     this.stepStart = now;
     this.stepCount++;
@@ -284,7 +354,14 @@ export class Town {
   }
 
   private trigger(obj: TownObject) {
-    if (obj.target.type === "place") {
+    if (this.scene.retro && obj.kind === "prop") {
+      if (obj.id === this.quietObj) return;
+      this.quietObj = obj.id;
+    }
+    if (obj.target.type === "event") {
+      this.hideBubble();
+      this.config.onEvent?.(obj.target.name);
+    } else if (obj.target.type === "place") {
       const place = this.config.places[obj.target.id];
       if (!place) return;
       this.announce(`Entering ${place.name}`);
@@ -322,12 +399,22 @@ export class Town {
 
   private buildLabels() {
     const layer = this.root.querySelector<HTMLElement>("[data-town-labels]")!;
-    for (const obj of OBJECTS) {
+    layer.replaceChildren();
+    this.labels.clear();
+    for (const obj of this.scene.objects) {
+      if (obj.hideLabel) continue;
       const el = document.createElement("button");
       el.type = "button";
       el.className = `town-label town-label--${obj.kind}`;
       el.textContent = obj.label;
-      el.setAttribute("aria-label", obj.target.type === "place" ? `Walk to ${obj.label}` : `Walk to the ${obj.label} ${obj.kind === "statue" ? "statue" : "sign"}`);
+      el.setAttribute(
+        "aria-label",
+        obj.target.type === "event"
+          ? `Talk to the ${obj.label}`
+          : obj.target.type === "place"
+            ? `Walk to ${obj.label}`
+            : `Walk to the ${obj.label} ${obj.kind === "statue" ? "statue" : "sign"}`,
+      );
       el.addEventListener("click", () => {
         this.walkToObject(obj);
         this.focus();
@@ -338,7 +425,8 @@ export class Town {
   }
 
   private showLinkBubble(obj: TownObject) {
-    const link = obj.target.type === "note" ? undefined : this.config.links[obj.target.id];
+    const link = obj.target.type === "link" ? this.config.links[obj.target.id] : undefined;
+    this.holdBubble();
     this.bubble.replaceChildren();
     this.bubbleLink = null;
     const title = document.createElement("strong");
@@ -346,8 +434,8 @@ export class Town {
     this.bubble.append(title);
     if (obj.target.type === "note") {
       const p = document.createElement("span");
-      p.textContent = obj.target.text;
       this.bubble.append(p);
+      this.typeInto(p, obj.target.text);
     } else if (link?.url) {
       const a = document.createElement("a");
       a.href = link.url;
@@ -369,6 +457,8 @@ export class Town {
       p.textContent = "Opening soon. Check back later!";
       this.bubble.append(p);
     }
+    // Notes start their countdown once fully typed; everything else right away.
+    if (obj.target.type !== "note") this.scheduleDismiss();
     const close = document.createElement("button");
     close.type = "button";
     close.className = "town-bubble__close";
@@ -385,7 +475,41 @@ export class Town {
     );
   }
 
+  /** Retro scenes type notes out letter by letter, like an old RPG text box. */
+  private typeInto(el: HTMLElement, text: string) {
+    clearInterval(this.typer);
+    if (!this.scene.retro || this.reducedMotion.matches) {
+      el.textContent = text;
+      return this.scheduleDismiss();
+    }
+    let i = 0;
+    this.typer = window.setInterval(() => {
+      el.textContent = text.slice(0, ++i);
+      if (i < text.length) return;
+      clearInterval(this.typer);
+      this.scheduleDismiss();
+    }, 20);
+  }
+
+  /** In retro scenes, fade the bubble away 3 seconds from now (unless the pointer or focus is on it). */
+  private scheduleDismiss() {
+    clearTimeout(this.dismiss);
+    if (!this.scene.retro || this.bubble.matches(":hover, :focus-within")) return;
+    this.dismiss = window.setTimeout(() => {
+      this.bubble.classList.add("is-leaving");
+      this.dismiss = window.setTimeout(() => this.hideBubble(), this.reducedMotion.matches ? 0 : 300);
+    }, 3000);
+  }
+
+  /** Cancel a pending fade, e.g. while the pointer is over the bubble. */
+  private holdBubble() {
+    clearTimeout(this.dismiss);
+    this.bubble.classList.remove("is-leaving");
+  }
+
   private hideBubble() {
+    clearInterval(this.typer);
+    this.holdBubble();
     this.bubble.hidden = true;
   }
 
@@ -400,8 +524,8 @@ export class Town {
     const cssH = this.root.clientHeight;
     if (!cssW || !cssH) return;
     const dpr = window.devicePixelRatio || 1;
-    const mapW = COLS * TILE;
-    const mapH = ROWS * TILE;
+    const mapW = this.grid.cols * TILE;
+    const mapH = this.grid.rows * TILE;
     // Fit the whole town when there is room; otherwise keep characters big and follow with a camera.
     const fit = Math.min(cssW / mapW, cssH / mapH);
     const minScale = cssW < 640 ? 2.25 : 2;
@@ -430,8 +554,8 @@ export class Town {
     const viewW = this.root.clientWidth / this.scale;
     const viewH = this.root.clientHeight / this.scale;
     const visibleH = Math.max(viewH / 3, (this.root.clientHeight - this.bottomInset) / this.scale);
-    const mapW = COLS * TILE;
-    const mapH = ROWS * TILE;
+    const mapW = this.grid.cols * TILE;
+    const mapH = this.grid.rows * TILE;
     const p = this.playerPx(now);
     const clamp = (v: number, view: number, map: number) => (view >= map ? (map - view) / 2 : Math.max(0, Math.min(map - view, v)));
     const target = { x: clamp(p.x + TILE / 2 - viewW / 2, viewW, mapW), y: clamp(p.y + TILE / 2 - visibleH / 2, viewH, mapH) };
@@ -451,7 +575,7 @@ export class Town {
     const s = this.scale * dpr;
     ctx.imageSmoothingEnabled = false;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = "#4f9d4a";
+    ctx.fillStyle = this.scene.backdrop;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     // Round the camera to whole device pixels to avoid shimmering seams.
     const ox = Math.round(-this.cam.x * s);
@@ -467,8 +591,19 @@ export class Town {
       ctx.fillRect(mx + 6, my + 11, 4, 4);
     }
 
-    // Twin NPC with a speech-bubble hint
-    const twin = OBJECTS.find((o) => o.id === "twin")!;
+    const twin = this.scene.objects.find((o) => o.id === "twin");
+    if (twin) this.drawTwin(twin);
+
+    const p = this.playerPx(now);
+    const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
+    this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
+
+    this.positionLabels();
+  }
+
+  /** Twin NPC with a speech-bubble hint. */
+  private drawTwin(twin: TownObject) {
+    const { ctx } = this;
     this.drawCharacter(this.twinSprites, "down", 0, twin.x * TILE, twin.y * TILE);
     ctx.fillStyle = "#3b2a2a";
     ctx.fillRect(twin.x * TILE + 10, twin.y * TILE - 12, 9, 8);
@@ -478,12 +613,6 @@ export class Town {
     ctx.fillRect(twin.x * TILE + 12, twin.y * TILE - 9, 1, 1);
     ctx.fillRect(twin.x * TILE + 14, twin.y * TILE - 9, 1, 1);
     ctx.fillRect(twin.x * TILE + 16, twin.y * TILE - 9, 1, 1);
-
-    const p = this.playerPx(now);
-    const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
-    this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
-
-    this.positionLabels();
   }
 
   private drawCharacter(sheet: SpriteSheet, dir: Dir, frame: 0 | 1 | 2, x: number, y: number) {
@@ -496,10 +625,11 @@ export class Town {
 
   private positionLabels() {
     const viewW = this.root.clientWidth;
-    for (const obj of OBJECTS) {
-      const el = this.labels.get(obj.id)!;
+    for (const obj of this.scene.objects) {
+      const el = this.labels.get(obj.id);
+      if (!el) continue;
       const cx = ((obj.x + obj.w / 2) * TILE - this.cam.x) * this.scale;
-      const top = (obj.y * TILE - this.cam.y) * this.scale - (obj.kind === "npc" ? 30 : 6);
+      const top = (obj.y * TILE - (obj.labelLift ?? 0) - this.cam.y) * this.scale - (obj.kind === "npc" ? 30 : 6);
       const visible = cx > -40 && cx < viewW + 40 && top > -20 && top < this.root.clientHeight;
       el.style.transform = `translate(${Math.round(cx)}px, ${Math.round(top)}px) translate(-50%, -100%)`;
       el.style.visibility = visible ? "visible" : "hidden";

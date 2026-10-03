@@ -33,13 +33,23 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
       enteredFromTown = true;
       navigate(href);
     },
+    // e.g. talking to the arcade robot fires "town:mancala".
+    onEvent: (name) => document.dispatchEvent(new CustomEvent(`town:${name}`)),
   });
 
   const sync = () => {
     const place = document.documentElement.dataset.place ?? "town";
-    town.setActivePlace(place);
-    // Arrivals from the Map menu, links, or a fresh deep link: put the visitor at that door.
-    if (!enteredFromTown && place !== "town") town.teleportToPlace(place);
+    if (town.hasInterior(place)) {
+      // Places with an interior: the visitor walks inside and the room fills the screen.
+      town.enterScene(place);
+    } else {
+      const inside = town.sceneId;
+      // Leaving a building puts the visitor back outside its door, facing the street.
+      if (town.enterScene("town")) town.teleportToPlace(inside, "down");
+      town.setActivePlace(place);
+      // Arrivals from the Map menu, links, or a fresh deep link: put the visitor at that door.
+      if (!enteredFromTown && place !== "town") town.teleportToPlace(place);
+    }
     enteredFromTown = false;
   };
   document.addEventListener("astro:page-load", sync);
@@ -58,6 +68,14 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
 
   // The Map menu and other links can ask the town to walk somewhere.
   document.addEventListener("town:focus", () => town.focus());
+  // Pages can show a message in the town's text box, e.g. the arcade scoreboard.
+  document.addEventListener("town:note", (e) => {
+    const { title, text } = (e as CustomEvent<{ title: string; text: string }>).detail;
+    town.showNote(title, text);
+  });
+  // Full-screen experiences (the arcade game) pause walking while they're open.
+  document.addEventListener("town:pause", () => town.setEnabled(false));
+  document.addEventListener("town:resume", () => town.setEnabled(true));
 </script>
 
 <style>
@@ -195,6 +213,92 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
     cursor: pointer;
     color: var(--ink);
   }
+  /* ─────────────── retro scenes (the arcade): soft gray RPG text boxes and tags ─────────────── */
+  .town[data-retro] .town-bubble {
+    display: block;
+    width: min(640px, calc(100% - 40px));
+    padding: 1.1em 3.2em 1.1em 1.5em;
+    font: 12px/2 var(--font-retro, monospace);
+    color: #2b2b33;
+    background: linear-gradient(#f1f1f4, #e2e2e8);
+    border: 3px solid #4a4a56;
+    border-radius: 12px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 10px 24px rgba(10, 6, 20, 0.35);
+    animation: town-retro-in 0.25s ease-out;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  /* Keep [hidden] working: the display: block above would otherwise override it. */
+  .town[data-retro] .town-bubble[hidden] {
+    display: none;
+  }
+  /* A soft inner frame, the way old RPG text boxes had a double border. */
+  .town[data-retro] .town-bubble::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border: 2px solid #b4b4c0;
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .town[data-retro] .town-bubble:global(.is-leaving) {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  .town[data-retro] .town-bubble :global(span) {
+    white-space: pre-wrap;
+  }
+  .town[data-retro] .town-bubble :global(strong) {
+    display: block;
+    margin-bottom: 0.4em;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5a5a6e;
+  }
+  .town[data-retro] .town-bubble :global(.town-bubble__close) {
+    right: 10px;
+    top: 10px;
+    transform: none;
+    font: 14px var(--font-retro, monospace);
+    color: #4a4a56;
+  }
+  .town[data-retro] .town-labels :global(.town-label) {
+    font: 9px/1 var(--font-retro, monospace);
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 0;
+    color: #181820;
+    background: #f8f8f0;
+    box-shadow:
+      0 -3px 0 0 #181820,
+      0 3px 0 0 #181820,
+      -3px 0 0 0 #181820,
+      3px 0 0 0 #181820;
+  }
+  .town[data-retro] .town-labels :global(.town-label--npc) {
+    color: #f8d030;
+    background: #181820;
+    box-shadow:
+      0 -3px 0 0 #f8d030,
+      0 3px 0 0 #f8d030,
+      -3px 0 0 0 #f8d030,
+      3px 0 0 0 #f8d030;
+  }
+  @keyframes town-retro-in {
+    from {
+      transform: translate(-50%, 10px);
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .town[data-retro] .town-bubble {
+      animation: none;
+      transition: none;
+    }
+  }
+
   .town-noscript {
     position: absolute;
     inset: auto 16px 16px;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN } from "./arcade.ts";
 import { TownGrid } from "./grid.ts";
 import { COLS, GROUND, OBJECTS, SPAWN } from "./map.ts";
 
@@ -50,6 +51,37 @@ describe("town map", () => {
       expect(grid.isWalkable(at.x, at.y)).toBe(true);
       expect(grid.doorAt(at.x, at.y)).toBeUndefined();
     }
+  });
+});
+
+describe("arcade interior", () => {
+  const grid = new TownGrid(ARCADE_OBJECTS, ARCADE_GROUND);
+
+  it("has a rectangular ground layer", () => {
+    for (const row of ARCADE_GROUND) expect(row).toHaveLength(ARCADE_GROUND[0].length);
+  });
+
+  it("spawns just inside the exit", () => {
+    expect(grid.isWalkable(ARCADE_SPAWN.x, ARCADE_SPAWN.y)).toBe(true);
+    const exit = grid.doorAt(ARCADE_SPAWN.x, ARCADE_SPAWN.y + 1);
+    expect(exit?.target).toEqual({ type: "place", id: "town" });
+  });
+
+  it.each(ARCADE_OBJECTS.map((o) => [o.id, o] as const))("%s is reachable from the entrance", (_id, obj) => {
+    expect(grid.approach(obj, ARCADE_SPAWN)).not.toBeNull();
+  });
+
+  it("walls are solid", () => {
+    expect(grid.isWalkable(0, 5)).toBe(false);
+    expect(grid.isWalkable(5, 1)).toBe(false);
+    expect(grid.isWalkable(3, 13)).toBe(false);
+  });
+
+  it("the town has a matching door to walk back out of", () => {
+    const town = new TownGrid();
+    const arcade = OBJECTS.find((o) => o.target.type === "place" && o.target.id === "arcade")!;
+    const { at } = town.arrivalTile(arcade, SPAWN);
+    expect(town.isWalkable(at.x, at.y)).toBe(true);
   });
 });
 

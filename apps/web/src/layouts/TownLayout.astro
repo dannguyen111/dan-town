@@ -12,9 +12,15 @@ interface Props {
   place: PlaceId;
   title?: string;
   description?: string;
+  /**
+   * The place is a room you walk into: its interior fills the screen (see town/scenes.ts).
+   * The page's text stays available to screen readers and keyboard users, and the page can
+   * put a full-screen experience in the "screen" slot.
+   */
+  interior?: boolean;
 }
 
-const { place, title, description = `${profile.identity.name}: ${profile.identity.headline}. ${profile.identity.tagline}` } = Astro.props;
+const { place, interior = false, title, description = `${profile.identity.name}: ${profile.identity.headline}. ${profile.identity.tagline}` } = Astro.props;
 const info = placeById(place)!;
 const pageTitle = title ? `${title} · ${profile.identity.name}` : `${profile.identity.name}: ${profile.identity.headline}`;
 // Pages build to about.html, but are served (and should be indexed) as /about.
@@ -22,7 +28,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
 ---
 
 <!doctype html>
-<html lang="en" data-place={place}>
+<html lang="en" data-place={place} data-interior={interior ? "" : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -40,6 +46,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     <meta property="og:url" content={canonical} />
     <Font cssVariable="--font-body" preload />
     <Font cssVariable="--font-pixel" />
+    {interior && <Font cssVariable="--font-retro" preload />}
     <ClientRouter fallback="swap" />
   </head>
   <body>
@@ -75,14 +82,17 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
       </main>
     </div>
 
+    <slot name="screen" />
     <MapMenu current={place} />
     <Tutorial />
 
     <script>
+      const html = document.documentElement;
+
       // Move focus into the content sheet on small screens, where it covers the town.
       document.addEventListener("astro:after-swap", () => {
-        const place = document.documentElement.dataset.place;
-        if (place !== "town" && matchMedia("(max-width: 899px)").matches) {
+        const place = html.dataset.place;
+        if (place !== "town" && !html.hasAttribute("data-interior") && matchMedia("(max-width: 899px)").matches) {
           document.getElementById("panel-title")?.focus({ preventScroll: true });
         }
         document.querySelector(".panel__body")?.scrollTo({ top: 0 });
@@ -173,6 +183,35 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     padding: 0.6rem 1.5rem;
     font-size: 0.8rem;
     border-top: 2px solid var(--line);
+  }
+
+  /* ─────────────── interiors: the room is the whole screen ─────────────── */
+  :global(html[data-interior]) .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The page text stays in the accessibility tree, and shows as a card when tabbed into. */
+  :global(html[data-interior]) .panel:not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  :global(html[data-interior]) .panel:focus-within {
+    position: fixed;
+    z-index: 15;
+    inset: auto auto 12px 12px;
+    width: min(420px, calc(100vw - 24px));
+    max-height: 60dvh;
+    border: 3px solid var(--ink);
+    border-radius: var(--radius);
+    box-shadow: 0 6px 0 var(--ink);
+    overflow: hidden;
+    transform: none;
+  }
+  :global(html[data-interior]) .panel__back {
+    display: none;
   }
 
   /* ─────────────── mobile: the town is the screen, content is a sheet ─────────────── */

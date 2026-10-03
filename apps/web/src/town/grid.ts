@@ -1,4 +1,4 @@
-import { COLS, GROUND, OBJECTS, ROWS, type Point, type TownObject } from "./map.ts";
+import { GROUND, OBJECTS, type Point, type TownObject } from "./map.ts";
 
 export type Dir = "up" | "down" | "left" | "right";
 
@@ -14,22 +14,29 @@ const DIRS = Object.keys(DELTA) as Dir[];
 export const dirBetween = (a: Point, b: Point): Dir =>
   b.x > a.x ? "right" : b.x < a.x ? "left" : b.y > a.y ? "down" : "up";
 
-/** Collision, objects and pathfinding for the town grid. */
+/** Ground tiles nobody can walk on: trees, water, and interior walls. */
+const SOLID_TILES = new Set(["T", "~", "#"]);
+
+/** Collision, objects and pathfinding for a tile map (the town, or a building's interior). */
 export class TownGrid {
-  readonly cols = COLS;
-  readonly rows = ROWS;
+  readonly cols: number;
+  readonly rows: number;
   private readonly solid: boolean[];
   private readonly objectIndex: (TownObject | undefined)[];
   private readonly doors = new Map<number, TownObject>();
 
-  constructor(readonly objects: readonly TownObject[] = OBJECTS) {
-    this.solid = new Array<boolean>(COLS * ROWS).fill(false);
-    this.objectIndex = new Array<TownObject | undefined>(COLS * ROWS).fill(undefined);
+  constructor(
+    readonly objects: readonly TownObject[] = OBJECTS,
+    ground: readonly string[] = GROUND,
+  ) {
+    this.cols = ground[0]!.length;
+    this.rows = ground.length;
+    this.solid = new Array<boolean>(this.cols * this.rows).fill(false);
+    this.objectIndex = new Array<TownObject | undefined>(this.cols * this.rows).fill(undefined);
 
-    GROUND.forEach((row, y) => {
-      for (let x = 0; x < COLS; x++) {
-        const t = row[x];
-        if (t === "T" || t === "~") this.solid[this.key(x, y)] = true;
+    ground.forEach((row, y) => {
+      for (let x = 0; x < this.cols; x++) {
+        if (SOLID_TILES.has(row[x]!)) this.solid[this.key(x, y)] = true;
       }
     });
 
@@ -48,11 +55,11 @@ export class TownGrid {
   }
 
   private key(x: number, y: number) {
-    return y * COLS + x;
+    return y * this.cols + x;
   }
 
   inBounds(x: number, y: number) {
-    return x >= 0 && y >= 0 && x < COLS && y < ROWS;
+    return x >= 0 && y >= 0 && x < this.cols && y < this.rows;
   }
 
   isWalkable(x: number, y: number) {
@@ -73,7 +80,7 @@ export class TownGrid {
   findPath(from: Point, to: Point): Point[] | null {
     if (!this.isWalkable(to.x, to.y)) return null;
     if (from.x === to.x && from.y === to.y) return [];
-    const prev = new Int32Array(COLS * ROWS).fill(-1);
+    const prev = new Int32Array(this.cols * this.rows).fill(-1);
     const start = this.key(from.x, from.y);
     const goal = this.key(to.x, to.y);
     prev[start] = start;
@@ -81,8 +88,8 @@ export class TownGrid {
     for (let head = 0; head < queue.length; head++) {
       const cur = queue[head]!;
       if (cur === goal) break;
-      const cx = cur % COLS;
-      const cy = (cur - cx) / COLS;
+      const cx = cur % this.cols;
+      const cy = (cur - cx) / this.cols;
       for (const d of DIRS) {
         const nx = cx + DELTA[d].x;
         const ny = cy + DELTA[d].y;
@@ -95,7 +102,7 @@ export class TownGrid {
     }
     if (prev[goal] === -1) return null;
     const path: Point[] = [];
-    for (let k = goal; k !== start; k = prev[k]!) path.push({ x: k % COLS, y: Math.floor(k / COLS) });
+    for (let k = goal; k !== start; k = prev[k]!) path.push({ x: k % this.cols, y: Math.floor(k / this.cols) });
     return path.reverse();
   }
 

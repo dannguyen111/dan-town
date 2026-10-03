@@ -39,9 +39,14 @@ export interface Point {
 }
 
 /** What interacting with an object does. */
-export type Target = { type: "place"; id: string } | { type: "link"; id: string } | { type: "note"; text: string };
+export type Target =
+  | { type: "place"; id: string }
+  | { type: "link"; id: string }
+  | { type: "note"; text: string }
+  /** Fires a `town:<name>` DOM event, e.g. the arcade robot opening the game. */
+  | { type: "event"; name: string };
 
-export type ObjectKind = "building" | "garden" | "stall" | "board" | "signpost" | "mailbox" | "npc" | "statue";
+export type ObjectKind = "building" | "garden" | "stall" | "board" | "signpost" | "mailbox" | "npc" | "statue" | "prop" | "exit";
 
 export interface TownObject {
   id: string;
@@ -56,6 +61,10 @@ export interface TownObject {
   label: string;
   /** Visual theme key for the renderer. */
   style: string;
+  /** Scenery you can still bump into and read, but without a floating name tag. */
+  hideLabel?: boolean;
+  /** Raise the name tag this many world pixels, for art that pokes above the object's tiles. */
+  labelLift?: number;
 }
 
 export const OBJECTS: readonly TownObject[] = [
