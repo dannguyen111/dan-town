@@ -14,6 +14,7 @@ interface Exports {
   choose(player: number, timeMs: number): number;
   last_depth(): number;
   last_nodes(): number;
+  last_value(): number;
 }
 
 export type EngineRequest =
@@ -24,7 +25,7 @@ export type EngineRequest =
 export type EngineResponse =
   | { id: number; op: "board"; state: number[]; count: number }
   | { id: number; op: "apply"; state: number[]; next: number; over: boolean }
-  | { id: number; op: "choose"; move: number; depth: number; nodes: number; ms: number }
+  | { id: number; op: "choose"; move: number; depth: number; nodes: number; ms: number; value: number }
   | { id: number; op: "error"; message: string };
 
 const ready: Promise<Exports> = WebAssembly.instantiateStreaming(fetch("/wasm/mancala.wasm"), {}).then(
@@ -56,7 +57,7 @@ scope.onmessage = async (e: MessageEvent<EngineRequest>) => {
       view(ex).set(req.state);
       const t0 = performance.now();
       const move = ex.choose(req.player, req.timeMs);
-      res = { id: req.id, op: "choose", move, depth: ex.last_depth(), nodes: ex.last_nodes(), ms: performance.now() - t0 };
+      res = { id: req.id, op: "choose", move, depth: ex.last_depth(), nodes: ex.last_nodes(), ms: performance.now() - t0, value: ex.last_value() };
     }
     scope.postMessage(res);
   } catch (err) {
