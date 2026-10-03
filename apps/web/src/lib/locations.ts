@@ -13,7 +13,7 @@ export const PLACES = [
   { id: "town", name: "Town Square", href: "/", emoji: "🏡", blurb: "The middle of town." },
   { id: "home", name: "Home", href: "/about", emoji: "🏠", blurb: "Who I am" },
   { id: "dev", name: "Dev Center", href: "/dev", emoji: "💻", blurb: "Projects, GitHub, and LeetCode" },
-  { id: "career", name: "Career Hall", href: "/career", emoji: "💼", blurb: "Experience, education, and resume" },
+  { id: "career", name: "Career Hall", href: "/career", emoji: "💼", blurb: "Experience, education, and honors" },
   { id: "music", name: "Music Room", href: "/music", emoji: "🎧", blurb: "What I've been listening to" },
   { id: "arcade", name: "Arcade", href: "/arcade", emoji: "🕹️", blurb: "Play my Mancala bot" },
   { id: "garden", name: "Interests Garden", href: "/interests", emoji: "🌻", blurb: "Things I love outside of code" },
@@ -31,5 +31,5 @@ export interface ExternalLink {
   url: string | null;
 }
 
-export const EXTERNAL_LINKS: ExternalLink[] = profile.links.filter((l) => l.id !== "resume");
+export const EXTERNAL_LINKS: ExternalLink[] = profile.links;
 export const externalLink = (id: string) => EXTERNAL_LINKS.find((l) => l.id === id);

@@ -2,14 +2,10 @@
 import TownLayout from "../layouts/TownLayout.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { profile, formatMonth, formatRange } from "../lib/profile";
-
-const resume = profile.links.find((l) => l.id === "resume" && l.url);
 ---
 
 <TownLayout place="career" title="Career Hall" description="Experience, education, and honors.">
-  <PageHeader kicker="💼 Career Hall" title="Where I've worked">
-    {resume?.url && <a class="btn btn--primary" href={resume.url}>📄 Download resume (PDF)</a>}
-  </PageHeader>
+  <PageHeader kicker="💼 Career Hall" title="Where I've worked" />
 
   <ol class="clean timeline">
     {
