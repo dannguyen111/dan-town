@@ -1,0 +1,28 @@
+---
+import { profile } from "../lib/profile";
+
+const ICONS: Record<string, string> = { github: "🐙", linkedin: "💼", email: "✉️", depop: "🛍️", resume: "📄" };
+---
+
+<ul class="clean link-row">
+  {
+    profile.links.map((l) =>
+      l.url ? (
+        <li>
+          <a class="btn btn--small" href={l.url} {...(l.url.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+            <span aria-hidden="true">{ICONS[l.id] ?? "🔗"}</span>
+            {l.label}
+          </a>
+        </li>
+      ) : null,
+    )
+  }
+</ul>
+
+<style>
+  .link-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+</style>

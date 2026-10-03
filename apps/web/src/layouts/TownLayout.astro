@@ -1,0 +1,206 @@
+---
+import { ClientRouter } from "astro:transitions";
+import { Font } from "astro:assets";
+import Town from "../components/Town.astro";
+import MapMenu from "../components/MapMenu.astro";
+import Tutorial from "../components/Tutorial.astro";
+import { placeById, type PlaceId } from "../lib/locations";
+import { profile } from "../lib/profile";
+import "../styles/global.css";
+
+interface Props {
+  place: PlaceId;
+  title?: string;
+  description?: string;
+}
+
+const { place, title, description = `${profile.identity.name}: ${profile.identity.headline}. ${profile.identity.tagline}` } = Astro.props;
+const info = placeById(place)!;
+const pageTitle = title ? `${title} · ${profile.identity.name}` : `${profile.identity.name}: ${profile.identity.headline}`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en" data-place={place}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="theme-color" content="#9bd770" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <Font cssVariable="--font-body" preload />
+    <Font cssVariable="--font-pixel" />
+    <ClientRouter fallback="swap" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="topbar" transition:persist="topbar">
+      <a class="brand pixel" href="/">
+        <span aria-hidden="true">🏡</span>
+        {profile.identity.short_name}'s Town
+      </a>
+      <nav class="topbar__actions" aria-label="Site">
+        <button class="btn btn--small" type="button" data-open-map aria-haspopup="dialog">
+          <span aria-hidden="true">🗺️</span> Map
+        </button>
+        <button class="btn btn--small icon-btn" type="button" data-open-tutorial aria-label="How to play">?</button>
+      </nav>
+    </header>
+
+    <div class="shell">
+      <Town />
+      <main id="content" class="panel" tabindex="-1" aria-labelledby="panel-title">
+        <div class="panel__bar">
+          <a class="btn btn--small panel__back" href="/" aria-label="Back to the town map">← Town</a>
+          <span class="panel__where pixel" aria-hidden="true">{info.emoji} {info.name}</span>
+        </div>
+        <div class="panel__body">
+          <slot />
+        </div>
+        <footer class="panel__footer muted">
+          <span>Built by {profile.identity.name} with Astro, Rust/WASM, and Cloudflare.</span>
+          <a href="/dev#how-its-built">How this site works</a>
+        </footer>
+      </main>
+    </div>
+
+    <MapMenu current={place} />
+    <Tutorial />
+
+    <script>
+      // Move focus into the content sheet on small screens, where it covers the town.
+      document.addEventListener("astro:after-swap", () => {
+        const place = document.documentElement.dataset.place;
+        if (place !== "town" && matchMedia("(max-width: 899px)").matches) {
+          document.getElementById("panel-title")?.focus({ preventScroll: true });
+        }
+        document.querySelector(".panel__body")?.scrollTo({ top: 0 });
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  .topbar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 20;
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    background: rgba(255, 248, 238, 0.92);
+    backdrop-filter: blur(6px);
+    border-bottom: 2px solid var(--line);
+  }
+  .brand {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+    min-height: 44px;
+  }
+  .topbar__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .icon-btn {
+    width: 40px;
+    padding: 0;
+  }
+
+  .shell {
+    position: fixed;
+    inset: var(--header-h) 0 0 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--panel-w);
+  }
+  .shell :global(.town) {
+    height: 100%;
+  }
+
+  .panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--cream);
+    border-left: 2px solid var(--line);
+    outline: none;
+  }
+  .panel__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1.25rem;
+    border-bottom: 2px solid var(--line);
+    background: var(--sand);
+  }
+  .panel__back {
+    display: none;
+  }
+  .panel__where {
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .panel__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1.5rem 2rem;
+    overscroll-behavior: contain;
+  }
+  .panel__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.8rem;
+    border-top: 2px solid var(--line);
+  }
+
+  /* ─────────────── mobile: the town is the screen, content is a sheet ─────────────── */
+  @media (max-width: 899px) {
+    .shell {
+      grid-template-columns: 1fr;
+    }
+    .panel {
+      position: fixed;
+      inset: var(--header-h) 0 0 0;
+      border-left: 0;
+      z-index: 10;
+      transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .panel__back {
+      display: inline-flex;
+    }
+    /* On the town square, the panel shrinks to a peek card that doesn't block the map. */
+    :global(html[data-place="town"]) .panel {
+      inset: auto 10px max(10px, env(safe-area-inset-bottom)) 10px;
+      max-height: 38dvh;
+      border: 2px solid var(--ink);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 0 var(--ink);
+      overflow: hidden;
+    }
+    :global(html[data-place="town"]) .panel__bar,
+    :global(html[data-place="town"]) .panel__footer {
+      display: none;
+    }
+    :global(html[data-place="town"]) .panel__body {
+      padding: 1rem 1.1rem;
+    }
+  }
+</style>

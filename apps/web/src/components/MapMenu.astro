@@ -1,0 +1,154 @@
+---
+import { EXTERNAL_LINKS, PLACES } from "../lib/locations";
+
+interface Props {
+  current: string;
+}
+const { current } = Astro.props;
+const external = EXTERNAL_LINKS;
+---
+
+<dialog class="sheet-dialog" id="map-menu" aria-labelledby="map-menu-title">
+  <div class="sheet-dialog__inner">
+    <div class="sheet-dialog__head">
+      <h2 id="map-menu-title" class="pixel">🗺️ Town map</h2>
+      <button class="btn btn--small" type="button" data-close aria-label="Close map">×</button>
+    </div>
+    <p class="muted">Jump straight to a place. No walking needed.</p>
+    <ul class="clean map-list">
+      {
+        PLACES.map((p) => (
+          <li>
+            <a href={p.href} class="map-item" aria-current={p.id === current ? "page" : undefined} data-close-on-click>
+              <span class="map-item__emoji" aria-hidden="true">{p.emoji}</span>
+              <span>
+                <strong>{p.name}</strong>
+                <span class="muted map-item__blurb">{p.blurb}</span>
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+    <h3>Around town</h3>
+    <ul class="clean ext-list">
+      {
+        external.map((l) =>
+          l.url ? (
+            <li>
+              <a class="chip ext-chip" href={l.url} {...(l.url.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+                {l.label}
+                {l.url.startsWith("http") && <span aria-hidden="true"> ↗</span>}
+              </a>
+            </li>
+          ) : (
+            <li>
+              <span class="chip ext-chip ext-chip--soon">{l.label} (soon)</span>
+            </li>
+          ),
+        )
+      }
+      <li><a class="chip ext-chip" href="/docs/resume.pdf">Resume (PDF)</a></li>
+    </ul>
+  </div>
+</dialog>
+
+<script>
+  const setup = () => {
+    const dialog = document.querySelector<HTMLDialogElement>("#map-menu")!;
+    document.querySelectorAll<HTMLElement>("[data-open-map]").forEach((btn) => {
+      btn.onclick = () => dialog.showModal();
+    });
+    dialog.querySelectorAll<HTMLElement>("[data-close], [data-close-on-click]").forEach((el) =>
+      el.addEventListener("click", () => dialog.close()),
+    );
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+  };
+  document.addEventListener("astro:page-load", setup);
+</script>
+
+<style is:global>
+  .sheet-dialog {
+    width: min(520px, calc(100vw - 24px));
+    max-height: min(86dvh, 760px);
+    padding: 0;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    background: var(--cream);
+    color: var(--ink);
+    box-shadow: 0 6px 0 var(--ink);
+  }
+  .sheet-dialog::backdrop {
+    background: rgba(40, 30, 25, 0.45);
+  }
+  .sheet-dialog__inner {
+    padding: 1.1rem 1.25rem 1.4rem;
+  }
+  .sheet-dialog__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sheet-dialog__head h2 {
+    margin: 0;
+  }
+  @media (max-width: 599px) {
+    .sheet-dialog {
+      margin: auto 0 0;
+      width: 100vw;
+      max-width: 100vw;
+      border-radius: var(--radius) var(--radius) 0 0;
+      border-bottom: 0;
+    }
+  }
+</style>
+
+<style>
+  .map-list {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.75rem 0 1rem;
+  }
+  .map-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    min-height: 52px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .map-item:hover,
+  .map-item[aria-current="page"] {
+    border-color: var(--ink);
+    background: #fff4d6;
+  }
+  .map-item__emoji {
+    font-size: 1.5rem;
+  }
+  .map-item__blurb {
+    display: block;
+    font-size: 0.85rem;
+  }
+  .ext-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .ext-chip {
+    padding: 0.45em 0.9em;
+    text-decoration: none;
+    border: 2px solid var(--line);
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .ext-chip--soon {
+    opacity: 0.6;
+  }
+</style>

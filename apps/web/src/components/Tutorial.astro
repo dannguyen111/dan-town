@@ -1,0 +1,86 @@
+---
+import { profile } from "../lib/profile";
+---
+
+<dialog class="sheet-dialog tutorial" id="tutorial" aria-labelledby="tutorial-title" transition:persist="tutorial">
+  <div class="sheet-dialog__inner">
+    <h2 id="tutorial-title" class="pixel">Welcome to my little world!</h2>
+    <p>Hi, I'm {profile.identity.short_name} 👋 This town is my portfolio. Each building holds a different part of my story.</p>
+    <ul class="clean tips">
+      <li><span class="key" aria-hidden="true">⌨️</span> Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys</li>
+      <li><span class="key" aria-hidden="true">👆</span> Or click / tap anywhere to walk there</li>
+      <li><span class="key" aria-hidden="true">🚪</span> Walk into buildings to explore, and say hi to my twin in the plaza</li>
+      <li><span class="key" aria-hidden="true">🗺️</span> In a hurry? The <strong>Map</strong> button jumps anywhere</li>
+    </ul>
+    <button class="btn btn--primary tutorial__go" type="button" data-close autofocus>Let's explore</button>
+  </div>
+</dialog>
+
+<script>
+  const KEY = "town.tutorial.v1";
+  const dialog = document.querySelector<HTMLDialogElement>("#tutorial")!;
+
+  const seen = () => {
+    try {
+      return localStorage.getItem(KEY) === "1";
+    } catch {
+      return false;
+    }
+  };
+  const markSeen = () => {
+    try {
+      localStorage.setItem(KEY, "1");
+    } catch {
+      /* private mode: the tutorial simply shows again next time */
+    }
+  };
+
+  // Mark as seen on every way out (button, Escape, close event) rather than relying on one event.
+  const dismiss = () => {
+    markSeen();
+    if (dialog.open) dialog.close();
+    document.dispatchEvent(new Event("town:focus"));
+  };
+  dialog.querySelector("[data-close]")!.addEventListener("click", dismiss);
+  dialog.addEventListener("cancel", markSeen);
+  dialog.addEventListener("close", markSeen);
+
+  document.addEventListener("astro:page-load", () => {
+    document.querySelectorAll<HTMLElement>("[data-open-tutorial]").forEach((b) => (b.onclick = () => dialog.showModal()));
+  });
+
+  // First visit only, and only on the town square (deep links go straight to content).
+  if (!seen() && document.documentElement.dataset.place === "town") dialog.showModal();
+</script>
+
+<style>
+  .tips {
+    display: grid;
+    gap: 0.6rem;
+    margin: 1rem 0 1.25rem;
+  }
+  .tips li {
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+  }
+  .key {
+    width: 1.6em;
+    flex: none;
+  }
+  kbd {
+    display: inline-block;
+    min-width: 1.6em;
+    padding: 0 0.35em;
+    margin: 0 0.1em;
+    border: 2px solid var(--ink);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    background: var(--paper);
+    font: 700 0.8rem/1.5 var(--font-pixel);
+    text-align: center;
+  }
+  .tutorial__go {
+    width: 100%;
+  }
+</style>

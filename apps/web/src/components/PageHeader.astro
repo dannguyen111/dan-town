@@ -1,0 +1,28 @@
+---
+interface Props {
+  title: string;
+  kicker?: string;
+}
+const { title, kicker } = Astro.props;
+---
+
+<header class="page-header">
+  {kicker && <p class="kicker pixel">{kicker}</p>}
+  <h1 id="panel-title" tabindex="-1">{title}</h1>
+  <slot />
+</header>
+
+<style>
+  .page-header {
+    margin-bottom: 1.25rem;
+  }
+  .kicker {
+    margin: 0 0 0.25rem;
+    color: var(--teal-ink);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  h1:focus {
+    outline: none;
+  }
+</style>
