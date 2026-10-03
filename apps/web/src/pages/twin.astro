@@ -1,0 +1,298 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { profile } from "../lib/profile";
+
+const first = profile.identity.short_name;
+const featured = profile.projects.find((p) => p.featured);
+const suggestions = [
+  "What projects have you worked on?",
+  "Tell me about your experience.",
+  "What technologies do you use?",
+  "What are you interested in outside of tech?",
+  featured ? `Tell me about ${featured.title}.` : "What are you working on now?",
+];
+---
+
+<TownLayout place="twin" title="Digital Twin" description={`Ask ${first}'s AI twin about projects, experience, and interests.`}>
+  <PageHeader kicker="💬 Town Plaza" title={`Chat with ${first}'s digital twin`}>
+    <p class="muted twin-intro">
+      I'm an AI version of {first}, grounded only in {first}'s profile. I might not know everything, and I'll say so when I don't.
+    </p>
+  </PageHeader>
+
+  <section class="chat" data-chat aria-label="Conversation">
+    <ol class="clean chat__log" data-log aria-live="polite" aria-relevant="additions">
+      <li class="msg msg--twin">Hey! 👋 Ask me anything about my work, projects, or interests.</li>
+    </ol>
+
+    <div class="chat__suggest" data-suggest>
+      <p class="muted chat__suggest-label">Try asking:</p>
+      <ul class="clean chips">
+        {suggestions.map((s) => <li><button type="button" class="chip suggestion" data-prompt={s}>{s}</button></li>)}
+      </ul>
+    </div>
+
+    <form class="chat__form" data-form>
+      <label for="chat-input" class="visually-hidden">Your question</label>
+      <textarea id="chat-input" name="q" rows="2" maxlength="1500" placeholder="Ask me something…" required></textarea>
+      <div class="chat__actions">
+        <label class="mode">
+          <input type="checkbox" name="deep" /> Think harder
+        </label>
+        <button class="btn btn--teal" type="submit" data-send>Send</button>
+      </div>
+      <div data-turnstile></div>
+    </form>
+    <p class="muted fine">
+      Messages are sent to an AI model via OpenRouter to generate replies. Please don't share personal information. For anything important, email {first} directly.
+    </p>
+  </section>
+</TownLayout>
+
+<script>
+  import type { ChatMessage } from "@dan-town/api/types";
+
+  const SITE_KEY = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | undefined;
+
+  /** Escape, then allow a tiny, safe subset of Markdown (bold, bullets, links). */
+  function renderMarkdown(text: string): string {
+    const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const inline = (s: string) =>
+      s
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:|\/)[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    const out: string[] = [];
+    let list: string[] = [];
+    const flush = () => {
+      if (list.length) out.push(`<ul>${list.map((li) => `<li>${inline(li)}</li>`).join("")}</ul>`);
+      list = [];
+    };
+    for (const line of esc.split("\n")) {
+      const m = line.match(/^\s*[-*•]\s+(.*)$/);
+      if (m) list.push(m[1]!);
+      else {
+        flush();
+        if (line.trim()) out.push(`<p>${inline(line)}</p>`);
+      }
+    }
+    flush();
+    return out.join("");
+  }
+
+  let turnstileToken: string | undefined;
+  async function ensureTurnstile(container: HTMLElement) {
+    if (!SITE_KEY || turnstileToken) return;
+    // Loaded lazily, only for visitors who actually chat.
+    await new Promise<void>((resolve, reject) => {
+      if ((window as any).turnstile) return resolve();
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("turnstile"));
+      document.head.append(s);
+    });
+    await new Promise<void>((resolve) => {
+      (window as any).turnstile.render(container, {
+        sitekey: SITE_KEY,
+        size: "flexible",
+        callback: (t: string) => {
+          turnstileToken = t;
+          resolve();
+        },
+      });
+    });
+  }
+
+  function setup() {
+    const root = document.querySelector<HTMLElement>("[data-chat]");
+    if (!root || root.dataset.ready) return;
+    root.dataset.ready = "1";
+
+    const log = root.querySelector<HTMLOListElement>("[data-log]")!;
+    const form = root.querySelector<HTMLFormElement>("[data-form]")!;
+    const input = form.querySelector<HTMLTextAreaElement>("textarea")!;
+    const send = form.querySelector<HTMLButtonElement>("[data-send]")!;
+    const suggest = root.querySelector<HTMLElement>("[data-suggest]")!;
+    const history: ChatMessage[] = [];
+    let busy = false;
+
+    const add = (role: "user" | "twin", text = "") => {
+      const li = document.createElement("li");
+      li.className = `msg msg--${role}`;
+      li.textContent = text;
+      log.append(li);
+      li.scrollIntoView({ block: "nearest" });
+      return li;
+    };
+
+    async function ask(question: string) {
+      if (busy || !question.trim()) return;
+      busy = true;
+      send.disabled = true;
+      suggest.hidden = true;
+      add("user", question);
+      history.push({ role: "user", content: question });
+      const reply = add("twin");
+      reply.classList.add("msg--typing");
+      reply.setAttribute("aria-busy", "true");
+      let text = "";
+      try {
+        await ensureTurnstile(form.querySelector("[data-turnstile]")!);
+        const res = await fetch("/api/twin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: history,
+            mode: (form.elements.namedItem("deep") as HTMLInputElement).checked ? "high" : "low",
+            turnstileToken,
+          }),
+        });
+        if (!res.ok || !res.body) {
+          const err = await res.json().catch(() => ({ error: "The twin couldn't answer right now." }));
+          throw new Error(err.error ?? "The twin couldn't answer right now.");
+        }
+        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          text += value;
+          reply.innerHTML = renderMarkdown(text);
+          reply.scrollIntoView({ block: "nearest" });
+        }
+        if (!text.trim()) throw new Error("I blanked for a second. Mind asking again?");
+        history.push({ role: "assistant", content: text });
+      } catch (err) {
+        history.pop();
+        reply.classList.add("msg--error");
+        reply.textContent = err instanceof Error ? err.message : String(err);
+      } finally {
+        reply.classList.remove("msg--typing");
+        reply.removeAttribute("aria-busy");
+        turnstileToken = undefined;
+        busy = false;
+        send.disabled = false;
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      input.value = "";
+      void ask(q);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    root.querySelectorAll<HTMLButtonElement>("[data-prompt]").forEach((b) => b.addEventListener("click", () => void ask(b.dataset.prompt!)));
+  }
+
+  document.addEventListener("astro:page-load", setup);
+</script>
+
+<style is:global>
+  .twin-intro {
+    font-size: 0.92rem;
+  }
+  .chat__log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  .chat .msg {
+    max-width: 88%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 16px;
+    border: 2px solid var(--line);
+    background: var(--paper);
+    white-space: pre-wrap;
+  }
+  .chat .msg p {
+    margin: 0 0 0.5em;
+    white-space: normal;
+  }
+  .chat .msg p:last-child {
+    margin: 0;
+  }
+  .chat .msg ul {
+    margin: 0.25em 0;
+    padding-left: 1.1rem;
+    white-space: normal;
+  }
+  .chat .msg--twin {
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  .chat .msg--user {
+    align-self: flex-end;
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .chat .msg--typing:empty::after {
+    content: "…";
+    animation: blink 1s steps(3) infinite;
+  }
+  .chat .msg--error {
+    border-color: var(--coral);
+    background: #fff1ec;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0.3;
+    }
+  }
+  .chat__suggest-label {
+    margin: 0 0 0.35rem;
+    font-size: 0.85rem;
+  }
+  .chat .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+  }
+  .chat .suggestion {
+    border: 2px solid var(--line);
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.35em 0.8em;
+    min-height: 36px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .chat .suggestion:hover {
+    border-color: var(--ink);
+  }
+  .chat__form textarea {
+    width: 100%;
+    font: inherit;
+    padding: 0.7rem 0.9rem;
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    background: var(--paper);
+    resize: vertical;
+  }
+  .chat__actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .chat .mode {
+    font-size: 0.9rem;
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+    min-height: 44px;
+  }
+  .chat .fine {
+    font-size: 0.78rem;
+    margin-top: 1rem;
+  }
+</style>
