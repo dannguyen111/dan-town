@@ -1,0 +1,135 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { profile } from "../lib/profile";
+
+const djing = profile.interests.find((i) => i.id === "dj");
+---
+
+<TownLayout place="music" title="Music Room" description="What I've been listening to lately.">
+  <PageHeader kicker="🎧 Music Room" title="On repeat">
+    {djing && <p>{djing.blurb}</p>}
+  </PageHeader>
+
+  <section data-spotify aria-busy="true" aria-live="polite">
+    <p class="muted">Tuning the radio…</p>
+    <template data-fallback>
+      <div class="card offline">
+        <p class="offline__icon" aria-hidden="true">📻</p>
+        <p><strong>The radio is quiet right now.</strong></p>
+        <p class="muted">Live Spotify stats will show up here once the integration is switched on.</p>
+      </div>
+    </template>
+  </section>
+</TownLayout>
+
+<script>
+  import { fmtUpdated, h, loadStats } from "../lib/stats-client";
+
+  async function render() {
+    const root = document.querySelector<HTMLElement>("[data-spotify]");
+    if (!root || root.dataset.rendered) return;
+    root.dataset.rendered = "1";
+    const stats = await loadStats();
+    root.removeAttribute("aria-busy");
+    const sp = stats?.spotify;
+    if (!sp || !sp.topTracks.length) {
+      root.replaceChildren(root.querySelector<HTMLTemplateElement>("[data-fallback]")!.content.cloneNode(true));
+      return;
+    }
+    const art = (src: string | null, alt: string) =>
+      src ? h("img", { src, alt, width: "48", height: "48", loading: "lazy", class: "sp-art" }) : h("span", { class: "sp-art sp-art--empty", "aria-hidden": "true" }, "♪");
+
+    root.replaceChildren(
+      h("p", { class: "muted sp-updated" }, fmtUpdated(stats!.updatedAt)),
+      sp.topGenres.length ? h("p", { class: "sp-genres" }, ...sp.topGenres.map((g) => h("span", { class: "chip" }, g))) : "",
+      h("h2", {}, "Top tracks this month"),
+      h(
+        "ol",
+        { class: "clean sp-list" },
+        ...sp.topTracks.map((t, i) =>
+          h(
+            "li",
+            { class: "sp-item" },
+            h("span", { class: "sp-rank pixel" }, String(i + 1)),
+            art(t.image, ""),
+            h("span", {}, h("a", { href: t.url, target: "_blank", rel: "noopener noreferrer" }, t.name), h("span", { class: "muted sp-sub" }, t.artists)),
+          ),
+        ),
+      ),
+      h("h2", {}, "Favorite artists"),
+      h(
+        "ul",
+        { class: "clean sp-artists" },
+        ...sp.topArtists.map((a) =>
+          h(
+            "li",
+            {},
+            h("a", { href: a.url, target: "_blank", rel: "noopener noreferrer", class: "sp-artist card" }, art(a.image, ""), h("strong", {}, a.name)),
+          ),
+        ),
+      ),
+    );
+  }
+  document.addEventListener("astro:page-load", render);
+</script>
+
+<style is:global>
+  .offline {
+    text-align: center;
+  }
+  .offline__icon {
+    font-size: 2.5rem;
+    margin: 0;
+  }
+  .sp-updated {
+    font-size: 0.8rem;
+  }
+  .sp-genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .sp-list {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .sp-item {
+    display: grid;
+    grid-template-columns: 1.6rem 48px 1fr;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .sp-rank {
+    text-align: right;
+    font-weight: 700;
+    color: var(--coral-ink);
+  }
+  .sp-art {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    display: grid;
+    place-items: center;
+    background: var(--sand);
+  }
+  .sp-sub {
+    display: block;
+    font-size: 0.85rem;
+  }
+  .sp-artists {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.5rem;
+  }
+  .sp-artist {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+</style>

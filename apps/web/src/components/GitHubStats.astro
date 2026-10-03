@@ -1,0 +1,124 @@
+---
+import { profile } from "../lib/profile";
+const login = profile.integrations.github.username;
+---
+
+<section class="card live" data-github aria-labelledby="gh-title" aria-busy="true">
+  <div class="live__head">
+    <h3 id="gh-title">🐙 GitHub activity</h3>
+    <span class="muted live__updated" data-updated></span>
+  </div>
+  <div data-body>
+    <p class="muted">Loading activity…</p>
+  </div>
+  <noscript><p>See <a href={`https://github.com/${login}`}>github.com/{login}</a>.</p></noscript>
+  <template data-fallback>
+    <p class="muted">
+      Live GitHub stats aren't available right now.
+      {login && <>Visit <a href={`https://github.com/${login}`} target="_blank" rel="noopener noreferrer">github.com/{login}</a> instead.</>}
+    </p>
+  </template>
+</section>
+
+<script>
+  import { fmtNumber, fmtUpdated, h, loadStats } from "../lib/stats-client";
+
+  async function render() {
+    const root = document.querySelector<HTMLElement>("[data-github]");
+    if (!root || root.dataset.rendered) return;
+    root.dataset.rendered = "1";
+    const body = root.querySelector<HTMLElement>("[data-body]")!;
+    const stats = await loadStats();
+    root.removeAttribute("aria-busy");
+    const gh = stats?.github;
+    if (!gh) {
+      body.replaceChildren(root.querySelector<HTMLTemplateElement>("[data-fallback]")!.content.cloneNode(true));
+      return;
+    }
+    root.querySelector("[data-updated]")!.textContent = fmtUpdated(stats!.updatedAt);
+
+    // Contribution graph: 7 rows, one column per week.
+    const graph = h("div", { class: "gh-graph", role: "img", "aria-label": `${fmtNumber(gh.totalContributions)} contributions in the last year` });
+    const firstDay = new Date(gh.calendar[0]?.date ?? Date.now()).getUTCDay();
+    for (let i = 0; i < firstDay; i++) graph.append(h("span", { class: "gh-cell gh-cell--pad" }));
+    for (const d of gh.calendar) graph.append(h("span", { class: `gh-cell l${d.level}`, title: `${d.count} on ${d.date}` }));
+
+    const repos = h(
+      "ul",
+      { class: "clean gh-repos" },
+      ...gh.repos.map((r) =>
+        h(
+          "li",
+          {},
+          h("a", { href: r.url, target: "_blank", rel: "noopener noreferrer" }, r.name),
+          r.description ? h("span", { class: "muted" }, ` · ${r.description}`) : null,
+          h("span", { class: "gh-meta muted" }, [r.language, r.stars ? `★ ${r.stars}` : ""].filter(Boolean).join(" · ")),
+        ),
+      ),
+    );
+
+    body.replaceChildren(
+      h(
+        "p",
+        { class: "gh-summary" },
+        h("strong", {}, fmtNumber(gh.totalContributions)),
+        " contributions this year · ",
+        h("strong", {}, String(gh.publicRepos)),
+        " public repos",
+      ),
+      h("div", { class: "gh-graph-wrap" }, graph),
+      h("h4", {}, "Recently active"),
+      repos,
+    );
+  }
+  document.addEventListener("astro:page-load", render);
+</script>
+
+<style is:global>
+  .live__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .live__updated {
+    font-size: 0.8rem;
+  }
+  .gh-graph-wrap {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .gh-graph {
+    display: grid;
+    grid-template-rows: repeat(7, 9px);
+    grid-auto-flow: column;
+    grid-auto-columns: 9px;
+    gap: 2px;
+    width: max-content;
+  }
+  .gh-cell {
+    border-radius: 2px;
+    background: #efe6d6;
+  }
+  .gh-cell--pad {
+    background: transparent;
+  }
+  .gh-cell.l1 { background: #c6ebb0; }
+  .gh-cell.l2 { background: #9bd770; }
+  .gh-cell.l3 { background: #5fb24a; }
+  .gh-cell.l4 { background: #2f7d32; }
+  .gh-repos {
+    display: grid;
+    gap: 0.4rem;
+    font-size: 0.92rem;
+  }
+  .gh-meta {
+    display: block;
+    font-size: 0.8rem;
+  }
+  .live h4 {
+    margin: 1rem 0 0.4rem;
+    font-size: 0.95rem;
+  }
+</style>

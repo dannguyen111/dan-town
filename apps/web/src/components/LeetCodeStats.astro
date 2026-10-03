@@ -1,0 +1,98 @@
+---
+import { profile } from "../lib/profile";
+const username = profile.integrations.leetcode.username;
+---
+
+{
+  username ? (
+    <section class="card live" data-leetcode aria-labelledby="lc-title" aria-busy="true">
+      <div class="live__head">
+        <h3 id="lc-title">🧩 LeetCode</h3>
+        <span class="muted live__updated" data-updated />
+      </div>
+      <div data-body>
+        <p class="muted">Loading…</p>
+      </div>
+      <template data-fallback>
+        <p class="muted">
+          Live LeetCode stats aren't available right now. See{" "}
+          <a href={`https://leetcode.com/u/${username}/`} target="_blank" rel="noopener noreferrer">
+            my profile
+          </a>
+          .
+        </p>
+      </template>
+    </section>
+  ) : null
+}
+
+<script>
+  import { fmtNumber, fmtUpdated, h, loadStats } from "../lib/stats-client";
+
+  async function render() {
+    const root = document.querySelector<HTMLElement>("[data-leetcode]");
+    if (!root || root.dataset.rendered) return;
+    root.dataset.rendered = "1";
+    const body = root.querySelector<HTMLElement>("[data-body]")!;
+    const stats = await loadStats();
+    root.removeAttribute("aria-busy");
+    const lc = stats?.leetcode;
+    if (!lc) {
+      body.replaceChildren(root.querySelector<HTMLTemplateElement>("[data-fallback]")!.content.cloneNode(true));
+      return;
+    }
+    root.querySelector("[data-updated]")!.textContent = fmtUpdated(stats!.updatedAt);
+    const bar = (label: string, key: "easy" | "medium" | "hard", color: string) => {
+      const pct = lc.totals[key] ? Math.round((lc.solved[key] / lc.totals[key]) * 100) : 0;
+      return h(
+        "div",
+        { class: "lc-row" },
+        h("span", { class: "lc-label" }, label),
+        h(
+          "span",
+          { class: "lc-bar", role: "img", "aria-label": `${lc.solved[key]} of ${lc.totals[key]} ${label} problems` },
+          h("span", { style: `width:${pct}%;background:${color}` }),
+        ),
+        h("span", { class: "lc-count" }, `${lc.solved[key]}`),
+      );
+    };
+    body.replaceChildren(
+      h("p", {}, h("strong", {}, fmtNumber(lc.solved.all)), " problems solved", lc.ranking ? ` · rank ${fmtNumber(lc.ranking)}` : ""),
+      bar("Easy", "easy", "#2bb3a3"),
+      bar("Medium", "medium", "#ffc857"),
+      bar("Hard", "hard", "#ff7a59"),
+      h("p", { class: "muted lc-link" }, h("a", { href: lc.url, target: "_blank", rel: "noopener noreferrer" }, "View on LeetCode ↗")),
+    );
+  }
+  document.addEventListener("astro:page-load", render);
+</script>
+
+<style is:global>
+  .lc-row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr 2.5rem;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.35rem 0;
+    font-size: 0.9rem;
+  }
+  .lc-bar {
+    height: 10px;
+    border-radius: 99px;
+    background: #efe6d6;
+    overflow: hidden;
+  }
+  .lc-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 99px;
+  }
+  .lc-count {
+    text-align: right;
+    font-weight: 700;
+  }
+  .lc-link {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+  }
+</style>

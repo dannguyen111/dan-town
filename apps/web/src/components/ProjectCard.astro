@@ -1,0 +1,71 @@
+---
+import { Image } from "astro:assets";
+import type { Project } from "@dan-town/profile/schema";
+import { resolveImage } from "../lib/images";
+import { formatMonth } from "../lib/profile";
+
+interface Props {
+  project: Project;
+}
+const { project } = Astro.props;
+const img = resolveImage(project.image);
+---
+
+<article class="project card">
+  {img && <Image src={img} alt="" width={480} height={270} class="project__img" loading="lazy" />}
+  <div class="project__body">
+    <h3><a href={`/projects/${project.id}`} class="project__link">{project.title}</a></h3>
+    <p class="muted project__date">{formatMonth(project.date)}</p>
+    <p>{project.tagline}</p>
+    <ul class="clean project__tags" aria-label="Technologies">
+      {project.tags.slice(0, 4).map((t) => <li class="chip">{t}</li>)}
+    </ul>
+  </div>
+</article>
+
+<style>
+  .project {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+  }
+  .project:hover,
+  .project:focus-within {
+    transform: translateY(-2px);
+    border-color: var(--ink);
+  }
+  .project :global(.project__img) {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-bottom: 2px solid var(--line);
+  }
+  .project__body {
+    padding: 0.9rem 1rem 1rem;
+  }
+  .project__body h3 {
+    margin: 0;
+  }
+  /* Whole card is clickable via the title link. */
+  .project__link {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .project__link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .project__date {
+    font-size: 0.8rem;
+    margin: 0.1rem 0 0.4rem;
+  }
+  .project__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+</style>

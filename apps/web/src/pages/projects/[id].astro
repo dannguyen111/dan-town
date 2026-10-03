@@ -1,0 +1,87 @@
+---
+import { Image } from "astro:assets";
+import { marked } from "marked";
+import TownLayout from "../../layouts/TownLayout.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import { profile, formatMonth } from "../../lib/profile";
+import { resolveImage } from "../../lib/images";
+
+export function getStaticPaths() {
+  return profile.projects.map((project) => ({ params: { id: project.id }, props: { project } }));
+}
+
+const { project } = Astro.props;
+const img = resolveImage(project.image);
+// The profile is trusted, author-controlled content; render its Markdown at build time.
+const html = await marked.parse(project.body);
+const LINK_LABELS: Record<string, string> = { demo: "Live demo", code: "Source code", paper: "Read the paper", play: "Play it in the Arcade" };
+---
+
+<TownLayout place="dev" title={project.title} description={project.tagline}>
+  <a href="/dev" class="back">← All projects</a>
+  <PageHeader kicker={formatMonth(project.date)} title={project.title}>
+    <p class="lead">{project.tagline}</p>
+  </PageHeader>
+
+  {img && <Image src={img} alt="" width={960} height={540} class="hero" />}
+
+  <ul class="clean links">
+    {
+      Object.entries(project.links).map(([kind, url]) => (
+        <li>
+          <a
+            class={`btn btn--small ${kind === "play" ? "btn--primary" : ""}`}
+            href={url}
+            {...(url.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          >
+            {LINK_LABELS[kind] ?? kind}
+            {url.startsWith("http") && <span aria-hidden="true">↗</span>}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <div class="prose" set:html={html} />
+
+  <ul class="clean tags" aria-label="Technologies">
+    {project.tags.map((t) => <li class="chip">{t}</li>)}
+  </ul>
+</TownLayout>
+
+<style>
+  .back {
+    display: inline-block;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+  .lead {
+    font-size: 1.05rem;
+  }
+  .hero {
+    width: 100%;
+    border-radius: var(--radius);
+    border: 2px solid var(--line);
+    margin-bottom: 1rem;
+  }
+  .links,
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .prose :global(h3) {
+    margin-top: 1.5rem;
+  }
+  .prose :global(ul) {
+    padding-left: 1.2rem;
+    display: grid;
+    gap: 0.4rem;
+  }
+  .prose :global(code) {
+    background: var(--sand);
+    padding: 0 0.3em;
+    border-radius: 4px;
+  }
+</style>

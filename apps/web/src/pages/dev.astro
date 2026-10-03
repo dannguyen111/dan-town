@@ -1,0 +1,89 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import ProjectCard from "../components/ProjectCard.astro";
+import GitHubStats from "../components/GitHubStats.astro";
+import LeetCodeStats from "../components/LeetCodeStats.astro";
+import { profile, projectsByDate } from "../lib/profile";
+
+const projects = projectsByDate();
+const featured = projects.filter((p) => p.featured);
+const more = projects.filter((p) => !p.featured);
+---
+
+<TownLayout place="dev" title="Dev Center" description="Projects, GitHub activity, and the engineering behind this site.">
+  <PageHeader kicker="💻 Dev Center" title="Things I've built">
+    <p>AI systems, game-playing agents, full-stack apps, and a bit of research.</p>
+  </PageHeader>
+
+  <div class="card-grid">
+    {featured.map((p) => <ProjectCard project={p} />)}
+  </div>
+
+  {
+    more.length > 0 && (
+      <>
+        <h2>Research & more</h2>
+        <div class="card-grid">
+          {more.map((p) => <ProjectCard project={p} />)}
+        </div>
+      </>
+    )
+  }
+
+  <h2>Live from the terminal</h2>
+  <div class="stack">
+    <GitHubStats />
+    <LeetCodeStats />
+  </div>
+
+  <h2>Toolbox</h2>
+  <div class="stack">
+    {
+      profile.skills.map((s) => (
+        <div>
+          <h3 class="skill-group">{s.group}</h3>
+          <ul class="clean chips">
+            {s.items.map((i) => <li class="chip">{i}</li>)}
+          </ul>
+        </div>
+      ))
+    }
+  </div>
+
+  <h2 id="how-its-built">How this town is built</h2>
+  <div class="card build">
+    <ul>
+      <li><strong>Single source of truth.</strong> Everything here is compiled from one private, schema-validated <code>profile.yaml</code>. Pushing to it rebuilds the site and the twin's knowledge. Entries can be public, twin-only, or private.</li>
+      <li><strong>Static first.</strong> Astro renders every page to HTML at build time. JavaScript only loads for the town canvas, the chat, and the Arcade.</li>
+      <li><strong>A tiny engine, no game framework.</strong> Grid movement, collision, and BFS tap-to-move in a few hundred lines of TypeScript. The render loop sleeps when you stand still, so an idle tab uses no CPU.</li>
+      <li><strong>Rust → WebAssembly.</strong> My Java Mancala bot was ported to Rust (~37 KB of WASM, running in a Web Worker). A parity test suite proves it picks the same move as the original Java on 247 recorded positions.</li>
+      <li><strong>Edge API.</strong> A Cloudflare Worker serves the site, refreshes GitHub / LeetCode / Spotify stats once a day into KV, and proxies the digital twin with rate limiting. Secrets never reach the browser.</li>
+    </ul>
+    <p class="muted">Hosting cost: $0 on Cloudflare's free tier.</p>
+  </div>
+</TownLayout>
+
+<style>
+  .skill-group {
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .build ul {
+    padding-left: 1.1rem;
+    margin: 0 0 0.75rem;
+    display: grid;
+    gap: 0.5rem;
+  }
+  code {
+    background: var(--sand);
+    padding: 0 0.3em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+</style>
