@@ -3,6 +3,11 @@
 	"name": "dan-town",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-09-01",
+	// Custom domains: Cloudflare creates the DNS records and certificates on deploy.
+	"routes": [
+		{ "pattern": "si-dan.com", "custom_domain": true },
+		{ "pattern": "www.si-dan.com", "custom_domain": true }
+	],
 	// The static Astro build is served directly; the Worker only runs for /api/*.
 	"assets": {
 		"directory": "../../apps/web/dist",
@@ -41,7 +46,7 @@
 		// OpenRouter model IDs. Leave TWIN_MODEL empty to keep the twin "offline".
 		"TWIN_MODEL": "openai/gpt-6-luna",
 		"TWIN_MODEL_HIGH": "",
-		"SITE_URL": "https://dan-town.dantown.workers.dev"
+		"SITE_URL": "https://si-dan.com"
 	},
 	// Secrets (set with `wrangler secret put`): OPENROUTER_API_KEY, GITHUB_TOKEN,
 	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional)

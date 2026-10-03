@@ -2,8 +2,7 @@
 import { defineConfig, fontProviders } from "astro/config";
 
 export default defineConfig({
-  // Replace with the custom domain once one is attached.
-  site: process.env.SITE_URL ?? "https://dan-town.dantown.workers.dev",
+  site: process.env.SITE_URL ?? "https://si-dan.com",
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
