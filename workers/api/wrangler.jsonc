@@ -1,0 +1,51 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "dan-town",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-01",
+	// The static Astro build is served directly; the Worker only runs for /api/*.
+	"assets": {
+		"directory": "../../apps/web/dist",
+		"binding": "ASSETS",
+		"run_worker_first": [
+			"/api/*"
+		],
+		"not_found_handling": "404-page",
+		"html_handling": "auto-trailing-slash"
+	},
+	// Cached GitHub / LeetCode / Spotify stats.
+	"kv_namespaces": [
+		{
+			"binding": "STATS",
+			"id": "3c756aaf1d8348418d358a9118e1f30f"
+		}
+	],
+	// Refresh live stats once a day (06:17 UTC). The browser never calls those services.
+	"triggers": {
+		"crons": [
+			"17 6 * * *"
+		]
+	},
+	// Per-visitor limit on twin messages.
+	"ratelimits": [
+		{
+			"name": "TWIN_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 8,
+				"period": 60
+			}
+		}
+	],
+	"vars": {
+		// OpenRouter model IDs. Leave TWIN_MODEL empty to keep the twin "offline".
+		"TWIN_MODEL": "openai/gpt-6-luna",
+		"TWIN_MODEL_HIGH": "",
+		"SITE_URL": "https://dan-town.dantown.workers.dev"
+	},
+	// Secrets (set with `wrangler secret put`): OPENROUTER_API_KEY, GITHUB_TOKEN,
+	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional)
+	"observability": {
+		"enabled": true
+	}
+}
