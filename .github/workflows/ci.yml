@@ -19,13 +19,13 @@ jobs:
     env:
       HAS_PROFILE_KEY: ${{ secrets.PROFILE_DEPLOY_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The canonical profile lives in a private repo. Without the deploy key (forks, PRs),
       # the build falls back to profile/profile.example.yaml.
       - name: Check out private profile
         if: env.HAS_PROFILE_KEY == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: dannguyen111/dan-profile
           ssh-key: ${{ secrets.PROFILE_DEPLOY_KEY }}
@@ -35,7 +35,7 @@ jobs:
         if: env.HAS_PROFILE_KEY == 'true'
         run: echo "PROFILE_PATH=$GITHUB_WORKSPACE/.profile/profile.yaml" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
