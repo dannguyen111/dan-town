@@ -3,347 +3,654 @@ import TownLayout from "../layouts/TownLayout.astro";
 import PageHeader from "../components/PageHeader.astro";
 ---
 
-<TownLayout place="arcade" title="Arcade" description="Play FairKalah against my Mancala AI, running in your browser as Rust/WebAssembly.">
-  <PageHeader kicker="🕹️ Arcade" title="Beat my Mancala bot">
+<TownLayout place="arcade" interior title="Arcade" description="Play FairKalah against my Mancala robot, running in your browser as Rust/WebAssembly.">
+  <PageHeader kicker="🕹️ Arcade" title="Beat my Mancala robot">
     <p>
-      This is my FairKalah agent: alpha-beta search with a regression-tuned heuristic, ported from Java to Rust and running in your browser as
-      WebAssembly. <a href="/projects/mancala">How it works →</a>
+      The robot in the back of the arcade plays my FairKalah agent: alpha-beta search with a regression-tuned heuristic, ported from Java to
+      Rust and running in your browser as WebAssembly. Its face shows how likely it thinks it is to win.
+      <a href="/projects/mancala">How it works →</a>
     </p>
+    <p><button class="btn btn--primary" type="button" data-play>Play Mancala</button></p>
   </PageHeader>
 
-  <form class="setup card" data-setup>
-    <label>
-      Board
-      <select name="board">
-        <option value="-1">Random FairKalah board</option>
-        <option value="classic">Classic Kalah (4 stones each)</option>
-      </select>
-    </label>
-    <label>
-      You play
-      <select name="side">
-        <option value="0">First</option>
-        <option value="1">Second</option>
-      </select>
-    </label>
-    <label>
-      Bot clock
-      <select name="clock">
-        <option value="5000">Easy (5 s)</option>
-        <option value="30000" selected>Medium (30 s)</option>
-        <option value="300000">Hard (300 s, slow but strong)</option>
-      </select>
-    </label>
-    <button class="btn btn--primary" type="submit">New game</button>
-  </form>
+  <div slot="screen" class="gb" data-battle hidden role="dialog" aria-modal="true" aria-labelledby="gb-title" tabindex="-1">
+    <h2 id="gb-title" class="visually-hidden">Mancala against the robot</h2>
 
-  <div class="mancala" data-game hidden>
-    <p class="status" data-status role="status" aria-live="polite"></p>
-    <div class="board" role="group" aria-label="Mancala board">
-      <div class="store store--top" data-store="top" aria-label="Bot's store"></div>
-      <div class="row row--top" data-row="top"></div>
-      <div class="row row--bottom" data-row="bottom"></div>
-      <div class="store store--bottom" data-store="bottom" aria-label="Your store"></div>
+    <div class="gb__top">
+      <button class="gb__btn" type="button" data-sound aria-label="Sound" aria-pressed="false">♪ OFF</button>
+      <button class="gb__btn" type="button" data-run>RUN</button>
     </div>
-    <p class="muted legend">
-      You are the bottom row. Stones move counter-clockwise. Land in your store for an extra turn, and land in an empty pit on your side to capture.
-    </p>
-    <p class="muted engine-info" data-info></p>
+
+    <div class="gb__stage">
+      <section class="gb__info gb__info--foe" aria-label="Robot">
+        <p class="gb__name">ROBOT <span class="gb__lv" data-level>Lv??</span></p>
+        <div class="gb__bar">
+          <span class="gb__tag">WIN</span>
+          <span class="gb__track"><span class="gb__fill" data-foe-bar></span></span>
+        </div>
+        <p class="gb__num"><span data-foe-pct>50%</span><span class="gb__stats" data-stats></span></p>
+      </section>
+      <div class="gb__foe" data-foe>
+        <canvas class="gb__sprite gb__sprite--robot" data-robot role="img" aria-label="The robot"></canvas>
+      </div>
+
+      <div class="gb__board" role="group" aria-label="Mancala board">
+        <div class="gb__store gb__store--foe" data-store="top" aria-label="Robot's store"></div>
+        <div class="gb__row" data-row="top"></div>
+        <div class="gb__row" data-row="bottom"></div>
+        <div class="gb__store gb__store--me" data-store="bottom" aria-label="Your store"></div>
+      </div>
+
+      <div class="gb__me">
+        <canvas class="gb__sprite gb__sprite--player" data-player aria-hidden="true"></canvas>
+      </div>
+      <section class="gb__info gb__info--me" aria-label="You">
+        <p class="gb__name">YOU</p>
+        <div class="gb__bar">
+          <span class="gb__tag">WIN</span>
+          <span class="gb__track"><span class="gb__fill" data-me-bar></span></span>
+        </div>
+        <p class="gb__num"><span data-me-pct>50%</span></p>
+      </section>
+    </div>
+
+    <div class="gb__dialog" data-dialog>
+      <p class="gb__text" data-text aria-hidden="true"></p>
+      <p class="visually-hidden" data-live aria-live="polite"></p>
+      <span class="gb__more" data-more aria-hidden="true" hidden>▼</span>
+      <ul class="gb__menu" data-menu role="listbox" aria-label="Choices" hidden></ul>
+    </div>
+
+    <div class="gb__popup" data-popup hidden>
+      <div class="gb__window" role="document" aria-labelledby="gb-popup-title">
+        <p class="gb__window-title" id="gb-popup-title" data-popup-title></p>
+        <div class="gb__window-body" data-popup-body></div>
+        <p class="gb__window-ok"><span aria-hidden="true">▶</span> OK</p>
+      </div>
+    </div>
   </div>
 </TownLayout>
 
 <script>
-  import { MancalaEngine } from "../mancala/client";
+  import { Battle } from "../mancala/battle";
+  import { LEVEL_NAMES, fetchRecord, wld } from "../mancala/record";
 
-  const CLASSIC = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0];
-  const MAX = 0;
+  let battle: Battle | null = null;
 
-  function setup() {
-    const form = document.querySelector<HTMLFormElement>("[data-setup]");
-    if (!form || form.dataset.ready) return;
-    form.dataset.ready = "1";
-
-    const game = document.querySelector<HTMLElement>("[data-game]")!;
-    const status = game.querySelector<HTMLElement>("[data-status]")!;
-    const info = game.querySelector<HTMLElement>("[data-info]")!;
-    const rows = { top: game.querySelector<HTMLElement>('[data-row="top"]')!, bottom: game.querySelector<HTMLElement>('[data-row="bottom"]')! };
-    const stores = { top: game.querySelector<HTMLElement>('[data-store="top"]')!, bottom: game.querySelector<HTMLElement>('[data-store="bottom"]')! };
-    const engine = new MancalaEngine();
-
-    let state: number[] = [];
-    let toMove = MAX;
-    let human = MAX;
-    let botClock = 30000;
-    let over = false;
-    let busy = false;
-    let lastMove = -1;
-    let gameId = 0;
-
-    // Board indices for each visual row (left → right), from the human's point of view.
-    const layout = () =>
-      human === MAX
-        ? { bottom: [0, 1, 2, 3, 4, 5], bottomStore: 6, top: [12, 11, 10, 9, 8, 7], topStore: 13 }
-        : { bottom: [7, 8, 9, 10, 11, 12], bottomStore: 13, top: [5, 4, 3, 2, 1, 0], topStore: 6 };
-
-    const stones = (n: number) => {
-      const wrap = document.createElement("span");
-      wrap.className = "stones";
-      wrap.setAttribute("aria-hidden", "true");
-      for (let i = 0; i < Math.min(n, 12); i++) wrap.append(document.createElement("i"));
-      return wrap;
-    };
-
-    function render() {
-      const L = layout();
-      const humanTurn = !over && !busy && toMove === human;
-      rows.bottom.replaceChildren(
-        ...L.bottom.map((idx, i) => {
-          const b = document.createElement("button");
-          b.type = "button";
-          b.className = "pit" + (idx === lastMove ? " pit--last" : "");
-          b.disabled = !humanTurn || state[idx] === 0;
-          b.setAttribute("aria-label", `Your pit ${i + 1}: ${state[idx]} stones`);
-          b.append(stones(state[idx]!), Object.assign(document.createElement("span"), { className: "count", textContent: String(state[idx]) }));
-          b.addEventListener("click", () => void humanMove(idx));
-          return b;
-        }),
-      );
-      rows.top.replaceChildren(
-        ...L.top.map((idx, i) => {
-          const d = document.createElement("div");
-          d.className = "pit pit--bot" + (idx === lastMove ? " pit--last" : "");
-          d.setAttribute("aria-label", `Bot pit ${i + 1}: ${state[idx]} stones`);
-          d.setAttribute("role", "img");
-          d.append(stones(state[idx]!), Object.assign(document.createElement("span"), { className: "count", textContent: String(state[idx]) }));
-          return d;
-        }),
-      );
-      stores.top.textContent = String(state[L.topStore]);
-      stores.bottom.textContent = String(state[L.bottomStore]);
-    }
-
-    function finish() {
-      over = true;
-      const L = layout();
-      const me = state[L.bottomStore]!;
-      const bot = state[L.topStore]!;
-      status.textContent = me > bot ? `You win ${me}–${bot}! 🎉 Nicely played.` : me < bot ? `The bot wins ${bot}–${me}. Rematch?` : `A draw, ${me}–${bot}!`;
-      render();
-    }
-
-    async function botTurns(id: number) {
-      try {
-        await botLoop(id);
-      } catch (err) {
-        // "cancelled" means a new game started mid-search; anything else is a real error.
-        if (id !== gameId) return;
-        busy = false;
-        status.textContent = `Engine error: ${err instanceof Error ? err.message : err}`;
-      }
-    }
-
-    async function botLoop(id: number) {
-      while (!over && toMove !== human && id === gameId) {
-        busy = true;
-        status.textContent = "Bot is thinking…";
-        render();
-        const t0 = performance.now();
-        const decision = await engine.choose(state, toMove, botClock);
-        // Give humans a beat to follow along on fast moves.
-        const elapsed = performance.now() - t0;
-        if (elapsed < 450) await new Promise((r) => setTimeout(r, 450 - elapsed));
-        if (id !== gameId) return;
-        botClock -= decision.ms;
-        const res = await engine.apply(state, toMove, decision.move);
-        state = res.state;
-        lastMove = decision.move;
-        toMove = res.next;
-        info.textContent = `Last bot move: searched ${new Intl.NumberFormat("en-US").format(decision.nodes)} positions at depth ${decision.depth} in ${(decision.ms / 1000).toFixed(2)} s. Clock left: ${Math.max(0, botClock / 1000).toFixed(1)} s.`;
-        busy = false;
-        if (res.over) return finish();
-      }
-      if (id === gameId && !over) {
-        status.textContent = "Your turn: pick a pit on the bottom row.";
-        render();
-      }
-    }
-
-    async function humanMove(idx: number) {
-      if (busy || over || toMove !== human) return;
-      busy = true;
-      const id = gameId;
-      const res = await engine.apply(state, human, idx);
-      if (id !== gameId) return;
-      state = res.state;
-      lastMove = idx;
-      toMove = res.next;
-      busy = false;
-      if (res.over) return finish();
-      if (toMove === human) {
-        status.textContent = "Extra turn! Go again.";
-        render();
-        return;
-      }
-      await botTurns(id);
-    }
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      engine.reset();
-      const id = ++gameId;
-      const data = new FormData(form);
-      human = Number(data.get("side"));
-      botClock = Number(data.get("clock"));
-      over = false;
-      busy = false;
-      lastMove = -1;
-      toMove = MAX;
-      info.textContent = "";
-      if (data.get("board") === "classic") state = [...CLASSIC];
-      else {
-        const first = await engine.board(0);
-        const pick = Math.floor(Math.random() * first.count);
-        state = (await engine.board(pick)).state;
-        info.textContent = `FairKalah board #${pick}.`;
-      }
-      if (id !== gameId) return;
-      game.hidden = false;
-      render();
-      if (toMove === human) {
-        status.textContent = "Your turn: pick a pit on the bottom row.";
-        rows.bottom.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
-      } else await botTurns(id);
-    });
-  }
-
-  document.addEventListener("astro:page-load", setup);
+  document.addEventListener("astro:page-load", () => {
+    const root = document.querySelector<HTMLElement>("[data-battle]");
+    if (!root || battle) return;
+    battle = new Battle(root);
+    document.querySelector("[data-play]")?.addEventListener("click", () => void battle?.open());
+  });
+  // Talking to the robot in the arcade room.
+  document.addEventListener("town:mancala", () => void battle?.open());
+  // The scoreboard on the arcade wall shows the robot's record in the room's text box.
+  document.addEventListener("town:scoreboard", async () => {
+    const record = await fetchRecord();
+    const rows = (["easy", "medium", "hard"] as const).map((l) => `${LEVEL_NAMES[l].padEnd(8)}${record ? wld(record[l]) : ""}`);
+    const text = record ? ["ROBOT vs. EVERYONE (W-L-D)", ...rows].join("\n") : "The scoreboard is on the fritz right now. Try again later!";
+    document.dispatchEvent(new CustomEvent("town:note", { detail: { title: "Scoreboard", text } }));
+  });
+  document.addEventListener("astro:before-swap", () => {
+    battle?.destroy();
+    battle = null;
+  });
 </script>
 
 <style>
-  .setup {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: flex-end;
-    margin-bottom: 1.25rem;
-  }
-  .setup label {
+  /* ─────────────── Game Boy Color battle screen ─────────────── */
+  .gb {
+    --ink: #181820;
+    --paper: #f8f8f0;
+    --px: 4px;
+    --pit: clamp(34px, min(8.4vw, 9.5vh), 76px);
+    --text: clamp(10px, min(1.5vw, 2.2vh), 15px);
+    position: fixed;
+    inset: 0;
+    z-index: 100;
     display: grid;
-    gap: 0.2rem;
-    font-size: 0.85rem;
-    font-weight: 700;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    font: var(--text) / 2 var(--font-retro);
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 100%, #e3edc3, transparent),
+      linear-gradient(#f8f8f0 0 55%, #eef3dc);
+    outline: none;
+    -webkit-font-smoothing: none;
   }
-  .setup select {
+  .gb[hidden] {
+    display: none;
+  }
+  .gb :global(button) {
     font: inherit;
-    min-height: 44px;
-    padding: 0 0.6rem;
-    border: 2px solid var(--ink);
-    border-radius: 10px;
+    color: inherit;
+  }
+
+  /* Pixel boxes: a thick border with notched corners, like 8-bit UI. */
+  .gb__btn,
+  .gb__info,
+  .gb__board,
+  .gb__dialog,
+  .gb__menu {
+    box-shadow:
+      0 calc(var(--px) * -1) 0 0 var(--ink),
+      0 var(--px) 0 0 var(--ink),
+      calc(var(--px) * -1) 0 0 0 var(--ink),
+      var(--px) 0 0 0 var(--ink);
+  }
+
+  .gb__top {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px 0;
+  }
+  .gb__btn {
+    min-height: 40px;
+    padding: 0 0.9em;
+    border: 0;
+    background: var(--paper);
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .gb__btn:hover,
+  .gb__btn:focus-visible {
+    background: #ffd166;
+    outline: none;
+  }
+
+  .gb__stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "foeinfo foe"
+      "board board"
+      "me meinfo";
+    align-items: center;
+    gap: 8px 16px;
+    width: min(100%, 960px);
+    min-height: 0;
+    margin: 0 auto;
+    padding: 8px 20px;
+  }
+
+  /* Name, level and an HP-style "win" bar, like an RPG's status boxes. */
+  .gb__info {
+    justify-self: center;
+    width: min(100%, 22em);
+    padding: 0.4em 0.8em 0.2em;
     background: var(--paper);
   }
-  .status {
-    font-weight: 800;
-    min-height: 1.6em;
+  .gb__info--foe {
+    grid-area: foeinfo;
   }
-  .board {
+  .gb__info--me {
+    grid-area: meinfo;
+  }
+  .gb__name {
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+  }
+  .gb__lv {
+    font-size: 0.8em;
+  }
+  .gb__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    margin: 0.2em 0 0;
+  }
+  .gb__tag {
+    padding: 0 0.3em;
+    font-size: 0.7em;
+    line-height: 1.6;
+    color: #f8d030;
+    background: var(--ink);
+  }
+  .gb__track {
+    flex: 1;
+    height: 0.8em;
+    padding: 2px;
+    background: var(--ink);
+  }
+  .gb__fill {
+    display: block;
+    height: 100%;
+    width: 50%;
+    background: #00b800;
+    transition:
+      width 0.8s steps(16),
+      background-color 0s 0.4s;
+  }
+  .gb__fill[data-level="mid"] {
+    background: #f8b800;
+  }
+  .gb__fill[data-level="low"] {
+    background: #f83800;
+  }
+  .gb__num {
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 1em;
+    font-size: 0.8em;
+  }
+  .gb__stats {
+    font-size: 0.75em;
+    opacity: 0.7;
+  }
+
+  /* Sprites on their platforms */
+  .gb__foe,
+  .gb__me {
+    position: relative;
     display: grid;
-    grid-template-columns: 1fr 6fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 0.5rem;
-    padding: 0.75rem;
+    justify-items: center;
+    align-items: end;
+  }
+  .gb__foe {
+    grid-area: foe;
+  }
+  .gb__me {
+    grid-area: me;
+  }
+  .gb__foe::after,
+  .gb__me::after {
+    content: "";
+    width: 80%;
+    max-width: 240px;
+    height: clamp(14px, 3vh, 28px);
+    margin-top: -12px;
+    border-radius: 50%;
+    background: #c8d890;
+    box-shadow: inset 0 -4px 0 #98b060;
+  }
+  .gb__sprite {
+    position: relative;
+    z-index: 1;
+    image-rendering: pixelated;
+  }
+  .gb__sprite--robot {
+    width: clamp(110px, 22vh, 200px);
+    height: auto;
+    aspect-ratio: 40 / 36;
+  }
+  .gb__sprite--player {
+    width: clamp(56px, 11vh, 104px);
+    height: auto;
+    aspect-ratio: 12 / 18;
+  }
+  /* Two-frame idle bob, like old battle sprites. */
+  .gb__foe .gb__sprite,
+  .gb__me .gb__sprite {
+    animation: gb-bob 1s steps(1) infinite;
+  }
+  .gb__me .gb__sprite {
+    animation-delay: 0.5s;
+  }
+  .gb__foe[data-mood="panic"] .gb__sprite {
+    animation: gb-shake 0.3s steps(2) infinite;
+  }
+  .gb__foe[data-mood="gloat"] .gb__sprite,
+  .gb__foe[data-mood="won"] .gb__sprite {
+    animation: gb-hop 0.5s steps(2) infinite;
+  }
+  .gb__foe[data-mood="lost"] .gb__sprite {
+    animation: gb-faint 0.8s steps(6) forwards;
+  }
+
+  /* ─────────────── the board ─────────────── */
+  .gb__board {
+    grid-area: board;
+    justify-self: center;
+    display: grid;
+    grid-template-columns: auto repeat(6, var(--pit)) auto;
+    grid-template-rows: var(--pit) var(--pit);
+    gap: calc(var(--pit) * 0.14);
+    padding: calc(var(--pit) * 0.2);
+    margin: var(--px);
     background: #c98f5c;
-    border: 3px solid var(--ink);
-    border-radius: 24px;
-    box-shadow: 0 5px 0 var(--ink);
+    background-image: repeating-linear-gradient(90deg, transparent 0 22px, rgba(0, 0, 0, 0.06) 22px 24px);
   }
-  .row {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0.4rem;
+  .gb__row {
+    display: contents;
   }
-  .row--top {
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .row--bottom {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .store {
+  .gb__store {
     display: grid;
     place-items: center;
-    background: #8a5a3b;
+    width: calc(var(--pit) * 0.9);
+    grid-row: 1 / span 2;
     color: #fff;
-    border-radius: 999px;
-    font: 700 1.3rem var(--font-pixel);
-    box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.25);
+    background: #6b4428;
+    box-shadow:
+      inset 0 var(--px) 0 rgba(0, 0, 0, 0.35),
+      0 0 0 var(--px) var(--ink);
+    font-size: 1.1em;
   }
-  .store--top {
+  .gb__store--foe {
     grid-column: 1;
-    grid-row: 1 / span 2;
   }
-  .store--bottom {
-    grid-column: 3;
-    grid-row: 1 / span 2;
+  .gb__store--me {
+    grid-column: 8;
   }
-  .board :global(.pit) {
+  .gb__board :global(.gb__pit) {
     position: relative;
-    aspect-ratio: 1;
-    min-height: 44px;
-    border-radius: 50%;
-    border: 0;
-    background: #8a5a3b;
-    box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.3);
     display: grid;
     place-items: center;
     padding: 0;
-    font: inherit;
+    border: 0;
+    background: #6b4428;
+    box-shadow:
+      inset 0 var(--px) 0 rgba(0, 0, 0, 0.35),
+      0 0 0 3px var(--ink);
     color: #fff;
   }
-  .board :global(button.pit:not([disabled])) {
+  .gb__board :global(button.gb__pit:not([disabled])) {
     cursor: pointer;
-    background: #a06a45;
-    outline: 2px dashed rgba(255, 255, 255, 0.5);
-    outline-offset: -5px;
+    background: #8a5a3b;
   }
-  .board :global(button.pit:not([disabled]):hover) {
-    background: #b57a52;
+  .gb__board :global(button.gb__pit:not([disabled]):hover),
+  .gb__board :global(.gb__pit.is-cursor) {
+    background: #a8704a;
   }
-  .board :global(.pit--last) {
-    box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.3), 0 0 0 3px var(--sun);
+  /* The ▲ cursor under the pit you're about to pick. */
+  .gb__board :global(.gb__pit.is-cursor::after) {
+    content: "▲";
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    transform: translateX(-50%);
+    font-size: 0.9em;
+    line-height: 1.2;
+    color: var(--ink);
+    animation: gb-blink 0.8s steps(1) infinite;
   }
-  .board :global(.stones) {
+  .gb__board :global(.is-last) {
+    outline: 3px solid #f8d030;
+    outline-offset: 3px;
+  }
+  .gb__board :global(.is-hot) {
+    background: #f8d030 !important;
+  }
+  .gb__board :global(.is-flash) {
+    animation: gb-flash 0.5s steps(2) 2;
+  }
+  .gb__board :global(.gb__stones) {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 2px;
-    width: 70%;
+    gap: 3px;
+    width: 72%;
   }
-  .board :global(.stones i) {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #ffe3a3;
+  .gb__board :global(.gb__stones i) {
+    width: calc(var(--pit) * 0.11);
+    height: calc(var(--pit) * 0.11);
+    background: #f8e0a0;
+    box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.25);
   }
-  .board :global(.stones i:nth-child(3n)) {
-    background: #9be7dc;
+  .gb__board :global(.gb__stones i:nth-child(3n)) {
+    background: #98e0d8;
   }
-  .board :global(.stones i:nth-child(4n)) {
-    background: #ffb3c6;
+  .gb__board :global(.gb__stones i:nth-child(4n)) {
+    background: #f8b0c8;
   }
-  .board :global(.count) {
+  .gb__board :global(.gb__count) {
     position: absolute;
-    bottom: -2px;
-    right: -2px;
-    min-width: 1.4em;
-    padding: 0 0.25em;
-    border-radius: 99px;
+    right: -3px;
+    bottom: -3px;
+    min-width: 1.6em;
+    padding: 0 0.2em;
+    font-size: 0.75em;
+    line-height: 1.6;
+    color: #fff;
     background: var(--ink);
-    font: 700 0.75rem/1.4 var(--font-pixel);
   }
-  .legend,
-  .engine-info {
-    font-size: 0.85rem;
-    margin-top: 0.75rem;
+
+  /* ─────────────── the text box ─────────────── */
+  .gb__dialog {
+    position: relative;
+    width: min(calc(100% - 24px), 936px);
+    margin: 4px auto 16px;
+    padding: 0.8em 1.4em;
+    min-height: calc(4em + 1.6em);
+    background: var(--paper);
+    cursor: pointer;
+  }
+  /* The double frame of an old RPG text box. */
+  .gb__dialog::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border: 3px solid #4868a8;
+    pointer-events: none;
+  }
+  .gb__text {
+    margin: 0;
+    min-height: 4em;
+    white-space: pre-wrap;
+  }
+  .gb__more {
+    position: absolute;
+    right: 1.2em;
+    bottom: 0.6em;
+    animation: gb-blink 0.8s steps(1) infinite;
+  }
+  .gb__more[hidden] {
+    display: none;
+  }
+  .gb__menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 12px);
+    min-width: 9em;
+    margin: 0;
+    padding: 0.5em 0.8em;
+    list-style: none;
+    background: var(--paper);
+    cursor: default;
+  }
+  .gb__menu[hidden] {
+    display: none;
+  }
+  .gb__menu :global(.gb__option) {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 0 0 1.4em;
+    border: 0;
+    background: none;
+    text-align: left;
+    white-space: pre;
+    cursor: pointer;
+    position: relative;
+  }
+  .gb__menu :global(.gb__option.is-current::before) {
+    content: "▶";
+    position: absolute;
+    left: 0;
+  }
+
+  /* ─────────────── info window ─────────────── */
+  .gb__popup {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(24, 24, 32, 0.45);
+    cursor: pointer;
+  }
+  .gb__popup[hidden] {
+    display: none;
+  }
+  .gb__window {
+    position: relative;
+    width: min(100%, 44em);
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 12px 1.6em 1em;
+    background: var(--paper);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 0 var(--ink),
+      0 var(--px) 0 0 var(--ink),
+      calc(var(--px) * -1) 0 0 0 var(--ink),
+      var(--px) 0 0 0 var(--ink),
+      0 calc(var(--px) * 3) 0 0 rgba(0, 0, 0, 0.25);
+    animation: gb-pop 0.25s steps(4);
+  }
+  .gb__window::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border: 3px solid #4868a8;
+    pointer-events: none;
+  }
+  .gb__window-title {
+    margin: 0 calc(12px - 1.6em) 1em;
+    padding: 0.5em calc(1.6em - 12px);
+    color: #f8d030;
+    background: var(--ink);
+    letter-spacing: 0.1em;
+  }
+  .gb__window-body :global(p) {
+    margin: 0 0 1em;
+  }
+  .gb__window-body :global(.gb__table) {
+    width: 100%;
+    margin: 0 0 1em;
+    border-collapse: collapse;
+    text-align: right;
+    font-size: 0.9em;
+  }
+  .gb__window-body :global(.gb__table caption) {
+    margin-bottom: 0.6em;
+    text-align: left;
+  }
+  .gb__window-body :global(.gb__table th) {
+    font-weight: 400;
+    font-size: 0.8em;
+    color: #4868a8;
+  }
+  .gb__window-body :global(.gb__table th),
+  .gb__window-body :global(.gb__table td) {
+    padding: 0.35em 0 0.35em 0.8em;
+  }
+  .gb__window-body :global(.gb__table td:first-child) {
+    text-align: left;
+    padding-left: 0;
+  }
+  .gb__window-body :global(.gb__table tbody tr) {
+    border-top: 3px solid var(--ink);
+  }
+  .gb__window-ok {
+    margin: 0;
+    text-align: right;
+    animation: gb-blink 0.8s steps(1) infinite;
+  }
+
+  /* ─────────────── transitions ─────────────── */
+  /* Battle intro: the screen flashes, black bars wipe away, and both sides slide in. */
+  .gb.is-entering {
+    animation: gb-flash 0.12s steps(2) 3;
+  }
+  .gb.is-entering::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background: repeating-linear-gradient(#000 0 calc(100% / 16), transparent calc(100% / 16) calc(100% / 8));
+    transform-origin: right;
+    animation: gb-wipe 0.5s steps(8) 0.36s both;
+  }
+  .gb.is-entering .gb__foe {
+    animation: gb-slide-in-right 0.6s steps(8) 0.5s both;
+  }
+  .gb.is-entering .gb__me {
+    animation: gb-slide-in-left 0.6s steps(8) 0.5s both;
+  }
+
+  @keyframes gb-bob {
+    50% {
+      transform: translateY(var(--px));
+    }
+  }
+  @keyframes gb-hop {
+    50% {
+      transform: translateY(calc(var(--px) * -3));
+    }
+  }
+  @keyframes gb-shake {
+    50% {
+      transform: translateX(calc(var(--px) * 1.5));
+    }
+  }
+  @keyframes gb-faint {
+    to {
+      transform: translateY(45%);
+      clip-path: inset(0 0 45% 0);
+    }
+  }
+  @keyframes gb-pop {
+    from {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+  }
+  @keyframes gb-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  @keyframes gb-flash {
+    50% {
+      filter: invert(1);
+    }
+  }
+  @keyframes gb-wipe {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes gb-slide-in-right {
+    from {
+      transform: translateX(60vw);
+    }
+  }
+  @keyframes gb-slide-in-left {
+    from {
+      transform: translateX(-60vw);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gb *,
+    .gb,
+    .gb::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    .gb.is-entering::after {
+      display: none;
+    }
+  }
+
+  /* Small screens: tighter spacing, everything still on one screen. */
+  @media (max-width: 600px) {
+    .gb {
+      --px: 3px;
+      --pit: clamp(30px, 10.5vw, 48px);
+      --text: 10px;
+    }
+    .gb__stage {
+      padding: 4px 10px;
+      gap: 6px 10px;
+    }
   }
 </style>

@@ -24,5 +24,14 @@ export default defineConfig({
       subsets: ["latin"],
       fallbacks: ["ui-monospace", "monospace"],
     },
+    {
+      // The arcade's Game Boy-style Mancala screen.
+      provider: fontProviders.fontsource(),
+      name: "Press Start 2P",
+      cssVariable: "--font-retro",
+      weights: ["400"],
+      subsets: ["latin"],
+      fallbacks: ["ui-monospace", "monospace"],
+    },
   ],
 });
