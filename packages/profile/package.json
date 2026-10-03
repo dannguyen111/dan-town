@@ -1,0 +1,7 @@
+{
+  "name": "@dan-town/profile",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/compile.ts", "./schema": "./src/schema.ts" },
+  "dependencies": { "yaml": "^2.9.0", "zod": "^4.6.0" }
+}

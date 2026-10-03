@@ -1,0 +1,26 @@
+# Example profile so the public repo builds without access to the private one.
+# The real profile lives in the private repo `dan-profile` (see README).
+version: 1
+identity:
+  name: Example Person
+  short_name: Example
+  headline: Software Engineer
+  tagline: This is placeholder data from profile/profile.example.yaml.
+about:
+  intro: Set PROFILE_PATH or clone the private profile repo next to this one.
+links:
+  - { id: github, label: GitHub, url: "https://github.com" }
+experience:
+  - id: example-role
+    role: Engineer
+    org: Example Co
+    start: 2024-01
+    end: null
+    highlights: [Placeholder highlight.]
+projects:
+  - id: example-project
+    title: Example Project
+    tagline: A placeholder project.
+    date: 2024-01
+    featured: true
+    body: Placeholder.
