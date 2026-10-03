@@ -16,7 +16,7 @@
   --radius-sm: 12px;
   --shadow: 0 2px 0 rgba(59, 47, 42, 0.08), 0 8px 24px rgba(59, 47, 42, 0.08);
   --header-h: 56px;
-  --panel-w: min(560px, 46vw);
+  --panel-w: 50vw;
   color-scheme: light;
 }
 

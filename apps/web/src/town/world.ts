@@ -294,6 +294,40 @@ function mailbox(ctx: Ctx, o: TownObject) {
   rect(ctx, "#ffd166", px + 12, py, 3, 2);
 }
 
+function statue(ctx: Ctx, o: TownObject) {
+  const px = o.x * TILE;
+  const py = o.y * TILE;
+  const bronze = "#b07a3c";
+  const bronzeDark = "#7d5326";
+  const bronzeLight = "#d9a35f";
+  rect(ctx, "rgba(40,60,20,0.18)", px + 2, py + 30, 14, 2);
+  // Stone pedestal with a gold plaque
+  rect(ctx, INK, px + 1, py + 21, 14, 11);
+  rect(ctx, C.stone, px + 2, py + 22, 12, 9);
+  rect(ctx, C.stoneDark, px + 2, py + 29, 12, 2);
+  rect(ctx, "#ffd166", px + 5, py + 24, 6, 3);
+  rect(ctx, "#c9a227", px + 6, py + 25, 4, 1);
+  // Bronze player mid-leap for a tomahawk: ball cocked behind the head, knee driving up
+  rect(ctx, bronzeDark, px + 7, py + 16, 2, 5); // trailing leg
+  rect(ctx, bronzeDark, px + 6, py + 20, 3, 1);
+  rect(ctx, bronze, px + 10, py + 15, 3, 2); // raised knee
+  rect(ctx, bronzeDark, px + 12, py + 16, 2, 3);
+  rect(ctx, bronze, px + 7, py + 13, 5, 3); // shorts
+  rect(ctx, bronze, px + 7, py + 8, 5, 6); // torso
+  rect(ctx, bronzeLight, px + 9, py + 9, 2, 3);
+  rect(ctx, bronze, px + 12, py + 9, 2, 1); // free arm reaching for the rim
+  rect(ctx, bronze, px + 13, py + 10, 1, 4);
+  rect(ctx, bronze, px + 6, py + 4, 1, 6); // throwing arm, cocked back
+  rect(ctx, bronze, px + 5, py + 3, 2, 2);
+  rect(ctx, bronze, px + 7, py + 4, 4, 4); // head
+  rect(ctx, bronzeDark, px + 7, py + 5, 4, 1);
+  rect(ctx, bronzeLight, px + 10, py + 6, 1, 1);
+  // The ball, palmed behind the head
+  rect(ctx, "#e8742a", px + 1, py + 1, 5, 4);
+  rect(ctx, "#a34d16", px + 3, py + 1, 1, 4);
+  rect(ctx, "#a34d16", px + 1, py + 2, 5, 1);
+}
+
 /** Bake the whole static town into one canvas. */
 export function bakeWorld(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -320,6 +354,7 @@ export function bakeWorld(): HTMLCanvasElement {
     else if (o.kind === "board") board(ctx, o);
     else if (o.kind === "signpost") signpost(ctx, o);
     else if (o.kind === "mailbox") mailbox(ctx, o);
+    else if (o.kind === "statue") statue(ctx, o);
   }
   return canvas;
 }

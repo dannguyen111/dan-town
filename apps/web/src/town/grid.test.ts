@@ -33,8 +33,8 @@ describe("town map", () => {
   it("finds shortest paths and respects collisions", () => {
     const path = grid.findPath(SPAWN, { x: 12, y: 7 });
     expect(path).toEqual([{ x: 12, y: 7 }]);
-    expect(grid.findPath(SPAWN, { x: 11, y: 9 })).toBeNull(); // pond is solid
-    for (const p of grid.findPath(SPAWN, { x: 3, y: 14 }) ?? []) expect(grid.isWalkable(p.x, p.y)).toBe(true);
+    expect(grid.findPath(SPAWN, { x: 8, y: 14 })).toBeNull(); // pond is solid
+    for (const p of grid.findPath(SPAWN, { x: 16, y: 20 }) ?? []) expect(grid.isWalkable(p.x, p.y)).toBe(true);
   });
 
   it("treats doors as walkable triggers", () => {

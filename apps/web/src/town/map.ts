@@ -6,23 +6,28 @@
 export const TILE = 16;
 
 export const GROUND = [
-  "TTTTTTTTTTTTTTTTTTTTTTTT", // 0
-  "T..,.........,.......,.T", // 1
-  "T......................T", // 2
-  "T......................T", // 3
-  "T......................T", // 4
-  "T......................T", // 5
-  "T...=......=.......=...T", // 6
-  "T======================T", // 7  Main Street
-  "T.......========.......T", // 8
-  "T.......==~~~~==.......T", // 9  plaza + pond
-  "T.......==~~~~==.......T", // 10
-  "T..=....========...=...T", // 11
-  "T======================T", // 12 Market Street
-  "T......................T", // 13
-  "T.,.....,.......,....,.T", // 14
-  "T..,......,.....,......T", // 15
-  "TTTTTTTTTTTTTTTTTTTTTTTT", // 16
+  "TTTTTTTTTTTTTTTTTT", // 0
+  "T..,......,....,.T", // 1
+  "T................T", // 2
+  "T................T", // 3
+  "T................T", // 4
+  "T................T", // 5
+  "T...=.......=....T", // 6
+  "T================T", // 7  Main Street
+  "T.......==.......T", // 8  Center Road
+  "T.......==.,.....T", // 9
+  "T.......==.......T", // 10
+  "T.......==.......T", // 11
+  "T================T", // 12 Market Street
+  "T......====...,..T", // 13
+  "T......=~~=......T", // 14 plaza + pond
+  "T......=~~=......T", // 15
+  "T..=...====......T", // 16
+  "T================T", // 17 Garden Lane
+  "T................T", // 18
+  "T................T", // 19
+  "T.,.......,....,.T", // 20
+  "TTTTTTTTTTTTTTTTTT", // 21
 ] as const;
 
 export const COLS = GROUND[0].length;
@@ -34,9 +39,9 @@ export interface Point {
 }
 
 /** What interacting with an object does. */
-export type Target = { type: "place"; id: string } | { type: "link"; id: string };
+export type Target = { type: "place"; id: string } | { type: "link"; id: string } | { type: "note"; text: string };
 
-export type ObjectKind = "building" | "garden" | "stall" | "board" | "signpost" | "mailbox" | "npc";
+export type ObjectKind = "building" | "garden" | "stall" | "board" | "signpost" | "mailbox" | "npc" | "statue";
 
 export interface TownObject {
   id: string;
@@ -55,16 +60,17 @@ export interface TownObject {
 
 export const OBJECTS: readonly TownObject[] = [
   { id: "home", kind: "building", x: 2, y: 2, w: 5, h: 4, door: { x: 4, y: 5 }, target: { type: "place", id: "home" }, label: "Home", style: "home" },
-  { id: "dev", kind: "building", x: 9, y: 2, w: 6, h: 4, door: { x: 11, y: 5 }, target: { type: "place", id: "dev" }, label: "Dev Center", style: "dev" },
-  { id: "career", kind: "building", x: 17, y: 2, w: 5, h: 4, door: { x: 19, y: 5 }, target: { type: "place", id: "career" }, label: "Career Hall", style: "career" },
-  { id: "music", kind: "building", x: 2, y: 8, w: 4, h: 3, door: { x: 3, y: 10 }, target: { type: "place", id: "music" }, label: "Music Room", style: "music" },
-  { id: "arcade", kind: "building", x: 17, y: 8, w: 5, h: 3, door: { x: 19, y: 10 }, target: { type: "place", id: "arcade" }, label: "Arcade", style: "arcade" },
-  { id: "garden", kind: "garden", x: 2, y: 13, w: 6, h: 3, door: { x: 4, y: 13 }, target: { type: "place", id: "garden" }, label: "Interests Garden", style: "garden" },
-  { id: "twin", kind: "npc", x: 9, y: 9, w: 1, h: 1, target: { type: "place", id: "twin" }, label: "Digital Twin", style: "twin" },
-  { id: "linkedin", kind: "board", x: 9, y: 13, w: 2, h: 1, target: { type: "link", id: "linkedin" }, label: "LinkedIn", style: "linkedin" },
-  { id: "github", kind: "signpost", x: 12, y: 13, w: 1, h: 1, target: { type: "link", id: "github" }, label: "GitHub", style: "github" },
-  { id: "email", kind: "mailbox", x: 14, y: 13, w: 1, h: 1, target: { type: "link", id: "email" }, label: "Email", style: "email" },
-  { id: "depop", kind: "stall", x: 16, y: 13, w: 4, h: 2, door: { x: 18, y: 14 }, target: { type: "link", id: "depop" }, label: "Depop", style: "depop" },
+  { id: "lebron", kind: "statue", x: 7, y: 4, w: 1, h: 2, target: { type: "note", text: "The King. 4× NBA champion and the league's all-time leading scorer." }, label: "LeBron James", style: "lebron" },
+  { id: "dev", kind: "building", x: 10, y: 2, w: 6, h: 4, door: { x: 12, y: 5 }, target: { type: "place", id: "dev" }, label: "Dev Center", style: "dev" },
+  { id: "career", kind: "building", x: 2, y: 8, w: 5, h: 4, door: { x: 4, y: 11 }, target: { type: "place", id: "career" }, label: "Career Hall", style: "career" },
+  { id: "arcade", kind: "building", x: 11, y: 9, w: 5, h: 3, door: { x: 13, y: 11 }, target: { type: "place", id: "arcade" }, label: "Arcade", style: "arcade" },
+  { id: "music", kind: "building", x: 2, y: 13, w: 4, h: 3, door: { x: 3, y: 15 }, target: { type: "place", id: "music" }, label: "Music Room", style: "music" },
+  { id: "twin", kind: "npc", x: 7, y: 9, w: 1, h: 1, target: { type: "place", id: "twin" }, label: "Digital Twin", style: "twin" },
+  { id: "depop", kind: "stall", x: 12, y: 15, w: 4, h: 2, door: { x: 14, y: 16 }, target: { type: "link", id: "depop" }, label: "Depop", style: "depop" },
+  { id: "garden", kind: "garden", x: 2, y: 18, w: 6, h: 3, door: { x: 4, y: 18 }, target: { type: "place", id: "garden" }, label: "Interests Garden", style: "garden" },
+  { id: "linkedin", kind: "board", x: 9, y: 19, w: 2, h: 1, target: { type: "link", id: "linkedin" }, label: "LinkedIn", style: "linkedin" },
+  { id: "github", kind: "signpost", x: 12, y: 19, w: 1, h: 1, target: { type: "link", id: "github" }, label: "GitHub", style: "github" },
+  { id: "email", kind: "mailbox", x: 14, y: 19, w: 1, h: 1, target: { type: "link", id: "email" }, label: "Email", style: "email" },
 ];
 
 export const SPAWN: Point = { x: 11, y: 7 };

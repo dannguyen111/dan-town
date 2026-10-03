@@ -290,7 +290,7 @@ export class Town {
       this.announce(`Entering ${place.name}`);
       this.stepOutOfDoor(obj);
       this.config.onEnterPlace(obj.target.id, place.href);
-    } else if (obj.door) {
+    } else if (obj.door && obj.target.type === "link") {
       // Walking through a link door opens it in a new tab. Fall back to the bubble if
       // there is no URL or the popup blocker stops us (e.g. the walk outlasted the click).
       // ("noopener" would make window.open always return null, so detach the opener by hand.)
@@ -327,7 +327,7 @@ export class Town {
       el.type = "button";
       el.className = `town-label town-label--${obj.kind}`;
       el.textContent = obj.label;
-      el.setAttribute("aria-label", obj.target.type === "place" ? `Walk to ${obj.label}` : `Walk to the ${obj.label} sign`);
+      el.setAttribute("aria-label", obj.target.type === "place" ? `Walk to ${obj.label}` : `Walk to the ${obj.label} ${obj.kind === "statue" ? "statue" : "sign"}`);
       el.addEventListener("click", () => {
         this.walkToObject(obj);
         this.focus();
@@ -338,13 +338,17 @@ export class Town {
   }
 
   private showLinkBubble(obj: TownObject) {
-    const link = this.config.links[obj.target.id];
+    const link = obj.target.type === "note" ? undefined : this.config.links[obj.target.id];
     this.bubble.replaceChildren();
     this.bubbleLink = null;
     const title = document.createElement("strong");
     title.textContent = obj.label;
     this.bubble.append(title);
-    if (link?.url) {
+    if (obj.target.type === "note") {
+      const p = document.createElement("span");
+      p.textContent = obj.target.text;
+      this.bubble.append(p);
+    } else if (link?.url) {
       const a = document.createElement("a");
       a.href = link.url;
       a.textContent = link.url.startsWith("mailto:") ? "Send me an email ✉️" : `Open ${obj.label} ↗`;
@@ -376,7 +380,9 @@ export class Town {
     });
     this.bubble.append(close);
     this.bubble.hidden = false;
-    this.announce(link?.url ? `${obj.label} link available. Press Enter to open it.` : `${obj.label}: opening soon`);
+    this.announce(
+      obj.target.type === "note" ? `${obj.label}: ${obj.target.text}` : link?.url ? `${obj.label} link available. Press Enter to open it.` : `${obj.label}: opening soon`,
+    );
   }
 
   private hideBubble() {
