@@ -1,0 +1,7 @@
+# Copy to workers/api/.dev.vars for local `wrangler dev`. Never commit real values.
+OPENROUTER_API_KEY=
+GITHUB_TOKEN=
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+SPOTIFY_REFRESH_TOKEN=
+TURNSTILE_SECRET=

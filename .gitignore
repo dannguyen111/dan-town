@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+target/
+.env
+.env.*
+.dev.vars
+# generated from the private profile at build time
+apps/web/src/generated/
+workers/api/src/generated/
+apps/web/public/wasm/
+.profile/

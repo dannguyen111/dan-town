@@ -1,0 +1,31 @@
+{
+  "name": "dan-town",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "workers/*"
+  ],
+  "scripts": {
+    "profile:build": "tsx packages/profile/src/cli.ts build",
+    "profile:check": "tsx packages/profile/src/cli.ts check",
+    "profile:export": "tsx packages/profile/src/cli.ts export",
+    "engine:build": "node scripts/build-engine.mjs",
+    "prebuild": "npm run profile:build && npm run engine:build",
+    "build": "npm -w apps/web run build",
+    "dev": "npm run prebuild && npm -w apps/web run dev",
+    "preview": "npm run build && npm -w workers/api run dev",
+    "deploy": "npm run build && npm -w workers/api run deploy",
+    "test": "vitest run && cargo test --release --manifest-path engine/mancala/Cargo.toml",
+    "check": "npm -w apps/web run check && npm -w workers/api run check && cargo clippy --manifest-path engine/mancala/Cargo.toml --all-targets -- -D warnings"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.0",
+    "vitest": "^5.0.3"
+  }
+}
