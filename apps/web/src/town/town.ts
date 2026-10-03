@@ -1,0 +1,458 @@
+/**
+ * The town controller: input → grid movement → rendering.
+ *
+ * Performance contract: nothing runs while the visitor is idle. The rAF loop starts on input
+ * and stops as soon as the player is standing still with no queued path or held key.
+ */
+import { DELTA, TownGrid, dirBetween, type Dir } from "./grid.ts";
+import { COLS, OBJECTS, ROWS, SPAWN, TILE, type Point, type TownObject } from "./map.ts";
+import { PLAYER_PALETTE, SPRITE_H, SPRITE_W, TWIN_PALETTE, bakeSprites, type SpriteSheet } from "./sprites.ts";
+import { bakeWorld } from "./world.ts";
+
+export interface TownConfig {
+  places: Record<string, { name: string; href: string }>;
+  links: Record<string, { label: string; url: string | null }>;
+  /** Called when the visitor enters a place. Return a promise that resolves after navigation. */
+  onEnterPlace: (placeId: string, href: string) => void;
+}
+
+const STEP_MS = 150;
+const KEY_DIRS: Record<string, Dir> = {
+  ArrowUp: "up", KeyW: "up",
+  ArrowDown: "down", KeyS: "down",
+  ArrowLeft: "left", KeyA: "left",
+  ArrowRight: "right", KeyD: "right",
+};
+const LETTER_DIRS: Record<string, Dir> = { w: "up", a: "left", s: "down", d: "right" };
+
+/** Physical key (layout-independent WASD) first, then the logical key as a fallback. */
+const dirFor = (e: KeyboardEvent): Dir | undefined => KEY_DIRS[e.code] ?? KEY_DIRS[e.key] ?? LETTER_DIRS[(e.key ?? "").toLowerCase()];
+
+export class Town {
+  private readonly grid = new TownGrid();
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly world = bakeWorld();
+  private readonly playerSprites: SpriteSheet = bakeSprites(PLAYER_PALETTE);
+  private readonly twinSprites: SpriteSheet = bakeSprites(TWIN_PALETTE);
+  private readonly labels = new Map<string, HTMLElement>();
+  private readonly bubble: HTMLElement;
+  private readonly live: HTMLElement;
+  private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+  // Player state
+  private pos: Point = { ...SPAWN };
+  private from: Point = { ...SPAWN };
+  private facing: Dir = "down";
+  private stepStart = 0;
+  private moving = false;
+  private stepCount = 0;
+  private path: Point[] = [];
+  private pendingInteract: { obj: TownObject; face: Dir } | null = null;
+  private marker: Point | null = null;
+  private readonly held: Dir[] = [];
+
+  // View state
+  private scale = 2;
+  private cam = { x: 0, y: 0 };
+  private raf = 0;
+  private enabled = true;
+  /** Pixels at the bottom of the town covered by an overlay (the mobile peek card). */
+  private bottomInset = 0;
+
+  constructor(private readonly root: HTMLElement, private readonly config: TownConfig) {
+    this.canvas = root.querySelector("canvas")!;
+    this.ctx = this.canvas.getContext("2d", { alpha: false })!;
+    this.bubble = root.querySelector("[data-town-bubble]")!;
+    this.live = root.querySelector("[data-town-live]")!;
+    this.buildLabels();
+    this.bindInput();
+    new ResizeObserver(() => this.resize()).observe(root);
+    this.resize();
+  }
+
+  // ───────────────────────────── public API ─────────────────────────────
+
+  /** Place the player next to a location (Map menu jumps, deep links). */
+  teleportToPlace(placeId: string) {
+    const obj = OBJECTS.find((o) => o.target.type === "place" && o.target.id === placeId);
+    if (!obj) return;
+    const { at, face } = this.grid.arrivalTile(obj, SPAWN);
+    this.path = [];
+    this.pendingInteract = null;
+    this.moving = false;
+    this.pos = { ...at };
+    this.from = { ...at };
+    this.facing = face;
+    this.marker = null;
+    this.hideBubble();
+    this.centerCamera(true);
+    this.requestFrame();
+  }
+
+  setActivePlace(placeId: string | null) {
+    for (const [id, el] of this.labels) {
+      const obj = OBJECTS.find((o) => o.id === id)!;
+      el.toggleAttribute("aria-current", obj.target.type === "place" && obj.target.id === placeId);
+    }
+  }
+
+  /** Keep the player centred in the part of the town that isn't covered by overlays. */
+  setBottomInset(px: number) {
+    if (Math.abs(px - this.bottomInset) < 1) return;
+    this.bottomInset = Math.max(0, px);
+    this.centerCamera(true);
+    this.draw(performance.now());
+  }
+
+  focus() {
+    this.canvas.focus({ preventScroll: true });
+  }
+
+  // ───────────────────────────── input ─────────────────────────────
+
+  private bindInput() {
+    window.addEventListener("keydown", (e) => {
+      const dir = dirFor(e);
+      if (!dir || !this.keyboardTargetsTown(e)) return;
+      e.preventDefault();
+      this.path = [];
+      this.pendingInteract = null;
+      this.marker = null;
+      if (!this.held.includes(dir)) this.held.push(dir);
+      this.hideBubble();
+      // Start the step now, so a quick tap (keyup before the next frame) still moves one tile.
+      if (!this.moving) this.startNextStep(performance.now());
+      this.requestFrame();
+    });
+    window.addEventListener("keyup", (e) => {
+      const dir = dirFor(e);
+      if (dir) this.held.splice(this.held.indexOf(dir) >>> 0, 1);
+    });
+    window.addEventListener("blur", () => (this.held.length = 0));
+
+    this.canvas.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.interactFacing();
+      }
+    });
+
+    this.canvas.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const rect = this.canvas.getBoundingClientRect();
+      const wx = (e.clientX - rect.left) / this.scale + this.cam.x;
+      const wy = (e.clientY - rect.top) / this.scale + this.cam.y;
+      this.walkToTile({ x: Math.floor(wx / TILE), y: Math.floor(wy / TILE) });
+    });
+  }
+
+  /** Keys move the player unless the visitor is typing or working inside the content panel. */
+  private keyboardTargetsTown(e: KeyboardEvent) {
+    if (!this.enabled || e.altKey || e.ctrlKey || e.metaKey) return false;
+    const el = document.activeElement;
+    if (!el || el === document.body || el === this.canvas) return !document.querySelector("dialog[open]");
+    return this.root.contains(el) && !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement);
+  }
+
+  walkToObject(obj: TownObject) {
+    const plan = this.grid.approach(obj, this.pos);
+    if (!plan) return;
+    this.held.length = 0;
+    this.path = plan.path;
+    this.pendingInteract = { obj, face: plan.face };
+    this.marker = plan.path.at(-1) ?? null;
+    this.hideBubble();
+    if (!plan.path.length) this.finishPath();
+    this.requestFrame();
+  }
+
+  private walkToTile(tile: Point) {
+    const obj = this.grid.objectAt(tile.x, tile.y);
+    if (obj) return this.walkToObject(obj);
+    const path = this.grid.findPath(this.pos, tile);
+    if (!path) return;
+    this.held.length = 0;
+    this.path = path;
+    this.pendingInteract = null;
+    this.marker = tile;
+    this.hideBubble();
+    this.requestFrame();
+  }
+
+  // ───────────────────────────── movement ─────────────────────────────
+
+  private requestFrame() {
+    if (!this.raf) this.raf = requestAnimationFrame((t) => this.tick(t));
+  }
+
+  private tick(now: number) {
+    this.raf = 0;
+    if (this.moving && now - this.stepStart >= this.stepDuration()) {
+      this.moving = false;
+      this.onArrive();
+    }
+    if (!this.moving) this.startNextStep(now);
+    this.centerCamera(false, now);
+    this.draw(now);
+    if (this.moving || this.path.length || this.held.length) this.requestFrame();
+  }
+
+  private stepDuration() {
+    return this.reducedMotion.matches ? 90 : STEP_MS;
+  }
+
+  private startNextStep(now: number) {
+    let next: Point | undefined;
+    if (this.path.length) {
+      next = this.path.shift()!;
+      if (!this.grid.isWalkable(next.x, next.y)) {
+        this.path = [];
+        return;
+      }
+      this.facing = dirBetween(this.pos, next);
+    } else if (this.held.length) {
+      const dir = this.held[this.held.length - 1]!;
+      this.facing = dir;
+      const target = { x: this.pos.x + DELTA[dir].x, y: this.pos.y + DELTA[dir].y };
+      if (!this.grid.isWalkable(target.x, target.y)) {
+        // Bumping into a sign, stall or NPC interacts with it.
+        const obj = this.grid.objectAt(target.x, target.y);
+        if (obj && !obj.door) {
+          this.held.length = 0;
+          this.trigger(obj);
+        }
+        return;
+      }
+      next = target;
+    }
+    if (!next) return;
+    this.from = { ...this.pos };
+    this.pos = next;
+    this.moving = true;
+    this.stepStart = now;
+    this.stepCount++;
+  }
+
+  private onArrive() {
+    const door = this.grid.doorAt(this.pos.x, this.pos.y);
+    if (door) {
+      this.path = [];
+      this.held.length = 0;
+      this.pendingInteract = null;
+      this.marker = null;
+      this.trigger(door);
+      return;
+    }
+    if (!this.path.length) this.finishPath();
+  }
+
+  private finishPath() {
+    this.marker = null;
+    if (this.pendingInteract) {
+      const { obj, face } = this.pendingInteract;
+      this.pendingInteract = null;
+      this.facing = face;
+      if (!obj.door) this.trigger(obj);
+    }
+  }
+
+  private interactFacing() {
+    const t = { x: this.pos.x + DELTA[this.facing].x, y: this.pos.y + DELTA[this.facing].y };
+    const obj = this.grid.objectAt(t.x, t.y);
+    if (obj) this.walkToObject(obj);
+  }
+
+  private trigger(obj: TownObject) {
+    if (obj.target.type === "place") {
+      const place = this.config.places[obj.target.id];
+      if (!place) return;
+      this.announce(`Entering ${place.name}`);
+      // Step back out of the doorway so the next visit doesn't re-trigger instantly.
+      if (obj.door) {
+        const { at, face } = this.grid.arrivalTile(obj, this.from);
+        this.pos = { ...at };
+        this.from = { ...at };
+        this.facing = face === "up" ? "down" : face;
+      }
+      this.config.onEnterPlace(obj.target.id, place.href);
+    } else {
+      this.showLinkBubble(obj);
+    }
+    this.requestFrame();
+  }
+
+  // ───────────────────────────── UI overlays ─────────────────────────────
+
+  private buildLabels() {
+    const layer = this.root.querySelector<HTMLElement>("[data-town-labels]")!;
+    for (const obj of OBJECTS) {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = `town-label town-label--${obj.kind}`;
+      el.textContent = obj.label;
+      el.setAttribute("aria-label", obj.target.type === "place" ? `Walk to ${obj.label}` : `Walk to the ${obj.label} sign`);
+      el.addEventListener("click", () => {
+        this.walkToObject(obj);
+        this.focus();
+      });
+      layer.append(el);
+      this.labels.set(obj.id, el);
+    }
+  }
+
+  private showLinkBubble(obj: TownObject) {
+    const link = this.config.links[obj.target.id];
+    this.bubble.replaceChildren();
+    const title = document.createElement("strong");
+    title.textContent = obj.label;
+    this.bubble.append(title);
+    if (link?.url) {
+      const a = document.createElement("a");
+      a.href = link.url;
+      a.textContent = link.url.startsWith("mailto:") ? "Send me an email ✉️" : `Open ${obj.label} ↗`;
+      if (!link.url.startsWith("mailto:")) {
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+      }
+      this.bubble.append(a);
+    } else {
+      const p = document.createElement("span");
+      p.textContent = "Opening soon. Check back later!";
+      this.bubble.append(p);
+    }
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "town-bubble__close";
+    close.setAttribute("aria-label", "Close");
+    close.textContent = "×";
+    close.addEventListener("click", () => {
+      this.hideBubble();
+      this.focus();
+    });
+    this.bubble.append(close);
+    this.bubble.hidden = false;
+    this.announce(link?.url ? `${obj.label} link available` : `${obj.label}: opening soon`);
+  }
+
+  private hideBubble() {
+    this.bubble.hidden = true;
+  }
+
+  private announce(text: string) {
+    this.live.textContent = text;
+  }
+
+  // ───────────────────────────── view ─────────────────────────────
+
+  private resize() {
+    const cssW = this.root.clientWidth;
+    const cssH = this.root.clientHeight;
+    if (!cssW || !cssH) return;
+    const dpr = window.devicePixelRatio || 1;
+    const mapW = COLS * TILE;
+    const mapH = ROWS * TILE;
+    // Fit the whole town when there is room; otherwise keep characters big and follow with a camera.
+    const fit = Math.min(cssW / mapW, cssH / mapH);
+    const minScale = cssW < 640 ? 2.25 : 2;
+    const cssScale = Math.max(fit, minScale);
+    // Snap to whole device pixels so pixel art stays crisp.
+    const deviceScale = Math.max(1, Math.floor(cssScale * dpr));
+    this.scale = deviceScale / dpr;
+    this.canvas.width = Math.round(cssW * dpr);
+    this.canvas.height = Math.round(cssH * dpr);
+    this.canvas.style.width = `${cssW}px`;
+    this.canvas.style.height = `${cssH}px`;
+    this.centerCamera(true);
+    this.draw(performance.now());
+  }
+
+  /** Player position in world pixels, tweened between tiles. */
+  private playerPx(now: number): Point {
+    const t = this.moving && !this.reducedMotion.matches ? Math.min(1, (now - this.stepStart) / this.stepDuration()) : 1;
+    return {
+      x: (this.from.x + (this.pos.x - this.from.x) * t) * TILE,
+      y: (this.from.y + (this.pos.y - this.from.y) * t) * TILE,
+    };
+  }
+
+  private centerCamera(snap: boolean, now = performance.now()) {
+    const viewW = this.root.clientWidth / this.scale;
+    const viewH = this.root.clientHeight / this.scale;
+    const visibleH = Math.max(viewH / 3, (this.root.clientHeight - this.bottomInset) / this.scale);
+    const mapW = COLS * TILE;
+    const mapH = ROWS * TILE;
+    const p = this.playerPx(now);
+    const clamp = (v: number, view: number, map: number) => (view >= map ? (map - view) / 2 : Math.max(0, Math.min(map - view, v)));
+    const target = { x: clamp(p.x + TILE / 2 - viewW / 2, viewW, mapW), y: clamp(p.y + TILE / 2 - visibleH / 2, viewH, mapH) };
+    if (snap || this.reducedMotion.matches) this.cam = target;
+    else {
+      this.cam.x += (target.x - this.cam.x) * 0.25;
+      this.cam.y += (target.y - this.cam.y) * 0.25;
+      if (Math.abs(target.x - this.cam.x) < 0.5) this.cam.x = target.x;
+      if (Math.abs(target.y - this.cam.y) < 0.5) this.cam.y = target.y;
+      if (this.cam.x !== target.x || this.cam.y !== target.y) this.requestFrame();
+    }
+  }
+
+  private draw(now: number) {
+    const { ctx, canvas } = this;
+    const dpr = window.devicePixelRatio || 1;
+    const s = this.scale * dpr;
+    ctx.imageSmoothingEnabled = false;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#4f9d4a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Round the camera to whole device pixels to avoid shimmering seams.
+    const ox = Math.round(-this.cam.x * s);
+    const oy = Math.round(-this.cam.y * s);
+    ctx.setTransform(s, 0, 0, s, ox, oy);
+    ctx.drawImage(this.world, 0, 0);
+
+    if (this.marker) {
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      const mx = this.marker.x * TILE;
+      const my = this.marker.y * TILE;
+      ctx.fillRect(mx + 4, my + 12, 8, 2);
+      ctx.fillRect(mx + 6, my + 11, 4, 4);
+    }
+
+    // Twin NPC with a speech-bubble hint
+    const twin = OBJECTS.find((o) => o.id === "twin")!;
+    this.drawCharacter(this.twinSprites, "down", 0, twin.x * TILE, twin.y * TILE);
+    ctx.fillStyle = "#3b2a2a";
+    ctx.fillRect(twin.x * TILE + 10, twin.y * TILE - 12, 9, 8);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(twin.x * TILE + 11, twin.y * TILE - 11, 7, 6);
+    ctx.fillStyle = "#2bb3a3";
+    ctx.fillRect(twin.x * TILE + 12, twin.y * TILE - 9, 1, 1);
+    ctx.fillRect(twin.x * TILE + 14, twin.y * TILE - 9, 1, 1);
+    ctx.fillRect(twin.x * TILE + 16, twin.y * TILE - 9, 1, 1);
+
+    const p = this.playerPx(now);
+    const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
+    this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
+
+    this.positionLabels();
+  }
+
+  private drawCharacter(sheet: SpriteSheet, dir: Dir, frame: 0 | 1 | 2, x: number, y: number) {
+    const { ctx } = this;
+    ctx.fillStyle = "rgba(40,60,20,0.25)";
+    ctx.fillRect(x + 3, y + 13, 10, 3);
+    // Sprites are taller than a tile so characters read clearly; feet sit on the tile.
+    ctx.drawImage(sheet[dir][frame], x + (TILE - SPRITE_W) / 2, y + TILE - SPRITE_H - 1);
+  }
+
+  private positionLabels() {
+    const viewW = this.root.clientWidth;
+    for (const obj of OBJECTS) {
+      const el = this.labels.get(obj.id)!;
+      const cx = ((obj.x + obj.w / 2) * TILE - this.cam.x) * this.scale;
+      const top = (obj.y * TILE - this.cam.y) * this.scale - (obj.kind === "npc" ? 30 : 6);
+      const visible = cx > -40 && cx < viewW + 40 && top > -20 && top < this.root.clientHeight;
+      el.style.transform = `translate(${Math.round(cx)}px, ${Math.round(top)}px) translate(-50%, -100%)`;
+      el.style.visibility = visible ? "visible" : "hidden";
+    }
+  }
+}

@@ -1,0 +1,164 @@
+---
+import { EXTERNAL_LINKS, PLACES } from "../lib/locations";
+
+const places = Object.fromEntries(PLACES.map((p) => [p.id, { name: p.name, href: p.href }]));
+const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.label, url: l.url }]));
+---
+
+<section class="town" aria-labelledby="town-title" transition:persist="town" data-town data-places={JSON.stringify(places)} data-links={JSON.stringify(links)}>
+  <h2 id="town-title" class="visually-hidden">Town map</h2>
+  <p id="town-help" class="visually-hidden">
+    An interactive pixel-art town. Use the arrow keys or W A S D to walk, Enter to interact, or click or tap where you want to go.
+    Every place is also listed in the Map menu and under "Where to?".
+  </p>
+  <canvas tabindex="0" role="img" aria-label="Pixel-art town. Walk into buildings to explore." aria-describedby="town-help"></canvas>
+  <div class="town-labels" data-town-labels></div>
+  <div class="town-bubble" data-town-bubble role="status" hidden></div>
+  <div class="visually-hidden" aria-live="polite" data-town-live></div>
+  <noscript><p class="town-noscript">The town needs JavaScript, but every page works without it. Use the menu above.</p></noscript>
+</section>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import { Town } from "../town/town";
+
+  const root = document.querySelector<HTMLElement>("[data-town]")!;
+  let enteredFromTown = false;
+
+  const town = new Town(root, {
+    places: JSON.parse(root.dataset.places!),
+    links: JSON.parse(root.dataset.links!),
+    onEnterPlace: (_id, href) => {
+      if (location.pathname === href) return;
+      enteredFromTown = true;
+      navigate(href);
+    },
+  });
+
+  const sync = () => {
+    const place = document.documentElement.dataset.place ?? "town";
+    town.setActivePlace(place);
+    // Arrivals from the Map menu, links, or a fresh deep link: put the visitor at that door.
+    if (!enteredFromTown && place !== "town") town.teleportToPlace(place);
+    enteredFromTown = false;
+  };
+  document.addEventListener("astro:page-load", sync);
+
+  // On small screens the town square shows a "peek" card over the bottom of the map.
+  const updateInset = () => {
+    const panel = document.querySelector<HTMLElement>(".panel");
+    if (!panel) return;
+    const r = root.getBoundingClientRect();
+    const p = panel.getBoundingClientRect();
+    const overlaps = p.top > r.top && p.top < r.bottom && p.left < r.right && p.right > r.left;
+    town.setBottomInset(overlaps ? r.bottom - p.top : 0);
+  };
+  document.addEventListener("astro:page-load", () => requestAnimationFrame(updateInset));
+  addEventListener("resize", updateInset);
+
+  // The Map menu and other links can ask the town to walk somewhere.
+  document.addEventListener("town:focus", () => town.focus());
+</script>
+
+<style>
+  .town {
+    position: relative;
+    overflow: hidden;
+    background: #4f9d4a;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    cursor: pointer;
+  }
+  canvas:focus-visible {
+    outline: 4px solid var(--sun);
+    outline-offset: -4px;
+    border-radius: 0;
+  }
+  .town-labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .town-labels :global(.town-label) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: auto;
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--ink);
+    background: rgba(255, 252, 245, 0.94);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 5px 8px;
+    min-height: 26px;
+    cursor: pointer;
+    box-shadow: 0 2px 0 var(--ink);
+  }
+  .town-labels :global(.town-label:hover),
+  .town-labels :global(.town-label[aria-current]) {
+    background: var(--sun);
+  }
+  .town-labels :global(.town-label--npc) {
+    background: var(--teal);
+    color: #fff;
+  }
+  .town-labels :global(.town-label--board),
+  .town-labels :global(.town-label--signpost),
+  .town-labels :global(.town-label--mailbox),
+  .town-labels :global(.town-label--stall) {
+    font-size: 0.7rem;
+    padding: 4px 6px;
+    min-height: 22px;
+  }
+  .town-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    max-width: calc(100% - 32px);
+    padding: 0.7rem 2.6rem 0.7rem 1rem;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: 0 4px 0 var(--ink);
+  }
+  .town-bubble[hidden] {
+    display: none;
+  }
+  .town-bubble :global(a) {
+    font-weight: 800;
+  }
+  .town-bubble :global(.town-bubble__close) {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .town-noscript {
+    position: absolute;
+    inset: auto 16px 16px;
+    background: var(--paper);
+    padding: 1rem;
+    border-radius: 12px;
+  }
+</style>
