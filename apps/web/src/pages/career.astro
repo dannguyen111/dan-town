@@ -1,0 +1,131 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { profile, formatMonth, formatRange } from "../lib/profile";
+
+const resume = profile.links.find((l) => l.id === "resume" && l.url);
+---
+
+<TownLayout place="career" title="Career Hall" description="Experience, education, and honors.">
+  <PageHeader kicker="💼 Career Hall" title="Where I've worked">
+    {resume?.url && <a class="btn btn--primary" href={resume.url}>📄 Download resume (PDF)</a>}
+  </PageHeader>
+
+  <ol class="clean timeline">
+    {
+      profile.experience.map((e) => (
+        <li class="card job">
+          <div class="job__head">
+            <h3>{e.role}</h3>
+            <span class="muted job__when">{formatRange(e.start, e.end)}</span>
+          </div>
+          <p class="job__org">
+            {e.org}
+            {e.location && <span class="muted"> · {e.location}</span>}
+          </p>
+          <ul class="job__points">
+            {e.highlights.map((h) => <li>{h}</li>)}
+          </ul>
+          {e.skills.length > 0 && (
+            <ul class="clean job__skills" aria-label="Skills used">
+              {e.skills.map((s) => <li class="chip">{s}</li>)}
+            </ul>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+
+  <h2>Education</h2>
+  {
+    profile.education.map((ed) => (
+      <div class="card">
+        <div class="job__head">
+          <h3>{ed.school}</h3>
+          <span class="muted job__when">{formatRange(ed.start, ed.end)}</span>
+        </div>
+        <p class="job__org">{ed.degree}</p>
+        <p class="badges">
+          {ed.gpa && <span class="chip">GPA {ed.gpa}</span>}
+          {ed.rank && <span class="chip">Rank {ed.rank}</span>}
+        </p>
+        {ed.honors.length > 0 && <p class="muted">Honors: {ed.honors.join(" · ")}</p>}
+      </div>
+    ))
+  }
+
+  <h2>Honors & awards</h2>
+  <ul class="clean honors">
+    {
+      profile.honors.map((h) => (
+        <li class="card honor">
+          <span class="honor__icon" aria-hidden="true">🏆</span>
+          <div>
+            <strong>{h.title}</strong>
+            <p class="muted honor__meta">
+              {h.org} · {formatMonth(h.date)}
+            </p>
+            {h.description && <p class="honor__desc">{h.description}</p>}
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+</TownLayout>
+
+<style>
+  .timeline {
+    display: grid;
+    gap: 1rem;
+  }
+  .job__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+    flex-wrap: wrap;
+  }
+  .job__head h3 {
+    margin: 0;
+  }
+  .job__when {
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  .job__org {
+    font-weight: 700;
+    color: var(--teal-ink);
+    margin: 0.1rem 0 0.5rem;
+  }
+  .job__points {
+    padding-left: 1.1rem;
+    margin: 0 0 0.6rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+  .job__skills,
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .honors {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .honor {
+    display: flex;
+    gap: 0.8rem;
+  }
+  .honor__icon {
+    font-size: 1.4rem;
+  }
+  .honor__meta {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+  .honor__desc {
+    margin: 0.3rem 0 0;
+    font-size: 0.92rem;
+  }
+</style>

@@ -1,0 +1,90 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { PLACES } from "../lib/locations";
+import { profile } from "../lib/profile";
+
+const destinations = PLACES.filter((p) => p.id !== "town");
+---
+
+<TownLayout place="town">
+  <PageHeader kicker="Town Square" title={`Hi, I'm ${profile.identity.short_name} 👋`}>
+    <p class="lead">{profile.identity.headline}. {profile.identity.tagline}</p>
+  </PageHeader>
+
+  <p class="hint muted">
+    <span class="only-wide">Walk around with <kbd>WASD</kbd> or the arrow keys, or click anywhere.</span>
+    <span class="only-narrow">Tap the town to walk, or tap a place below.</span>
+  </p>
+
+  <h2 class="pixel">Where to?</h2>
+  <ul class="clean places">
+    {
+      destinations.map((p) => (
+        <li>
+          <a href={p.href} class="place card">
+            <span class="place__emoji" aria-hidden="true">{p.emoji}</span>
+            <span>
+              <strong>{p.name}</strong>
+              <span class="muted place__blurb">{p.blurb}</span>
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</TownLayout>
+
+<style>
+  .lead {
+    font-size: 1.05rem;
+  }
+  .hint {
+    font-size: 0.9rem;
+  }
+  kbd {
+    font: 700 0.8rem var(--font-pixel);
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    padding: 0 0.3em;
+    background: var(--paper);
+  }
+  .only-narrow {
+    display: none;
+  }
+  @media (max-width: 899px), (pointer: coarse) {
+    .only-wide {
+      display: none;
+    }
+    .only-narrow {
+      display: inline;
+    }
+  }
+  .places {
+    display: grid;
+    gap: 0.6rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  }
+  .place {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.75rem 0.9rem;
+    color: var(--ink);
+    text-decoration: none;
+    min-height: 60px;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+  }
+  .place:hover {
+    transform: translateY(-2px);
+    border-color: var(--ink);
+  }
+  .place__emoji {
+    font-size: 1.6rem;
+  }
+  .place__blurb {
+    display: block;
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+</style>

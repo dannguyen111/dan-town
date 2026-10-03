@@ -1,0 +1,70 @@
+---
+import { Image } from "astro:assets";
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import { profile } from "../lib/profile";
+import { resolveImage } from "../lib/images";
+---
+
+<TownLayout place="garden" title="Interests Garden" description="Things I love outside of code.">
+  <PageHeader kicker="🌻 Interests Garden" title="Life outside the terminal" />
+
+  <div class="stack">
+    {
+      profile.interests.map((i) => (
+        <section class="card interest" aria-labelledby={`int-${i.id}`}>
+          <h2 id={`int-${i.id}`} class="interest__title">
+            <span aria-hidden="true">{i.emoji}</span> {i.title}
+          </h2>
+          <p>{i.blurb}</p>
+          {i.details.length > 0 && (
+            <ul class="interest__details">
+              {i.details.map((d) => <li>{d}</li>)}
+            </ul>
+          )}
+          {i.images.length > 0 && (
+            <div class="gallery">
+              {i.images.map((img) => {
+                const src = resolveImage(img.src);
+                return src ? <Image src={src} alt={img.alt} width={480} height={360} loading="lazy" /> : null;
+              })}
+            </div>
+          )}
+          {i.links.length > 0 && (
+            <p>
+              {i.links.map((l) => (
+                <a href={l.url} target="_blank" rel="noopener noreferrer">
+                  {l.label} ↗
+                </a>
+              ))}
+            </p>
+          )}
+        </section>
+      ))
+    }
+  </div>
+</TownLayout>
+
+<style>
+  .interest__title {
+    margin-top: 0;
+    font-size: 1.15rem;
+  }
+  .interest__details {
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+    gap: 0.5rem;
+    margin: 0.75rem 0;
+  }
+  .gallery :global(img) {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+  }
+</style>

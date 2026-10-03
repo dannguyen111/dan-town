@@ -1,0 +1,88 @@
+---
+import { Image } from "astro:assets";
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+import LinkRow from "../components/LinkRow.astro";
+import { profile, formatMonth } from "../lib/profile";
+import { resolveImage } from "../lib/images";
+
+const photo = resolveImage(profile.identity.photo);
+const edu = profile.education[0];
+const current = profile.experience.find((e) => e.end === null);
+---
+
+<TownLayout place="home" title="About" description={profile.about.intro}>
+  <PageHeader kicker="🏠 Home" title={`Hi, I'm ${profile.identity.short_name}.`} />
+
+  <div class="intro">
+    {photo && <Image src={photo} alt={profile.identity.name} width={240} height={240} class="avatar" loading="eager" />}
+    <p class="lead">{profile.about.intro}</p>
+  </div>
+
+  {profile.about.paragraphs.map((p) => <p>{p}</p>)}
+
+  <h2>Quick facts</h2>
+  <ul class="facts card">
+    {current && (
+      <li>
+        <span aria-hidden="true">🛠️</span> Currently: <strong>{current.role}</strong> at {current.org}
+      </li>
+    )}
+    {edu && (
+      <li>
+        <span aria-hidden="true">🎓</span> {edu.degree}, {edu.school} ({formatMonth(edu.end)})
+        {edu.rank && <> · rank {edu.rank}</>}
+        {edu.gpa && <> · GPA {edu.gpa}</>}
+      </li>
+    )}
+    {profile.identity.open_to && (
+      <li>
+        <span aria-hidden="true">📬</span> Open to: {profile.identity.open_to}
+      </li>
+    )}
+  </ul>
+
+  <h2>Say hi</h2>
+  <LinkRow />
+
+  <p class="muted next">
+    Next stop: the <a href="/dev">Dev Center</a> for projects, or the <a href="/career">Career Hall</a> for my experience.
+  </p>
+</TownLayout>
+
+<style>
+  .intro {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .intro :global(.avatar) {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid var(--ink);
+    box-shadow: 0 4px 0 var(--ink);
+    flex: none;
+  }
+  .lead {
+    font-size: 1.08rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .facts {
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .next {
+    margin-top: 2rem;
+  }
+  @media (max-width: 480px) {
+    .intro {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
