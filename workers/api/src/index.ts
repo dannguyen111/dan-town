@@ -1,6 +1,9 @@
 import type { Env } from "./env.ts";
 import { EMPTY_STATS, readStats, refreshIfEmpty, refreshStats } from "./stats.ts";
 import { handleTwin, HttpError } from "./twin.ts";
+import { handleMancalaResult, readMancalaRecord } from "./mancala.ts";
+
+export { MancalaRecordStore } from "./mancala-store.ts";
 
 const json = (data: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(data), { ...init, headers: { "Content-Type": "application/json; charset=utf-8", ...init.headers } });
@@ -20,6 +23,15 @@ export default {
           throw new HttpError(403, "Cross-origin requests are not allowed.");
         }
         return await handleTwin(request, env);
+      }
+      if (url.pathname === "/api/mancala") {
+        if (request.method === "GET") return json(await readMancalaRecord(env), { headers: { "Cache-Control": "no-store" } });
+        if (request.method === "POST") {
+          if (request.headers.get("Origin") && new URL(request.headers.get("Origin")!).host !== url.host) {
+            throw new HttpError(403, "Cross-origin requests are not allowed.");
+          }
+          return json(await handleMancalaResult(request, env), { headers: { "Cache-Control": "no-store" } });
+        }
       }
       if (url.pathname.startsWith("/api/")) throw new HttpError(404, "Not found.");
       return env.ASSETS.fetch(request);

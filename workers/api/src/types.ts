@@ -36,3 +36,20 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+/** Shape of `GET /api/mancala`: the arcade robot's record against everyone, from the robot's side. */
+export type MancalaLevel = "easy" | "medium" | "hard";
+export interface MancalaLevelRecord {
+  played: number;
+  won: number;
+  lost: number;
+  draw: number;
+}
+export type MancalaRecord = Record<MancalaLevel, MancalaLevelRecord>;
+
+/** Body of `POST /api/mancala`: a finished game's level and final store counts. */
+export interface MancalaResult {
+  level: MancalaLevel;
+  robot: number;
+  human: number;
+}

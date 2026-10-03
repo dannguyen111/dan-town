@@ -31,7 +31,7 @@
 			"17 6 * * *"
 		]
 	},
-	// Per-visitor limit on twin messages.
+	// Per-visitor limits: twin messages, and arcade results reported.
 	"ratelimits": [
 		{
 			"name": "TWIN_LIMITER",
@@ -40,6 +40,29 @@
 				"limit": 8,
 				"period": 60
 			}
+		},
+		{
+			"name": "MANCALA_LIMITER",
+			"namespace_id": "1002",
+			"simple": {
+				"limit": 6,
+				"period": 60
+			}
+		}
+	],
+	// The arcade robot's win/loss record: one SQLite-backed Durable Object, created on deploy.
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "MANCALA",
+				"class_name": "MancalaRecordStore"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["MancalaRecordStore"]
 		}
 	],
 	"vars": {
