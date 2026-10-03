@@ -1,0 +1,349 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PageHeader from "../components/PageHeader.astro";
+---
+
+<TownLayout place="arcade" title="Arcade" description="Play FairKalah against my Mancala AI, running in your browser as Rust/WebAssembly.">
+  <PageHeader kicker="🕹️ Arcade" title="Beat my Mancala bot">
+    <p>
+      This is my FairKalah agent: alpha-beta search with a regression-tuned heuristic, ported from Java to Rust and running in your browser as
+      WebAssembly. <a href="/projects/mancala">How it works →</a>
+    </p>
+  </PageHeader>
+
+  <form class="setup card" data-setup>
+    <label>
+      Board
+      <select name="board">
+        <option value="-1">Random FairKalah board</option>
+        <option value="classic">Classic Kalah (4 stones each)</option>
+      </select>
+    </label>
+    <label>
+      You play
+      <select name="side">
+        <option value="0">First</option>
+        <option value="1">Second</option>
+      </select>
+    </label>
+    <label>
+      Bot clock
+      <select name="clock">
+        <option value="5000">Easy (5 s)</option>
+        <option value="30000" selected>Medium (30 s)</option>
+        <option value="300000">Hard (300 s, slow but strong)</option>
+      </select>
+    </label>
+    <button class="btn btn--primary" type="submit">New game</button>
+  </form>
+
+  <div class="mancala" data-game hidden>
+    <p class="status" data-status role="status" aria-live="polite"></p>
+    <div class="board" role="group" aria-label="Mancala board">
+      <div class="store store--top" data-store="top" aria-label="Bot's store"></div>
+      <div class="row row--top" data-row="top"></div>
+      <div class="row row--bottom" data-row="bottom"></div>
+      <div class="store store--bottom" data-store="bottom" aria-label="Your store"></div>
+    </div>
+    <p class="muted legend">
+      You are the bottom row. Stones move counter-clockwise. Land in your store for an extra turn, and land in an empty pit on your side to capture.
+    </p>
+    <p class="muted engine-info" data-info></p>
+  </div>
+</TownLayout>
+
+<script>
+  import { MancalaEngine } from "../mancala/client";
+
+  const CLASSIC = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0];
+  const MAX = 0;
+
+  function setup() {
+    const form = document.querySelector<HTMLFormElement>("[data-setup]");
+    if (!form || form.dataset.ready) return;
+    form.dataset.ready = "1";
+
+    const game = document.querySelector<HTMLElement>("[data-game]")!;
+    const status = game.querySelector<HTMLElement>("[data-status]")!;
+    const info = game.querySelector<HTMLElement>("[data-info]")!;
+    const rows = { top: game.querySelector<HTMLElement>('[data-row="top"]')!, bottom: game.querySelector<HTMLElement>('[data-row="bottom"]')! };
+    const stores = { top: game.querySelector<HTMLElement>('[data-store="top"]')!, bottom: game.querySelector<HTMLElement>('[data-store="bottom"]')! };
+    const engine = new MancalaEngine();
+
+    let state: number[] = [];
+    let toMove = MAX;
+    let human = MAX;
+    let botClock = 30000;
+    let over = false;
+    let busy = false;
+    let lastMove = -1;
+    let gameId = 0;
+
+    // Board indices for each visual row (left → right), from the human's point of view.
+    const layout = () =>
+      human === MAX
+        ? { bottom: [0, 1, 2, 3, 4, 5], bottomStore: 6, top: [12, 11, 10, 9, 8, 7], topStore: 13 }
+        : { bottom: [7, 8, 9, 10, 11, 12], bottomStore: 13, top: [5, 4, 3, 2, 1, 0], topStore: 6 };
+
+    const stones = (n: number) => {
+      const wrap = document.createElement("span");
+      wrap.className = "stones";
+      wrap.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < Math.min(n, 12); i++) wrap.append(document.createElement("i"));
+      return wrap;
+    };
+
+    function render() {
+      const L = layout();
+      const humanTurn = !over && !busy && toMove === human;
+      rows.bottom.replaceChildren(
+        ...L.bottom.map((idx, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "pit" + (idx === lastMove ? " pit--last" : "");
+          b.disabled = !humanTurn || state[idx] === 0;
+          b.setAttribute("aria-label", `Your pit ${i + 1}: ${state[idx]} stones`);
+          b.append(stones(state[idx]!), Object.assign(document.createElement("span"), { className: "count", textContent: String(state[idx]) }));
+          b.addEventListener("click", () => void humanMove(idx));
+          return b;
+        }),
+      );
+      rows.top.replaceChildren(
+        ...L.top.map((idx, i) => {
+          const d = document.createElement("div");
+          d.className = "pit pit--bot" + (idx === lastMove ? " pit--last" : "");
+          d.setAttribute("aria-label", `Bot pit ${i + 1}: ${state[idx]} stones`);
+          d.setAttribute("role", "img");
+          d.append(stones(state[idx]!), Object.assign(document.createElement("span"), { className: "count", textContent: String(state[idx]) }));
+          return d;
+        }),
+      );
+      stores.top.textContent = String(state[L.topStore]);
+      stores.bottom.textContent = String(state[L.bottomStore]);
+    }
+
+    function finish() {
+      over = true;
+      const L = layout();
+      const me = state[L.bottomStore]!;
+      const bot = state[L.topStore]!;
+      status.textContent = me > bot ? `You win ${me}–${bot}! 🎉 Nicely played.` : me < bot ? `The bot wins ${bot}–${me}. Rematch?` : `A draw, ${me}–${bot}!`;
+      render();
+    }
+
+    async function botTurns(id: number) {
+      try {
+        await botLoop(id);
+      } catch (err) {
+        // "cancelled" means a new game started mid-search; anything else is a real error.
+        if (id !== gameId) return;
+        busy = false;
+        status.textContent = `Engine error: ${err instanceof Error ? err.message : err}`;
+      }
+    }
+
+    async function botLoop(id: number) {
+      while (!over && toMove !== human && id === gameId) {
+        busy = true;
+        status.textContent = "Bot is thinking…";
+        render();
+        const t0 = performance.now();
+        const decision = await engine.choose(state, toMove, botClock);
+        // Give humans a beat to follow along on fast moves.
+        const elapsed = performance.now() - t0;
+        if (elapsed < 450) await new Promise((r) => setTimeout(r, 450 - elapsed));
+        if (id !== gameId) return;
+        botClock -= decision.ms;
+        const res = await engine.apply(state, toMove, decision.move);
+        state = res.state;
+        lastMove = decision.move;
+        toMove = res.next;
+        info.textContent = `Last bot move: searched ${new Intl.NumberFormat("en-US").format(decision.nodes)} positions at depth ${decision.depth} in ${(decision.ms / 1000).toFixed(2)} s. Clock left: ${Math.max(0, botClock / 1000).toFixed(1)} s.`;
+        busy = false;
+        if (res.over) return finish();
+      }
+      if (id === gameId && !over) {
+        status.textContent = "Your turn: pick a pit on the bottom row.";
+        render();
+      }
+    }
+
+    async function humanMove(idx: number) {
+      if (busy || over || toMove !== human) return;
+      busy = true;
+      const id = gameId;
+      const res = await engine.apply(state, human, idx);
+      if (id !== gameId) return;
+      state = res.state;
+      lastMove = idx;
+      toMove = res.next;
+      busy = false;
+      if (res.over) return finish();
+      if (toMove === human) {
+        status.textContent = "Extra turn! Go again.";
+        render();
+        return;
+      }
+      await botTurns(id);
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      engine.reset();
+      const id = ++gameId;
+      const data = new FormData(form);
+      human = Number(data.get("side"));
+      botClock = Number(data.get("clock"));
+      over = false;
+      busy = false;
+      lastMove = -1;
+      toMove = MAX;
+      info.textContent = "";
+      if (data.get("board") === "classic") state = [...CLASSIC];
+      else {
+        const first = await engine.board(0);
+        const pick = Math.floor(Math.random() * first.count);
+        state = (await engine.board(pick)).state;
+        info.textContent = `FairKalah board #${pick}.`;
+      }
+      if (id !== gameId) return;
+      game.hidden = false;
+      render();
+      if (toMove === human) {
+        status.textContent = "Your turn: pick a pit on the bottom row.";
+        rows.bottom.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
+      } else await botTurns(id);
+    });
+  }
+
+  document.addEventListener("astro:page-load", setup);
+</script>
+
+<style>
+  .setup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+    margin-bottom: 1.25rem;
+  }
+  .setup label {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .setup select {
+    font: inherit;
+    min-height: 44px;
+    padding: 0 0.6rem;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    background: var(--paper);
+  }
+  .status {
+    font-weight: 800;
+    min-height: 1.6em;
+  }
+  .board {
+    display: grid;
+    grid-template-columns: 1fr 6fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: #c98f5c;
+    border: 3px solid var(--ink);
+    border-radius: 24px;
+    box-shadow: 0 5px 0 var(--ink);
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.4rem;
+  }
+  .row--top {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .row--bottom {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .store {
+    display: grid;
+    place-items: center;
+    background: #8a5a3b;
+    color: #fff;
+    border-radius: 999px;
+    font: 700 1.3rem var(--font-pixel);
+    box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.25);
+  }
+  .store--top {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .store--bottom {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  .board :global(.pit) {
+    position: relative;
+    aspect-ratio: 1;
+    min-height: 44px;
+    border-radius: 50%;
+    border: 0;
+    background: #8a5a3b;
+    box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.3);
+    display: grid;
+    place-items: center;
+    padding: 0;
+    font: inherit;
+    color: #fff;
+  }
+  .board :global(button.pit:not([disabled])) {
+    cursor: pointer;
+    background: #a06a45;
+    outline: 2px dashed rgba(255, 255, 255, 0.5);
+    outline-offset: -5px;
+  }
+  .board :global(button.pit:not([disabled]):hover) {
+    background: #b57a52;
+  }
+  .board :global(.pit--last) {
+    box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.3), 0 0 0 3px var(--sun);
+  }
+  .board :global(.stones) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+    width: 70%;
+  }
+  .board :global(.stones i) {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ffe3a3;
+  }
+  .board :global(.stones i:nth-child(3n)) {
+    background: #9be7dc;
+  }
+  .board :global(.stones i:nth-child(4n)) {
+    background: #ffb3c6;
+  }
+  .board :global(.count) {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    min-width: 1.4em;
+    padding: 0 0.25em;
+    border-radius: 99px;
+    background: var(--ink);
+    font: 700 0.75rem/1.4 var(--font-pixel);
+  }
+  .legend,
+  .engine-info {
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+  }
+</style>
