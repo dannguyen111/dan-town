@@ -17,7 +17,8 @@ interface Props {
 const { place, title, description = `${profile.identity.name}: ${profile.identity.headline}. ${profile.identity.tagline}` } = Astro.props;
 const info = placeById(place)!;
 const pageTitle = title ? `${title} · ${profile.identity.name}` : `${profile.identity.name}: ${profile.identity.headline}`;
-const canonical = new URL(Astro.url.pathname, Astro.site);
+// Pages build to about.html, but are served (and should be indexed) as /about.
+const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Astro.site);
 ---
 
 <!doctype html>

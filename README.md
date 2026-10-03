@@ -93,8 +93,10 @@ java -cp out ParityGen > ../tests/fixtures/parity.jsonl
    Put a monthly credit limit on the OpenRouter key.
 4. GitHub repo secrets for CI: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `PROFILE_DEPLOY_KEY`
    (a read-only deploy key for `dan-profile`). In `dan-profile`, add `SITE_DISPATCH_TOKEN`.
-5. Custom domain (later): buy it at Cloudflare Registrar, add it under Workers → Domains, and set
-   `SITE_URL` in `wrangler.jsonc` and the `SITE_URL` env var for the Astro build.
+5. Custom domain: the site lives at [si-dan.com](https://si-dan.com) (registered at GoDaddy, DNS on
+   Cloudflare). The `routes` in `wrangler.jsonc` attach `si-dan.com` and `www.si-dan.com` on deploy,
+   and a zone redirect rule sends `www` to the apex with a 301. `SITE_URL` is set in `wrangler.jsonc`
+   and defaults to the domain in `astro.config.mjs`. The old `dannguyen111.github.io` redirects here.
 
 Optional Turnstile: set the `TURNSTILE_SECRET` Worker secret and `PUBLIC_TURNSTILE_SITE_KEY` at build time.
 
