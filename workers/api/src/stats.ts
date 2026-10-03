@@ -180,31 +180,49 @@ async function fetchSpotify(env: Env): Promise<SpotifyStats | null> {
   const get = <T>(path: string) =>
     fetch(`https://api.spotify.com/v1${path}`, { headers: { Authorization: `Bearer ${token.access_token}` } }).then((r) => json<T>(r, `spotify ${path}`));
 
-  type Img = { url: string }[];
   const [tracks, artists] = await Promise.all([
-    get<{ items: { name: string; artists: { name: string }[]; album: { name: string; images: Img }; external_urls: { spotify: string } }[] }>(
-      "/me/top/tracks?time_range=short_term&limit=10",
-    ),
-    get<{ items: { name: string; genres: string[]; images: Img; external_urls: { spotify: string } }[] }>("/me/top/artists?time_range=medium_term&limit=10"),
+    get<{ items: SpotifyTrack[] }>("/me/top/tracks?time_range=short_term&limit=10"),
+    get<{ items: SpotifyArtist[] }>("/me/top/artists?time_range=medium_term&limit=10"),
   ]);
+  return summarizeSpotify(tracks.items, artists.items);
+}
 
+// Spotify omits fields such as `genres` and `images` for some apps and items, so every field is optional.
+type Img = { url?: string }[];
+export interface SpotifyTrack {
+  name?: string;
+  artists?: { name?: string }[];
+  album?: { name?: string; images?: Img };
+  external_urls?: { spotify?: string };
+}
+export interface SpotifyArtist {
+  name?: string;
+  genres?: string[];
+  images?: Img;
+  external_urls?: { spotify?: string };
+}
+
+export function summarizeSpotify(tracks: SpotifyTrack[] = [], artists: SpotifyArtist[] = []): SpotifyStats {
   const genreCounts = new Map<string, number>();
-  for (const a of artists.items) for (const g of a.genres) genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
-
+  for (const a of artists) for (const g of a.genres ?? []) genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
   return {
-    topTracks: tracks.items.map((t) => ({
-      name: t.name,
-      artists: t.artists.map((a) => a.name).join(", "),
-      album: t.album.name,
-      image: t.album.images.at(-1)?.url ?? null,
-      url: t.external_urls.spotify,
-    })),
-    topArtists: artists.items.map((a) => ({
-      name: a.name,
-      genres: a.genres.slice(0, 3),
-      image: a.images.at(-1)?.url ?? null,
-      url: a.external_urls.spotify,
-    })),
+    topTracks: tracks
+      .filter((t) => t.name)
+      .map((t) => ({
+        name: t.name!,
+        artists: (t.artists ?? []).map((a) => a.name).filter(Boolean).join(", "),
+        album: t.album?.name ?? "",
+        image: t.album?.images?.at(-1)?.url ?? null,
+        url: t.external_urls?.spotify ?? "https://open.spotify.com",
+      })),
+    topArtists: artists
+      .filter((a) => a.name)
+      .map((a) => ({
+        name: a.name!,
+        genres: (a.genres ?? []).slice(0, 3),
+        image: a.images?.at(-1)?.url ?? null,
+        url: a.external_urls?.spotify ?? "https://open.spotify.com",
+      })),
     topGenres: [...genreCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([g]) => g),
   };
 }
