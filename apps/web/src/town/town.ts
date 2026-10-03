@@ -34,7 +34,7 @@ export class Town {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly world = bakeWorld();
   private readonly playerSprites: SpriteSheet = bakeSprites(PLAYER_PALETTE);
-  private readonly twinSprites: SpriteSheet = bakeSprites(TWIN_PALETTE);
+  private readonly twinSprites: SpriteSheet = bakeSprites(TWIN_PALETTE, { headphones: true });
   private readonly labels = new Map<string, HTMLElement>();
   private readonly bubble: HTMLElement;
   /** The link in the open bubble, followed when the visitor presses Enter. */

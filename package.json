@@ -12,6 +12,7 @@
     "profile:check": "tsx packages/profile/src/cli.ts check",
     "profile:export": "tsx packages/profile/src/cli.ts export",
     "engine:build": "node scripts/build-engine.mjs",
+    "icons:build": "tsx scripts/make-icons.ts",
     "prebuild": "npm run profile:build && npm run engine:build",
     "build": "npm -w apps/web run build",
     "dev": "npm run prebuild && npm -w apps/web run dev",

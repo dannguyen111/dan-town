@@ -69,6 +69,32 @@ const LEGS_SIDE: [Bitmap, Bitmap, Bitmap] = [
   ["...oppopo...", "...okkopo...", "......okko.."],
 ];
 
+/**
+ * Headphones drawn over the head rows: "b" is the black band and cups, "g" the sheen that keeps
+ * the band readable against dark hair. "." leaves the sprite underneath untouched.
+ */
+const PHONES_DOWN: Bitmap = [
+  "...bbbbbb...",
+  "..bgg..ggb..",
+  ".bg......gb.",
+  "bbb......bbb",
+  "bgb......bgb",
+  "bgb......bgb",
+  "bb........bb",
+];
+const PHONES_UP: Bitmap = PHONES_DOWN;
+const PHONES_RIGHT: Bitmap = [
+  "...bbbbb....",
+  "..bgggggb...",
+  "..bb........",
+  "..bbbb......",
+  "..bggb......",
+  "..bggb......",
+  "..bbbb......",
+];
+const PHONES = { down: PHONES_DOWN, up: PHONES_UP, right: PHONES_RIGHT } as const;
+export const PHONE_COLOURS = { b: "#141218", g: "#6b6878" } as const;
+
 export interface Palette {
   o: string; // outline
   h: string; // hair
@@ -92,27 +118,39 @@ export const TWIN_PALETTE: Palette = {
   m: "#b3544f", c: "#2bb3a3", d: "#1f8f82", k: "#1f1a24",
 };
 
-export function compose(dir: Dir, frame: 0 | 1 | 2): Bitmap {
-  if (dir === "down") return [...HEAD_DOWN, ...BODY_FRONT, ...LEGS_FRONT[frame]];
-  if (dir === "up") return [...HEAD_UP, ...BODY_FRONT, ...LEGS_FRONT[frame]];
-  return [...HEAD_RIGHT, ...BODY_SIDE, ...LEGS_SIDE[frame]]; // "left" is mirrored at bake time
+export function compose(dir: Dir, frame: 0 | 1 | 2, headphones = false): Bitmap {
+  const rows =
+    dir === "down"
+      ? [...HEAD_DOWN, ...BODY_FRONT, ...LEGS_FRONT[frame]]
+      : dir === "up"
+        ? [...HEAD_UP, ...BODY_FRONT, ...LEGS_FRONT[frame]]
+        : [...HEAD_RIGHT, ...BODY_SIDE, ...LEGS_SIDE[frame]]; // "left" is mirrored at bake time
+  if (!headphones) return rows;
+  const phones = PHONES[dir === "left" ? "right" : dir];
+  return rows.map((row, y) => (phones[y] ? [...row].map((ch, x) => (phones[y]![x] !== "." ? phones[y]![x]! : ch)).join("") : row));
+}
+
+/** Colour of one bitmap cell, or null for transparent. */
+export function cellColour(palette: Palette, ch: string | undefined, y: number): string | null {
+  if (!ch || ch === ".") return null;
+  if (ch === "b" || ch === "g") return PHONE_COLOURS[ch];
+  // In body rows, "p" means pants; in head rows it means blush.
+  return ch === "p" && y < 9 ? "#f59e9e" : palette[ch as keyof Palette];
 }
 
 export type SpriteSheet = Record<Dir, [HTMLCanvasElement, HTMLCanvasElement, HTMLCanvasElement]>;
 
-export function bakeSprites(palette: Palette): SpriteSheet {
+export function bakeSprites(palette: Palette, { headphones = false } = {}): SpriteSheet {
   const bake = (dir: Dir, frame: 0 | 1 | 2) => {
     const c = document.createElement("canvas");
     c.width = SPRITE_W;
     c.height = SPRITE_H;
     const ctx = c.getContext("2d")!;
-    const rows = compose(dir === "left" ? "right" : dir, frame);
+    const rows = compose(dir === "left" ? "right" : dir, frame, headphones);
     rows.forEach((row, y) => {
       for (let x = 0; x < SPRITE_W; x++) {
-        const ch = row[dir === "left" ? SPRITE_W - 1 - x : x];
-        if (!ch || ch === ".") continue;
-        // In body rows, "p" means pants; in head rows it means blush.
-        const colour = ch === "p" && y < 9 ? "#f59e9e" : palette[ch as keyof Palette];
+        const colour = cellColour(palette, row[dir === "left" ? SPRITE_W - 1 - x : x], y);
+        if (!colour) continue;
         ctx.fillStyle = colour;
         ctx.fillRect(x, y, 1, 1);
       }
