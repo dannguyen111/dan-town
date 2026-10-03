@@ -223,13 +223,28 @@ function stall(ctx: Ctx, o: TownObject) {
   const W = o.w * TILE;
   const H = o.h * TILE;
   rect(ctx, "rgba(40,60,20,0.18)", px + 2, py + H - 1, W, 3);
-  // Counter
+  // Shopfront
   rect(ctx, INK, px + 2, py + 12, W - 4, H - 12);
   rect(ctx, C.wood, px + 3, py + 13, W - 6, H - 14);
   rect(ctx, C.woodDark, px + 3, py + 13, W - 6, 2);
-  // Clothes rail goods
+  // Display windows with clothes, one per column except the door's
   const goods = ["#ff8fab", "#ffd166", "#7cc8f2", "#c49bff", "#ff7a59", "#9bd770"];
-  for (let i = 0; i < 6; i++) rect(ctx, goods[i]!, px + 8 + i * 8, py + 17, 6, 7);
+  for (let cx = o.x, i = 0; cx < o.x + o.w; cx++) {
+    if (o.door && cx === o.door.x) continue;
+    const wx = cx * TILE + 2;
+    rect(ctx, INK, wx - 1, py + 16, 14, 11);
+    rect(ctx, C.window, wx, py + 17, 12, 9);
+    rect(ctx, goods[i++ % goods.length]!, wx + 1, py + 19, 5, 6);
+    rect(ctx, goods[i++ % goods.length]!, wx + 6, py + 19, 5, 6);
+  }
+  // Door
+  if (o.door) {
+    const dx = o.door.x * TILE + 4;
+    rect(ctx, INK, dx - 1, py + H - 13, 10, 13);
+    rect(ctx, "#ff2300", dx, py + H - 12, 8, 12);
+    rect(ctx, "#ffd166", dx + 6, py + H - 6, 1, 1);
+    rect(ctx, C.path, dx - 1, py + H, 10, 1);
+  }
   // Striped awning (Depop red)
   rect(ctx, INK, px, py, W, 12);
   for (let x = 0; x < W - 2; x += 6) rect(ctx, (x / 6) % 2 ? "#ffffff" : "#ff2300", px + 1 + x, py + 1, 6, 10);

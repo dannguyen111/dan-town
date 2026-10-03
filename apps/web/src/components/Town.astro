@@ -141,6 +141,46 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   .town-bubble :global(a) {
     font-weight: 800;
   }
+  .town-bubble :global(.town-bubble__hint) {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+    white-space: nowrap;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--paper);
+    background: var(--ink);
+    border-radius: 999px;
+    pointer-events: none;
+    animation: town-hint-pop 0.25s ease-out both;
+  }
+  .town-bubble :global(.town-bubble__hint kbd) {
+    display: inline-block;
+    margin: 0 0.15rem;
+    padding: 0 0.35rem;
+    font: inherit;
+    color: var(--ink);
+    background: var(--paper);
+    border-radius: 4px;
+  }
+  @keyframes town-hint-pop {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 4px) scale(0.9);
+    }
+  }
+  @media (hover: none) and (pointer: coarse) {
+    .town-bubble :global(.town-bubble__hint) {
+      display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .town-bubble :global(.town-bubble__hint) {
+      animation: none;
+    }
+  }
   .town-bubble :global(.town-bubble__close) {
     position: absolute;
     right: 6px;

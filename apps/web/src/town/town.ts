@@ -37,6 +37,8 @@ export class Town {
   private readonly twinSprites: SpriteSheet = bakeSprites(TWIN_PALETTE);
   private readonly labels = new Map<string, HTMLElement>();
   private readonly bubble: HTMLElement;
+  /** The link in the open bubble, followed when the visitor presses Enter. */
+  private bubbleLink: HTMLAnchorElement | null = null;
   private readonly live: HTMLElement;
   private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -112,6 +114,24 @@ export class Town {
   // ───────────────────────────── input ─────────────────────────────
 
   private bindInput() {
+    // While a link bubble is open, Enter follows the link and Escape dismisses it. Capture phase
+    // so this wins over the canvas's own Enter-to-interact.
+    window.addEventListener(
+      "keydown",
+      (e) => {
+        if (this.bubble.hidden || !this.keyboardTargetsTown(e)) return;
+        // A focused link/button in the bubble already handles Enter natively.
+        if (this.bubble.contains(document.activeElement)) return;
+        if (e.key === "Escape" || (e.key === "Enter" && this.bubbleLink)) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key === "Enter") this.bubbleLink?.click();
+          this.hideBubble();
+          this.focus();
+        }
+      },
+      { capture: true },
+    );
     window.addEventListener("keydown", (e) => {
       const dir = dirFor(e);
       if (!dir || !this.keyboardTargetsTown(e)) return;
@@ -268,18 +288,34 @@ export class Town {
       const place = this.config.places[obj.target.id];
       if (!place) return;
       this.announce(`Entering ${place.name}`);
-      // Step back out of the doorway so the next visit doesn't re-trigger instantly.
-      if (obj.door) {
-        const { at, face } = this.grid.arrivalTile(obj, this.from);
-        this.pos = { ...at };
-        this.from = { ...at };
-        this.facing = face === "up" ? "down" : face;
-      }
+      this.stepOutOfDoor(obj);
       this.config.onEnterPlace(obj.target.id, place.href);
+    } else if (obj.door) {
+      // Walking through a link door opens it in a new tab. Fall back to the bubble if
+      // there is no URL or the popup blocker stops us (e.g. the walk outlasted the click).
+      // ("noopener" would make window.open always return null, so detach the opener by hand.)
+      const url = this.config.links[obj.target.id]?.url;
+      this.stepOutOfDoor(obj);
+      const tab = url ? window.open(url, "_blank") : null;
+      if (tab) {
+        tab.opener = null;
+        this.announce(`Opening ${obj.label} in a new tab`);
+      } else {
+        this.showLinkBubble(obj);
+      }
     } else {
       this.showLinkBubble(obj);
     }
     this.requestFrame();
+  }
+
+  /** Step back out of the doorway so the next visit doesn't re-trigger instantly. */
+  private stepOutOfDoor(obj: TownObject) {
+    if (!obj.door) return;
+    const { at, face } = this.grid.arrivalTile(obj, this.from);
+    this.pos = { ...at };
+    this.from = { ...at };
+    this.facing = face === "up" ? "down" : face;
   }
 
   // ───────────────────────────── UI overlays ─────────────────────────────
@@ -304,6 +340,7 @@ export class Town {
   private showLinkBubble(obj: TownObject) {
     const link = this.config.links[obj.target.id];
     this.bubble.replaceChildren();
+    this.bubbleLink = null;
     const title = document.createElement("strong");
     title.textContent = obj.label;
     this.bubble.append(title);
@@ -315,7 +352,14 @@ export class Town {
         a.target = "_blank";
         a.rel = "noopener noreferrer";
       }
+      a.addEventListener("click", () => this.hideBubble());
       this.bubble.append(a);
+      this.bubbleLink = a;
+      const hint = document.createElement("span");
+      hint.className = "town-bubble__hint";
+      hint.setAttribute("aria-hidden", "true");
+      hint.innerHTML = "Press <kbd>Enter</kbd> to open";
+      this.bubble.append(hint);
     } else {
       const p = document.createElement("span");
       p.textContent = "Opening soon. Check back later!";
@@ -332,7 +376,7 @@ export class Town {
     });
     this.bubble.append(close);
     this.bubble.hidden = false;
-    this.announce(link?.url ? `${obj.label} link available` : `${obj.label}: opening soon`);
+    this.announce(link?.url ? `${obj.label} link available. Press Enter to open it.` : `${obj.label}: opening soon`);
   }
 
   private hideBubble() {

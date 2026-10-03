@@ -45,7 +45,7 @@ export interface TownObject {
   y: number;
   w: number;
   h: number;
-  /** Walkable entrance tile. Stepping onto it triggers the target. Buildings and gardens only. */
+  /** Walkable entrance tile. Stepping onto it triggers the target (a link door opens in a new tab). */
   door?: Point;
   target: Target;
   label: string;
@@ -64,7 +64,7 @@ export const OBJECTS: readonly TownObject[] = [
   { id: "linkedin", kind: "board", x: 9, y: 13, w: 2, h: 1, target: { type: "link", id: "linkedin" }, label: "LinkedIn", style: "linkedin" },
   { id: "github", kind: "signpost", x: 12, y: 13, w: 1, h: 1, target: { type: "link", id: "github" }, label: "GitHub", style: "github" },
   { id: "email", kind: "mailbox", x: 14, y: 13, w: 1, h: 1, target: { type: "link", id: "email" }, label: "Email", style: "email" },
-  { id: "depop", kind: "stall", x: 16, y: 13, w: 4, h: 2, target: { type: "link", id: "depop" }, label: "Depop", style: "depop" },
+  { id: "depop", kind: "stall", x: 16, y: 13, w: 4, h: 2, door: { x: 18, y: 14 }, target: { type: "link", id: "depop" }, label: "Depop", style: "depop" },
 ];
 
 export const SPAWN: Point = { x: 11, y: 7 };
