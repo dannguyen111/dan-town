@@ -43,6 +43,9 @@ const Project = z.object({
   title: z.string(),
   tagline: z.string(),
   date: YearMonth,
+  /** Optional range for resumes; `date` still drives site sorting. `end: null` means Present. */
+  start: YearMonth.optional(),
+  end: YearMonth.nullable().optional(),
   featured: z.boolean().default(false),
   image: z.string().optional(),
   tags: z.array(z.string()).default([]),

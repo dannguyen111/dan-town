@@ -80,7 +80,7 @@ export function renderTwinContext(profile: Profile): string {
 
   h("Projects");
   for (const pr of p.projects) {
-    lines.push(`### ${pr.title} (${pr.date})`, pr.tagline);
+    lines.push(`### ${pr.title} (${pr.start ? fmtRange(pr.start, pr.end ?? null) : pr.date})`, pr.tagline);
     if (pr.tags.length) lines.push(`Tags: ${pr.tags.join(", ")}`);
     const links = Object.entries(pr.links).map(([k, v]) => `${k}: ${v}`);
     if (links.length) lines.push(`Links: ${links.join(" · ")}`);
