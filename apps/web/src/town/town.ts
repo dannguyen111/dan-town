@@ -52,6 +52,10 @@ export class Town {
    * the visitor steps away, so standing against a machine doesn't keep re-opening its box.
    */
   private quietObj: string | null = null;
+  /** The object whose "press Enter" hint was just shown by walking into it (same idea as quietObj). */
+  private hinted: string | null = null;
+  /** Repaints scenes with live art (e.g. the clock at Home) while they are shown. */
+  private liveTimer = 0;
   private readonly live: HTMLElement;
   private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -103,6 +107,14 @@ export class Town {
   }
 
   /**
+   * Whether the room the visitor is in has its own way into a place, like the twin on the Home
+   * couch. Its page can then open beside the room without leaving it.
+   */
+  hasPlaceHere(placeId: string) {
+    return this.scene !== TOWN && this.scene.objects.some((o) => !o.door && o.target.type === "place" && o.target.id === placeId);
+  }
+
+  /**
    * Switch maps: "town", or the id of a place with an interior. The visitor appears at the
    * scene's entrance. Returns false if already there.
    */
@@ -117,6 +129,10 @@ export class Town {
     this.root.toggleAttribute("data-retro", !!scene.retro);
     this.placePlayer(scene.spawn, scene.face);
     this.buildLabels();
+    clearInterval(this.liveTimer);
+    if (scene.live) {
+      this.liveTimer = window.setInterval(() => document.hidden || this.draw(performance.now()), scene.live.everyMs);
+    }
     this.resize();
     if (scene.intro) this.showNote(scene.intro.title, scene.intro.text);
     if (!this.reducedMotion.matches) {
@@ -173,6 +189,7 @@ export class Town {
     this.facing = facing;
     this.marker = null;
     this.quietObj = null;
+    this.hinted = null;
     this.hideBubble();
     this.centerCamera(true);
     this.requestFrame();
@@ -309,7 +326,8 @@ export class Town {
         const obj = this.grid.objectAt(target.x, target.y);
         if (obj && !obj.door) {
           this.held.length = 0;
-          this.trigger(obj);
+          if (obj.hint) this.showHint(obj, obj.hint);
+          else this.trigger(obj);
         }
         return;
       }
@@ -319,6 +337,7 @@ export class Town {
     this.from = { ...this.pos };
     this.pos = next;
     this.quietObj = null;
+    this.hinted = null;
     this.moving = true;
     this.stepStart = now;
     this.stepCount++;
@@ -353,6 +372,13 @@ export class Town {
     if (obj) this.walkToObject(obj);
   }
 
+  /** Walking into an object with a hint says how to use it, once, until the visitor steps away. */
+  private showHint(obj: TownObject, hint: string) {
+    if (obj.id === this.hinted) return;
+    this.hinted = obj.id;
+    this.showNote(obj.label, hint);
+  }
+
   private trigger(obj: TownObject) {
     if (this.scene.retro && obj.kind === "prop") {
       if (obj.id === this.quietObj) return;
@@ -365,7 +391,10 @@ export class Town {
       const place = this.config.places[obj.target.id];
       if (!place) return;
       this.announce(`Entering ${place.name}`);
-      this.stepOutOfDoor(obj);
+      // Walking into a room (or back out to town) switches scenes, so stay in the doorway rather
+      // than turning around on the street while the next page loads.
+      const changesScene = obj.target.id in INTERIORS || (this.scene !== TOWN && obj.target.id === TOWN.id);
+      if (!changesScene) this.stepOutOfDoor(obj);
       this.config.onEnterPlace(obj.target.id, place.href);
     } else if (obj.door && obj.target.type === "link") {
       // Walking through a link door opens it in a new tab. Fall back to the bubble if
@@ -407,13 +436,10 @@ export class Town {
       el.type = "button";
       el.className = `town-label town-label--${obj.kind}`;
       el.textContent = obj.label;
+      const noun = obj.kind === "statue" ? " statue" : obj.kind === "prop" || obj.kind === "npc" ? "" : " sign";
       el.setAttribute(
         "aria-label",
-        obj.target.type === "event"
-          ? `Talk to the ${obj.label}`
-          : obj.target.type === "place"
-            ? `Walk to ${obj.label}`
-            : `Walk to the ${obj.label} ${obj.kind === "statue" ? "statue" : "sign"}`,
+        obj.kind === "npc" ? `Talk to the ${obj.label}` : obj.target.type === "place" ? `Walk to ${obj.label}` : `Walk to the ${obj.label}${noun}`,
       );
       el.addEventListener("click", () => {
         this.walkToObject(obj);
@@ -425,7 +451,8 @@ export class Town {
   }
 
   private showLinkBubble(obj: TownObject) {
-    const link = obj.target.type === "link" ? this.config.links[obj.target.id] : undefined;
+    const { target } = obj;
+    const url = target.type === "link" ? this.config.links[target.id]?.url : target.type === "url" ? target.href : undefined;
     this.holdBubble();
     this.bubble.replaceChildren();
     this.bubbleLink = null;
@@ -436,11 +463,16 @@ export class Town {
       const p = document.createElement("span");
       this.bubble.append(p);
       this.typeInto(p, obj.target.text);
-    } else if (link?.url) {
+    } else if (url) {
+      if (target.type === "url") {
+        const p = document.createElement("span");
+        p.textContent = target.text;
+        this.bubble.append(p);
+      }
       const a = document.createElement("a");
-      a.href = link.url;
-      a.textContent = link.url.startsWith("mailto:") ? "Send me an email ✉️" : `Open ${obj.label} ↗`;
-      if (!link.url.startsWith("mailto:")) {
+      a.href = url;
+      a.textContent = target.type === "url" ? target.cta : url.startsWith("mailto:") ? "Send me an email ✉️" : `Open ${obj.label} ↗`;
+      if (!url.startsWith("mailto:")) {
         a.target = "_blank";
         a.rel = "noopener noreferrer";
       }
@@ -471,7 +503,7 @@ export class Town {
     this.bubble.append(close);
     this.bubble.hidden = false;
     this.announce(
-      obj.target.type === "note" ? `${obj.label}: ${obj.target.text}` : link?.url ? `${obj.label} link available. Press Enter to open it.` : `${obj.label}: opening soon`,
+      target.type === "note" ? `${obj.label}: ${target.text}` : url ? `${obj.label} link available. Press Enter to open it.` : `${obj.label}: opening soon`,
     );
   }
 
@@ -591,12 +623,15 @@ export class Town {
       ctx.fillRect(mx + 6, my + 11, 4, 4);
     }
 
-    const twin = this.scene.objects.find((o) => o.id === "twin");
+    // Scenes can draw the twin their own way (sitting on the couch at Home) in their live layer.
+    const twin = this.scene.objects.find((o) => o.id === "twin" && o.style === "twin");
     if (twin) this.drawTwin(twin);
 
     const p = this.playerPx(now);
+    this.scene.live?.draw(ctx, p);
     const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
     this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
+    this.scene.live?.drawOver?.(ctx, p);
 
     this.positionLabels();
   }

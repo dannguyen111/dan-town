@@ -43,6 +43,8 @@ export type Target =
   | { type: "place"; id: string }
   | { type: "link"; id: string }
   | { type: "note"; text: string }
+  /** A page on this site (e.g. a paper's PDF), shown in the bubble with a short description. */
+  | { type: "url"; href: string; text: string; cta: string }
   /** Fires a `town:<name>` DOM event, e.g. the arcade robot opening the game. */
   | { type: "event"; name: string };
 
@@ -65,6 +67,11 @@ export interface TownObject {
   hideLabel?: boolean;
   /** Raise the name tag this many world pixels, for art that pokes above the object's tiles. */
   labelLift?: number;
+  /**
+   * Walking into the object only shows this hint; Enter, a click or a tap triggers it. For things
+   * that shouldn't go off by accident, like the TV at Home starting a video.
+   */
+  hint?: string;
 }
 
 export const OBJECTS: readonly TownObject[] = [

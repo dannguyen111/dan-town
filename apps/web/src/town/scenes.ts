@@ -17,6 +17,17 @@ export interface Scene {
   /** Fill colour around the map when the screen is bigger than it. */
   backdrop: string;
   bake: () => HTMLCanvasElement;
+  /**
+   * Art drawn over the baked map every frame, in world pixels: things that change over time (a
+   * clock) or must layer with the visitor (a couch they can walk behind). `draw` paints beneath the
+   * visitor and `drawOver` on top; both get the visitor's position. The room also repaints every
+   * `everyMs` while it is shown.
+   */
+  live?: {
+    draw: (ctx: CanvasRenderingContext2D, player: Point) => void;
+    drawOver?: (ctx: CanvasRenderingContext2D, player: Point) => void;
+    everyMs: number;
+  };
   /** Pixel font and old-RPG text boxes for this scene's name tags and messages. */
   retro?: boolean;
   /** Shown in the town bubble on entering. */

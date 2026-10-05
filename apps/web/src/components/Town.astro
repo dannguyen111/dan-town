@@ -40,8 +40,12 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   const sync = () => {
     const place = document.documentElement.dataset.place ?? "town";
     if (town.hasInterior(place)) {
-      // Places with an interior: the visitor walks inside and the room fills the screen.
+      // Places with an interior: the visitor walks inside the room.
       town.enterScene(place);
+    } else if (town.hasPlaceHere(place)) {
+      // A place reachable from inside the room (the twin on the Home couch) opens beside it.
+      town.setActivePlace(place);
+      if (!enteredFromTown) town.teleportToPlace(place);
     } else {
       const inside = town.sceneId;
       // Leaving a building puts the visitor back outside its door, facing the street.
