@@ -9,12 +9,16 @@ import { resolveImage } from "../lib/images";
 const photo = resolveImage(profile.identity.photo);
 const edu = profile.education[0];
 const current = profile.experience.find((e) => e.end === null);
+/** On the living-room TV. */
+const TV_VIDEO = "GWshHUF05DM";
 ---
 
 <TownLayout place="home" room title="About" description={profile.about.intro}>
   <PageHeader kicker="🏠 Home" title={`Hi, I'm ${profile.identity.short_name}.`} />
 
-  <p class="muted room-hint">You're in my living room. Look around: the flags, the bookshelf and the desk all have stories.</p>
+  <p class="muted room-hint">
+    You're in my living room. Look around: the flags, the bookshelf and the desk all have stories, and the TV works.
+  </p>
 
   <div class="intro">
     {photo && <Image src={photo} alt={profile.identity.name} width={240} height={240} class="avatar" loading="eager" />}
@@ -50,7 +54,82 @@ const current = profile.experience.find((e) => e.end === null);
   <p class="muted next">
     Next stop: the <a href="/dev">Dev Center</a> for projects, or the <a href="/career">Career Hall</a> for my experience.
   </p>
+
+  <dialog slot="screen" class="tv" data-tv aria-labelledby="tv-title">
+    <div class="tv__set">
+      <div class="tv__body">
+        <div class="tv__screen" data-tv-screen></div>
+        <div class="tv__side" aria-hidden="true">
+          <span class="tv__knob"></span>
+          <span class="tv__knob"></span>
+          <span class="tv__grille"></span>
+        </div>
+      </div>
+      <div class="tv__bar">
+        <h2 id="tv-title" class="tv__title">CH 23 · LeBron's most clutch moments</h2>
+        <a class="tv__btn" href={`https://www.youtube.com/watch?v=${TV_VIDEO}`} target="_blank" rel="noopener noreferrer">YouTube ↗</a>
+        <button class="tv__btn" type="button" data-tv-off>Turn off</button>
+      </div>
+    </div>
+  </dialog>
 </TownLayout>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import { formatEastern } from "../town/home";
+
+  const VIDEO = "GWshHUF05DM";
+  /** The TV was turned on from another page beside the room (the twin's chat). */
+  let pending = false;
+
+  // The TV in the living room. The YouTube player only loads once someone turns the TV on, and
+  // is removed again when they turn it off, so the room costs nothing until then.
+  function turnOn(tv: HTMLDialogElement) {
+    if (tv.open) return;
+    const frame = document.createElement("iframe");
+    frame.src = `https://www.youtube-nocookie.com/embed/${VIDEO}?autoplay=1&rel=0&playsinline=1`;
+    frame.title = "LeBron James' Most Clutch Moments, on YouTube";
+    frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+    frame.allowFullscreen = true;
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
+    tv.querySelector("[data-tv-screen]")!.replaceChildren(frame);
+    tv.showModal();
+  }
+
+  document.addEventListener("town:tv", () => {
+    const tv = document.querySelector<HTMLDialogElement>("[data-tv]");
+    if (tv) return turnOn(tv);
+    pending = true;
+    void navigate("/about");
+  });
+
+  document.addEventListener("astro:page-load", () => {
+    const tv = document.querySelector<HTMLDialogElement>("[data-tv]");
+    if (!tv) return;
+    // Removing the player stops the video. Escape closes the dialog without a click, hence "close" too.
+    const turnOff = () => {
+      tv.querySelector("[data-tv-screen]")!.replaceChildren();
+      if (tv.open) tv.close();
+    };
+    tv.querySelector("[data-tv-off]")!.addEventListener("click", turnOff);
+    // Clicking the room around the TV turns it off too.
+    tv.addEventListener("click", (e) => e.target === tv && turnOff());
+    tv.addEventListener("close", () => {
+      turnOff();
+      document.dispatchEvent(new CustomEvent("town:focus"));
+    });
+    if (pending) {
+      pending = false;
+      turnOn(tv);
+    }
+  });
+
+  // The wall clock tells Dan's time, wherever the visitor is.
+  document.addEventListener("town:clock", () => {
+    const text = `It's ${formatEastern()} for Dan (Eastern Time).`;
+    document.dispatchEvent(new CustomEvent("town:note", { detail: { title: "Clock", text } }));
+  });
+</script>
 
 <style>
   .intro {
@@ -83,6 +162,145 @@ const current = profile.experience.find((e) => e.end === null);
   }
   .room-hint {
     font-size: 0.9rem;
+  }
+
+  /* ─────────────── the living-room TV: a CRT over the room, not the whole screen ─────────────── */
+  .tv {
+    --ink: #2b1d14;
+    position: fixed;
+    inset: var(--header-h) var(--panel-w) 0 0;
+    margin: auto;
+    width: min(calc((100vw - var(--panel-w)) * 0.92), 720px);
+    max-height: calc(100dvh - var(--header-h) - 24px);
+    padding: 0;
+    border: 0;
+    background: none;
+    overflow: visible;
+    font: 11px/1.6 var(--font-retro, monospace);
+  }
+  .tv::backdrop {
+    background: rgba(20, 12, 6, 0.55);
+  }
+  .tv__set {
+    position: relative;
+    padding: 14px;
+    background: #cfc6b4;
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    box-shadow:
+      inset -6px -6px 0 rgba(0, 0, 0, 0.12),
+      0 10px 0 var(--ink);
+  }
+  /* Rabbit ears */
+  .tv__set::before,
+  .tv__set::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    width: 4px;
+    height: 56px;
+    background: var(--ink);
+    transform-origin: bottom center;
+  }
+  .tv__set::before {
+    transform: translateX(-50%) rotate(-30deg);
+  }
+  .tv__set::after {
+    transform: translateX(-50%) rotate(30deg);
+  }
+  .tv__body {
+    display: flex;
+    gap: 12px;
+  }
+  .tv__screen {
+    flex: 1;
+    aspect-ratio: 16 / 9;
+    background: #22303f;
+    border: 4px solid var(--ink);
+    border-radius: 14px / 18px;
+    overflow: hidden;
+    animation: tv-on 0.45s ease-out;
+  }
+  .tv__screen :global(iframe) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  @keyframes tv-on {
+    0% {
+      transform: scaleY(0.01);
+      filter: brightness(4);
+    }
+    60% {
+      transform: scaleY(1);
+      filter: brightness(2);
+    }
+  }
+  .tv__side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 34px;
+    padding-top: 8px;
+  }
+  .tv__knob {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #e0b040 0 3px, #2b1d14 4px);
+  }
+  .tv__grille {
+    width: 26px;
+    height: 40px;
+    background: repeating-linear-gradient(#9a917f 0 3px, transparent 3px 7px);
+  }
+  .tv__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 12px;
+  }
+  .tv__title {
+    flex: 1;
+    min-width: 12em;
+    margin: 0;
+    font: inherit;
+    color: var(--ink);
+  }
+  .tv__btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--ink);
+    text-decoration: none;
+    background: #f8f8f0;
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .tv__btn:hover {
+    background: var(--sun);
+  }
+  @media (max-width: 899px) {
+    .tv {
+      inset: var(--header-h) 0 0 0;
+      width: min(calc(100vw - 24px), 720px);
+    }
+    .tv__side {
+      display: none;
+    }
+    .tv__set {
+      padding: 10px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tv__screen {
+      animation: none;
+    }
   }
   @media (max-width: 480px) {
     .intro {
