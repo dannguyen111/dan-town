@@ -46,7 +46,8 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     <meta property="og:url" content={canonical} />
     <Font cssVariable="--font-body" preload />
     <Font cssVariable="--font-pixel" />
-    {interior && <Font cssVariable="--font-retro" preload />}
+    {/* Always defined: a room's text boxes stay up while the page beside it changes. */}
+    <Font cssVariable="--font-retro" preload={interior} />
     <ClientRouter fallback="swap" />
   </head>
   <body>
