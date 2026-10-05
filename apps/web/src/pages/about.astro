@@ -11,8 +11,10 @@ const edu = profile.education[0];
 const current = profile.experience.find((e) => e.end === null);
 ---
 
-<TownLayout place="home" title="About" description={profile.about.intro}>
+<TownLayout place="home" room title="About" description={profile.about.intro}>
   <PageHeader kicker="🏠 Home" title={`Hi, I'm ${profile.identity.short_name}.`} />
+
+  <p class="muted room-hint">You're in my living room. Look around: the flags, the bookshelf and the desk all have stories.</p>
 
   <div class="intro">
     {photo && <Image src={photo} alt={profile.identity.name} width={240} height={240} class="avatar" loading="eager" />}
@@ -78,6 +80,9 @@ const current = profile.experience.find((e) => e.end === null);
   }
   .next {
     margin-top: 2rem;
+  }
+  .room-hint {
+    font-size: 0.9rem;
   }
   @media (max-width: 480px) {
     .intro {

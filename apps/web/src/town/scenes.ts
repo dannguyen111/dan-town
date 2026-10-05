@@ -4,6 +4,7 @@
  */
 import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN, bakeArcade } from "./arcade.ts";
 import type { Dir } from "./grid.ts";
+import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, bakeHome, drawHomeLive, drawHomeOver } from "./home.ts";
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
 import { bakeWorld } from "./world.ts";
 
@@ -47,5 +48,17 @@ export const INTERIORS: Record<string, Scene> = {
     bake: bakeArcade,
     retro: true,
     intro: { title: "Arcade", text: "Walk up to the robot and press Enter (or tap it) to play Mancala. Step on the mat to leave." },
+  },
+  home: {
+    id: "home",
+    ground: HOME_GROUND,
+    objects: HOME_OBJECTS,
+    spawn: HOME_SPAWN,
+    face: "up",
+    backdrop: "#2b1d14",
+    bake: bakeHome,
+    live: { draw: drawHomeLive, drawOver: drawHomeOver, everyMs: 20_000 },
+    retro: true,
+    intro: { title: "Home", text: "Welcome to Dan's place! Walk up to the TV and press Enter (or tap it) to watch. Step on the mat to leave." },
   },
 };
