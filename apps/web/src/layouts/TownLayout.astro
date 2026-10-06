@@ -18,9 +18,14 @@ interface Props {
    * put a full-screen experience in the "screen" slot.
    */
   interior?: boolean;
+  /**
+   * The place is a room you walk into that keeps the page beside it (Home). On small screens
+   * the page shrinks to a peek card over the room, like on the town square.
+   */
+  room?: boolean;
 }
 
-const { place, interior = false, title, description = `${profile.identity.name}: ${profile.identity.headline}. ${profile.identity.tagline}` } = Astro.props;
+const { place, interior = false, room = false, title, description = `${profile.identity.name}: ${profile.identity.headline}. ${profile.identity.tagline}` } = Astro.props;
 const info = placeById(place)!;
 const pageTitle = title ? `${title} · ${profile.identity.name}` : `${profile.identity.name}: ${profile.identity.headline}`;
 // Pages build to about.html, but are served (and should be indexed) as /about.
@@ -28,7 +33,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
 ---
 
 <!doctype html>
-<html lang="en" data-place={place} data-interior={interior ? "" : undefined}>
+<html lang="en" data-place={place} data-interior={interior ? "" : undefined} data-room={room ? "" : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -46,7 +51,8 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     <meta property="og:url" content={canonical} />
     <Font cssVariable="--font-body" preload />
     <Font cssVariable="--font-pixel" />
-    {interior && <Font cssVariable="--font-retro" preload />}
+    {/* Always defined: a room's text boxes stay up while pages beside it change (the twin's chat at Home). */}
+    <Font cssVariable="--font-retro" preload={interior || room} />
     <ClientRouter fallback="swap" />
   </head>
   <body>
@@ -92,7 +98,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
       // Move focus into the content sheet on small screens, where it covers the town.
       document.addEventListener("astro:after-swap", () => {
         const place = html.dataset.place;
-        if (place !== "town" && !html.hasAttribute("data-interior") && matchMedia("(max-width: 899px)").matches) {
+        if (place !== "town" && !html.hasAttribute("data-interior") && !html.hasAttribute("data-room") && matchMedia("(max-width: 899px)").matches) {
           document.getElementById("panel-title")?.focus({ preventScroll: true });
         }
         document.querySelector(".panel__body")?.scrollTo({ top: 0 });
@@ -230,7 +236,8 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
       display: inline-flex;
     }
     /* On the town square, the panel shrinks to a peek card that doesn't block the map. */
-    :global(html[data-place="town"]) .panel {
+    :global(html[data-place="town"]) .panel,
+    :global(html[data-room]) .panel {
       inset: auto 10px max(10px, env(safe-area-inset-bottom)) 10px;
       max-height: 38dvh;
       border: 2px solid var(--ink);
@@ -239,10 +246,12 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
       overflow: hidden;
     }
     :global(html[data-place="town"]) .panel__bar,
-    :global(html[data-place="town"]) .panel__footer {
+    :global(html[data-place="town"]) .panel__footer,
+    :global(html[data-room]) .panel__footer {
       display: none;
     }
-    :global(html[data-place="town"]) .panel__body {
+    :global(html[data-place="town"]) .panel__body,
+    :global(html[data-room]) .panel__body {
       padding: 1rem 1.1rem;
     }
   }

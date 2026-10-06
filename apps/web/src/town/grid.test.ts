@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN } from "./arcade.ts";
 import { TownGrid } from "./grid.ts";
+import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, easternTime, formatEastern } from "./home.ts";
 import { COLS, GROUND, OBJECTS, SPAWN } from "./map.ts";
 
 describe("town map", () => {
@@ -82,6 +83,62 @@ describe("arcade interior", () => {
     const arcade = OBJECTS.find((o) => o.target.type === "place" && o.target.id === "arcade")!;
     const { at } = town.arrivalTile(arcade, SPAWN);
     expect(town.isWalkable(at.x, at.y)).toBe(true);
+  });
+});
+
+describe("home interior", () => {
+  const grid = new TownGrid(HOME_OBJECTS, HOME_GROUND);
+
+  it("has a rectangular ground layer", () => {
+    for (const row of HOME_GROUND) expect(row).toHaveLength(HOME_GROUND[0].length);
+  });
+
+  it("spawns just inside the exit", () => {
+    expect(grid.isWalkable(HOME_SPAWN.x, HOME_SPAWN.y)).toBe(true);
+    expect(grid.doorAt(HOME_SPAWN.x, HOME_SPAWN.y + 1)?.target).toEqual({ type: "place", id: "town" });
+  });
+
+  it("does not overlap objects", () => {
+    const seen = new Set<string>();
+    for (const o of HOME_OBJECTS)
+      for (let y = o.y; y < o.y + o.h; y++)
+        for (let x = o.x; x < o.x + o.w; x++) {
+          const k = `${x},${y}`;
+          expect(seen.has(k), `${o.id} overlaps at ${k}`).toBe(false);
+          seen.add(k);
+        }
+  });
+
+  it.each(HOME_OBJECTS.map((o) => [o.id, o] as const))("%s is reachable from the entrance", (_id, obj) => {
+    expect(grid.approach(obj, HOME_SPAWN)).not.toBeNull();
+  });
+
+  it("you can stand in front of the TV and face it", () => {
+    const tv = HOME_OBJECTS.find((o) => o.id === "tv")!;
+    expect(tv.hint).toBeTruthy();
+    expect(grid.isWalkable(tv.x + 1, tv.y + 1)).toBe(true);
+    expect(grid.objectAt(tv.x + 1, tv.y)?.id).toBe("tv");
+  });
+
+  it("you can walk up to the fridge and leave a note", () => {
+    const fridge = HOME_OBJECTS.find((o) => o.id === "fridge")!;
+    expect(fridge.hint).toBeTruthy();
+    expect(fridge.target).toEqual({ type: "event", name: "fridge" });
+    expect(grid.isWalkable(fridge.x + 1, fridge.y + 1)).toBe(true);
+    expect(grid.objectAt(fridge.x, fridge.y + 1)?.id).toBe("fridge");
+  });
+
+  it("the doorway between the rooms is open", () => {
+    expect(grid.isWalkable(7, 9)).toBe(true);
+    expect(grid.isWalkable(6, 9)).toBe(false);
+  });
+});
+
+describe("eastern time", () => {
+  it("reads the clock in New York, not the visitor's zone", () => {
+    expect(easternTime(new Date("2026-07-01T16:05:00Z"))).toEqual({ h: 12, m: 5 }); // EDT
+    expect(easternTime(new Date("2026-01-15T03:30:00Z"))).toEqual({ h: 22, m: 30 }); // EST
+    expect(formatEastern(new Date("2026-01-15T05:07:00Z"))).toBe("12:07 AM");
   });
 });
 

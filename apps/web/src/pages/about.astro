@@ -9,10 +9,18 @@ import { resolveImage } from "../lib/images";
 const photo = resolveImage(profile.identity.photo);
 const edu = profile.education[0];
 const current = profile.experience.find((e) => e.end === null);
+/** On the living-room TV. */
+const TV_VIDEO = "GWshHUF05DM";
+const first = profile.identity.short_name;
 ---
 
-<TownLayout place="home" title="About" description={profile.about.intro}>
+<TownLayout place="home" room title="About" description={profile.about.intro}>
   <PageHeader kicker="🏠 Home" title={`Hi, I'm ${profile.identity.short_name}.`} />
+
+  <p class="muted room-hint">
+    You're in my living room. Look around: the flags, the bookshelf and the desk all have stories, the TV works, and you can leave me a note on the
+    fridge.
+  </p>
 
   <div class="intro">
     {photo && <Image src={photo} alt={profile.identity.name} width={240} height={240} class="avatar" loading="eager" />}
@@ -48,7 +56,234 @@ const current = profile.experience.find((e) => e.end === null);
   <p class="muted next">
     Next stop: the <a href="/dev">Dev Center</a> for projects, or the <a href="/career">Career Hall</a> for my experience.
   </p>
+
+  <dialog slot="screen" class="tv" data-tv aria-labelledby="tv-title">
+    <div class="tv__set">
+      <div class="tv__body">
+        <div class="tv__screen" data-tv-screen></div>
+        <div class="tv__side" aria-hidden="true">
+          <span class="tv__knob"></span>
+          <span class="tv__knob"></span>
+          <span class="tv__grille"></span>
+        </div>
+      </div>
+      <div class="tv__bar">
+        <h2 id="tv-title" class="tv__title">CH 23 · LeBron's most clutch moments</h2>
+        <a class="tv__btn" href={`https://www.youtube.com/watch?v=${TV_VIDEO}`} target="_blank" rel="noopener noreferrer">YouTube ↗</a>
+        <button class="tv__btn" type="button" data-tv-off>Turn off</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog slot="screen" class="fridge" data-fridge aria-labelledby="fridge-title">
+    <div class="fridge__door">
+      <span class="fridge__handle" aria-hidden="true"></span>
+      <div class="fridge__top">
+        <h2 id="fridge-title" class="fridge__title">The fridge</h2>
+        <button class="fridge__btn" type="button" data-fridge-close aria-label="Close the fridge">✕</button>
+      </div>
+
+      <ul class="fridge__notes" data-fridge-notes aria-label="Notes pinned by visitors"></ul>
+
+      <form class="fridge__form note note--new" data-fridge-form>
+        <span class="magnet" aria-hidden="true"></span>
+        <label class="visually-hidden" for="fridge-message">Your note</label>
+        <textarea id="fridge-message" name="message" rows="4" maxlength="600" required placeholder={`Leave ${first} a note: say hi, pitch a collab, or tell him about a role…`}></textarea>
+        <div class="fridge__row">
+          <label>Name <input name="name" maxlength="40" autocomplete="name" placeholder="optional" /></label>
+          <label>Reply to <input name="contact" maxlength="120" autocomplete="email" placeholder="email or link, optional" /></label>
+        </div>
+        <!-- Honeypot: hidden from people, irresistible to bots. -->
+        <label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off" /></label>
+        <div data-fridge-turnstile></div>
+        <div class="fridge__row fridge__row--end">
+          <p class="fridge__status" data-fridge-status role="status" aria-live="polite"></p>
+          <button class="fridge__btn fridge__btn--pin" type="submit" data-fridge-send>📌 Pin it</button>
+        </div>
+      </form>
+      <p class="fridge__fine">
+        Notes are sorted by an AI model (Jev, TypeSafe's decision model, via OpenRouter) and only go up on the fridge once {first} approves them. Your reply-to details are only shown to {first}.
+      </p>
+    </div>
+  </dialog>
 </TownLayout>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import { formatEastern } from "../town/home";
+  import type { FridgeNote, FridgeTopic } from "@dan-town/api/types";
+
+  const VIDEO = "GWshHUF05DM";
+  /** The TV was turned on from another page beside the room (the twin's chat). */
+  let pending = false;
+
+  // The TV in the living room. The YouTube player only loads once someone turns the TV on, and
+  // is removed again when they turn it off, so the room costs nothing until then.
+  function turnOn(tv: HTMLDialogElement) {
+    if (tv.open) return;
+    const frame = document.createElement("iframe");
+    frame.src = `https://www.youtube-nocookie.com/embed/${VIDEO}?autoplay=1&rel=0&playsinline=1`;
+    frame.title = "LeBron James' Most Clutch Moments, on YouTube";
+    frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+    frame.allowFullscreen = true;
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
+    tv.querySelector("[data-tv-screen]")!.replaceChildren(frame);
+    tv.showModal();
+  }
+
+  document.addEventListener("town:tv", () => {
+    const tv = document.querySelector<HTMLDialogElement>("[data-tv]");
+    if (tv) return turnOn(tv);
+    pending = true;
+    void navigate("/about");
+  });
+
+  document.addEventListener("astro:page-load", () => {
+    const tv = document.querySelector<HTMLDialogElement>("[data-tv]");
+    if (!tv) return;
+    // Removing the player stops the video. Escape closes the dialog without a click, hence "close" too.
+    const turnOff = () => {
+      tv.querySelector("[data-tv-screen]")!.replaceChildren();
+      if (tv.open) tv.close();
+    };
+    tv.querySelector("[data-tv-off]")!.addEventListener("click", turnOff);
+    // Clicking the room around the TV turns it off too.
+    tv.addEventListener("click", (e) => e.target === tv && turnOff());
+    tv.addEventListener("close", () => {
+      turnOff();
+      document.dispatchEvent(new CustomEvent("town:focus"));
+    });
+    if (pending) {
+      pending = false;
+      turnOn(tv);
+    }
+  });
+
+  // ───────────── the fridge: visitors pin notes for Dan ─────────────
+  const SITE_KEY = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | undefined;
+  const TOPIC: Record<FridgeTopic, string> = { hiring: "💼 hiring", collab: "🤝 collab", hi: "👋 hi", unsorted: "📝 note" };
+  let fridgePending = false;
+  let turnstile: { id?: string; token?: string; cb?: (t: string) => void } = {};
+
+  /** The human check, loaded only once someone pins a note. Resolves with a fresh token. */
+  async function turnstileToken(container: HTMLElement): Promise<string | undefined> {
+    if (!SITE_KEY) return undefined;
+    if (turnstile.token) return turnstile.token;
+    const ts = () => (window as any).turnstile;
+    if (!ts()) {
+      await new Promise<void>((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Couldn't load the human check. Try again?"));
+        document.head.append(s);
+      });
+    }
+    return new Promise((resolve) => {
+      const callback = (t: string) => resolve((turnstile.token = t));
+      if (turnstile.id !== undefined && container.isConnected && container.childElementCount) ts().reset(turnstile.id);
+      else turnstile.id = ts().render(container, { sitekey: SITE_KEY, size: "flexible", callback: (t: string) => turnstile.cb?.(t) });
+      turnstile.cb = callback;
+    });
+  }
+
+  function renderNotes(list: HTMLUListElement, notes: FridgeNote[]) {
+    if (!notes.length) {
+      const li = document.createElement("li");
+      li.className = "fridge__empty";
+      li.textContent = "Nothing pinned yet. Be the first!";
+      return list.replaceChildren(li);
+    }
+    list.replaceChildren(
+      ...notes.map((n, i) => {
+        const li = document.createElement("li");
+        li.className = `note note--${n.topic}`;
+        li.style.setProperty("--tilt", `${((i * 7) % 5) - 2}deg`);
+        const magnet = document.createElement("span");
+        magnet.className = "magnet";
+        magnet.setAttribute("aria-hidden", "true");
+        const text = document.createElement("p");
+        text.textContent = n.message;
+        const meta = document.createElement("p");
+        meta.className = "note__meta";
+        meta.textContent = `${n.name ? `— ${n.name}` : "— a visitor"} · ${TOPIC[n.topic] ?? TOPIC.unsorted}`;
+        li.append(magnet, text, meta);
+        return li;
+      }),
+    );
+  }
+
+  async function openFridge(fridge: HTMLDialogElement) {
+    if (fridge.open) return;
+    fridge.showModal();
+    const list = fridge.querySelector<HTMLUListElement>("[data-fridge-notes]")!;
+    try {
+      const res = await fetch("/api/fridge");
+      if (!res.ok) throw new Error();
+      renderNotes(list, await res.json());
+    } catch {
+      list.replaceChildren();
+    }
+  }
+
+  document.addEventListener("town:fridge", () => {
+    const fridge = document.querySelector<HTMLDialogElement>("[data-fridge]");
+    if (fridge) return void openFridge(fridge);
+    fridgePending = true;
+    void navigate("/about");
+  });
+
+  document.addEventListener("astro:page-load", () => {
+    const fridge = document.querySelector<HTMLDialogElement>("[data-fridge]");
+    if (!fridge || fridge.dataset.ready) return;
+    fridge.dataset.ready = "1";
+    turnstile = {};
+    const form = fridge.querySelector<HTMLFormElement>("[data-fridge-form]")!;
+    const status = fridge.querySelector<HTMLElement>("[data-fridge-status]")!;
+    const send = fridge.querySelector<HTMLButtonElement>("[data-fridge-send]")!;
+
+    fridge.querySelector("[data-fridge-close]")!.addEventListener("click", () => fridge.close());
+    fridge.addEventListener("click", (e) => e.target === fridge && fridge.close());
+    fridge.addEventListener("close", () => document.dispatchEvent(new CustomEvent("town:focus")));
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const value = (k: string) => String(data.get(k) ?? "").trim();
+      send.disabled = true;
+      status.classList.remove("fridge__status--error");
+      status.textContent = "Pinning…";
+      try {
+        const token = await turnstileToken(form.querySelector("[data-fridge-turnstile]")!);
+        const res = await fetch("/api/fridge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: value("message"), name: value("name"), contact: value("contact"), website: value("website"), turnstileToken: token }),
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "The magnet slipped. Try again?");
+        form.reset();
+        status.textContent = "Pinned! Dan gets a ping and will put it up on the fridge soon.";
+      } catch (err) {
+        status.classList.add("fridge__status--error");
+        status.textContent = err instanceof Error ? err.message : String(err);
+      } finally {
+        turnstile.token = undefined; // single use
+        send.disabled = false;
+      }
+    });
+
+    if (fridgePending) {
+      fridgePending = false;
+      void openFridge(fridge);
+    }
+  });
+
+  // The wall clock tells Dan's time, wherever the visitor is.
+  document.addEventListener("town:clock", () => {
+    const text = `It's ${formatEastern()} for Dan (Eastern Time).`;
+    document.dispatchEvent(new CustomEvent("town:note", { detail: { title: "Clock", text } }));
+  });
+</script>
 
 <style>
   .intro {
@@ -78,6 +313,349 @@ const current = profile.experience.find((e) => e.end === null);
   }
   .next {
     margin-top: 2rem;
+  }
+  .room-hint {
+    font-size: 0.9rem;
+  }
+
+  /* ─────────────── the living-room TV: a CRT over the room, not the whole screen ─────────────── */
+  .tv {
+    --ink: #2b1d14;
+    position: fixed;
+    inset: var(--header-h) var(--panel-w) 0 0;
+    margin: auto;
+    width: min(calc((100vw - var(--panel-w)) * 0.92), 720px);
+    max-height: calc(100dvh - var(--header-h) - 24px);
+    padding: 0;
+    border: 0;
+    background: none;
+    overflow: visible;
+    font: 11px/1.6 var(--font-retro, monospace);
+  }
+  .tv::backdrop {
+    background: rgba(20, 12, 6, 0.55);
+  }
+  .tv__set {
+    position: relative;
+    padding: 14px;
+    background: #cfc6b4;
+    border: 4px solid var(--ink);
+    border-radius: 18px;
+    box-shadow:
+      inset -6px -6px 0 rgba(0, 0, 0, 0.12),
+      0 10px 0 var(--ink);
+  }
+  /* Rabbit ears */
+  .tv__set::before,
+  .tv__set::after {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    width: 4px;
+    height: 56px;
+    background: var(--ink);
+    transform-origin: bottom center;
+  }
+  .tv__set::before {
+    transform: translateX(-50%) rotate(-30deg);
+  }
+  .tv__set::after {
+    transform: translateX(-50%) rotate(30deg);
+  }
+  .tv__body {
+    display: flex;
+    gap: 12px;
+  }
+  .tv__screen {
+    flex: 1;
+    aspect-ratio: 16 / 9;
+    background: #22303f;
+    border: 4px solid var(--ink);
+    border-radius: 14px / 18px;
+    overflow: hidden;
+    animation: tv-on 0.45s ease-out;
+  }
+  .tv__screen :global(iframe) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  @keyframes tv-on {
+    0% {
+      transform: scaleY(0.01);
+      filter: brightness(4);
+    }
+    60% {
+      transform: scaleY(1);
+      filter: brightness(2);
+    }
+  }
+  .tv__side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 34px;
+    padding-top: 8px;
+  }
+  .tv__knob {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #e0b040 0 3px, #2b1d14 4px);
+  }
+  .tv__grille {
+    width: 26px;
+    height: 40px;
+    background: repeating-linear-gradient(#9a917f 0 3px, transparent 3px 7px);
+  }
+  .tv__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 12px;
+  }
+  .tv__title {
+    flex: 1;
+    min-width: 12em;
+    margin: 0;
+    font: inherit;
+    color: var(--ink);
+  }
+  .tv__btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--ink);
+    text-decoration: none;
+    background: #f8f8f0;
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .tv__btn:hover {
+    background: var(--sun);
+  }
+  @media (max-width: 899px) {
+    .tv {
+      inset: var(--header-h) 0 0 0;
+      width: min(calc(100vw - 24px), 720px);
+    }
+    .tv__side {
+      display: none;
+    }
+    .tv__set {
+      padding: 10px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tv__screen {
+      animation: none;
+    }
+  }
+  /* ─────────────── the fridge: a mint door covered in sticky notes ─────────────── */
+  .fridge {
+    --ink: #2b1d14;
+    position: fixed;
+    inset: var(--header-h) var(--panel-w) 0 0;
+    margin: auto;
+    width: min(calc((100vw - var(--panel-w)) * 0.92), 640px);
+    max-height: calc(100dvh - var(--header-h) - 24px);
+    padding: 0;
+    border: 0;
+    background: none;
+    overflow: auto;
+    font: 11px/1.6 var(--font-retro, monospace);
+    color: var(--ink);
+  }
+  .fridge::backdrop {
+    background: rgba(20, 12, 6, 0.55);
+  }
+  .fridge__door {
+    position: relative;
+    padding: 16px 44px 16px 16px;
+    background: #9fd3c7;
+    border: 4px solid var(--ink);
+    border-radius: 16px;
+    box-shadow:
+      inset 6px 0 0 #d4f0e8,
+      inset -6px -6px 0 #7fb8ab,
+      0 10px 0 var(--ink);
+  }
+  .fridge__handle {
+    position: absolute;
+    top: 24px;
+    right: 14px;
+    width: 10px;
+    height: 120px;
+    background: #c0c6cc;
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+  }
+  .fridge__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .fridge__title {
+    margin: 0;
+    font: inherit;
+    font-size: 14px;
+  }
+  .fridge__notes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    max-height: 40vh;
+    overflow: auto;
+    margin: 0 0 16px;
+    padding: 10px 4px;
+    list-style: none;
+  }
+  .fridge :global(.fridge__empty) {
+    grid-column: 1 / -1;
+    text-align: center;
+    opacity: 0.75;
+  }
+  .fridge :global(.note) {
+    --paper: #fff6b8;
+    position: relative;
+    padding: 14px 10px 8px;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    transform: rotate(var(--tilt, 0deg));
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .fridge :global(.note p) {
+    margin: 0;
+  }
+  .fridge :global(.note--collab) {
+    --paper: #cfe8ff;
+  }
+  .fridge :global(.note--hi) {
+    --paper: #ffd1dc;
+  }
+  .fridge :global(.note--unsorted) {
+    --paper: #f8f8f0;
+  }
+  .fridge :global(.note p.note__meta) {
+    margin-top: 6px;
+    font-size: 10px;
+    opacity: 0.7;
+  }
+  .fridge :global(.magnet) {
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    background: #c8322b;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+  }
+  .fridge :global(.note:nth-child(3n + 2) .magnet) {
+    background: #e0b040;
+  }
+  .fridge :global(.note:nth-child(3n) .magnet) {
+    background: #2f6db5;
+  }
+  .fridge :global(.note--new) {
+    --paper: #fffbe0;
+    display: grid;
+    gap: 8px;
+    white-space: normal;
+  }
+  .fridge__form textarea,
+  .fridge__form input {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 8px;
+    font: inherit;
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.65);
+    border: 2px dashed #b8a989;
+    border-radius: 4px;
+    resize: vertical;
+  }
+  .fridge__form textarea:focus-visible,
+  .fridge__form input:focus-visible {
+    outline: 3px solid var(--sun);
+    border-style: solid;
+  }
+  .fridge__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .fridge__row label {
+    display: grid;
+    gap: 2px;
+  }
+  .fridge__row--end {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+  .fridge__status {
+    margin: 0;
+  }
+  .fridge__status--error {
+    color: #a8231c;
+  }
+  .hp {
+    position: absolute;
+    left: -9999px;
+  }
+  .fridge__btn {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 8px 12px;
+    font: inherit;
+    color: var(--ink);
+    background: #f8f8f0;
+    border: 3px solid var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .fridge__btn:hover {
+    background: var(--sun);
+  }
+  .fridge__btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+  .fridge__fine {
+    margin: 12px 0 0;
+    font-size: 10px;
+    opacity: 0.8;
+  }
+  @media (max-width: 899px) {
+    .fridge {
+      inset: var(--header-h) 0 0 0;
+      width: min(calc(100vw - 24px), 640px);
+    }
+  }
+  @media (max-width: 480px) {
+    .fridge__door {
+      padding-right: 16px;
+    }
+    .fridge__handle {
+      display: none;
+    }
+    .fridge__row {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fridge :global(.note) {
+      transform: none;
+    }
   }
   @media (max-width: 480px) {
     .intro {

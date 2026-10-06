@@ -4,6 +4,7 @@
  */
 import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN, bakeArcade } from "./arcade.ts";
 import type { Dir } from "./grid.ts";
+import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, bakeHome, drawHomeLive, drawHomeOver } from "./home.ts";
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
 import { bakeWorld } from "./world.ts";
 
@@ -17,6 +18,17 @@ export interface Scene {
   /** Fill colour around the map when the screen is bigger than it. */
   backdrop: string;
   bake: () => HTMLCanvasElement;
+  /**
+   * Art drawn over the baked map every frame, in world pixels: things that change over time (a
+   * clock) or must layer with the visitor (a couch they can walk behind). `draw` paints beneath the
+   * visitor and `drawOver` on top; both get the visitor's position. The room also repaints every
+   * `everyMs` while it is shown.
+   */
+  live?: {
+    draw: (ctx: CanvasRenderingContext2D, player: Point) => void;
+    drawOver?: (ctx: CanvasRenderingContext2D, player: Point) => void;
+    everyMs: number;
+  };
   /** Pixel font and old-RPG text boxes for this scene's name tags and messages. */
   retro?: boolean;
   /** Shown in the town bubble on entering. */
@@ -36,5 +48,17 @@ export const INTERIORS: Record<string, Scene> = {
     bake: bakeArcade,
     retro: true,
     intro: { title: "Arcade", text: "Walk up to the robot and press Enter (or tap it) to play Mancala. Step on the mat to leave." },
+  },
+  home: {
+    id: "home",
+    ground: HOME_GROUND,
+    objects: HOME_OBJECTS,
+    spawn: HOME_SPAWN,
+    face: "up",
+    backdrop: "#2b1d14",
+    bake: bakeHome,
+    live: { draw: drawHomeLive, drawOver: drawHomeOver, everyMs: 20_000 },
+    retro: true,
+    intro: { title: "Home", text: "Welcome to Dan's place! Walk up to the TV and press Enter (or tap it) to watch, or leave Dan a note on the fridge. Step on the mat to leave." },
   },
 };

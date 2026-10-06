@@ -40,8 +40,12 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   const sync = () => {
     const place = document.documentElement.dataset.place ?? "town";
     if (town.hasInterior(place)) {
-      // Places with an interior: the visitor walks inside and the room fills the screen.
+      // Places with an interior: the visitor walks inside the room.
       town.enterScene(place);
+    } else if (town.hasPlaceHere(place)) {
+      // A place reachable from inside the room (the twin on the Home couch) opens beside it.
+      town.setActivePlace(place);
+      if (!enteredFromTown) town.teleportToPlace(place);
     } else {
       const inside = town.sceneId;
       // Leaving a building puts the visitor back outside its door, facing the street.
@@ -159,6 +163,18 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   }
   .town-bubble :global(a) {
     font-weight: 800;
+  }
+  /* The action of something you face (the TV, the fridge): looks like the bubble's links. */
+  .town-bubble :global(.town-bubble__action) {
+    padding: 0;
+    font: inherit;
+    font-weight: 800;
+    color: var(--coral-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: none;
+    border: 0;
+    cursor: pointer;
   }
   .town-bubble :global(.town-bubble__hint) {
     position: absolute;

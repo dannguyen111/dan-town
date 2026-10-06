@@ -1,13 +1,14 @@
 # Dan's Town 🏡
 
 A tiny pixel-art world that happens to be my portfolio. Walk around a small town, step into
-buildings, play my Mancala bot, and chat with my digital twin.
+buildings, play my Mancala bot, chat with my digital twin, and leave me a note on the fridge.
 
 ```
 apps/web/          Astro site: town canvas, content pages, chat UI, Arcade UI
 engine/mancala/    Rust port of my FairKalah bot → 37 KB WebAssembly (+ Java parity tests)
 packages/profile/  Profile schema (zod) + compiler (public JSON, twin context, Markdown export)
-workers/api/       Cloudflare Worker: serves the site, /api/stats (cron + KV), /api/twin (OpenRouter)
+workers/api/       Cloudflare Worker: serves the site, /api/stats (cron + KV), /api/twin (OpenRouter),
+                   /api/fridge (notes sorted by Jev, emailed to me, pinned once I approve)
 profile/           profile.example.yaml (the real profile lives in the private dan-profile repo)
 scripts/           build-engine.mjs, spotify-auth.mjs
 ```
@@ -57,6 +58,17 @@ secrets and are never committed (`.dev.vars` is git-ignored).
 - **Twin cost controls.** It's called only on send (never on approach). Limits: 8 messages/min per IP,
   input caps, `max_tokens` 700, optional Turnstile, plus a credit limit on the OpenRouter key.
   "Think harder" maps to OpenRouter `reasoning.effort: high` (or `TWIN_MODEL_HIGH` if set).
+- **The fridge sorts notes with Jev, not a chat model.** Jev (`typesafe/jev-1.13`) is TypeSafe's
+  decision model, called through OpenRouter's Decisions API (`/api/alpha/decisions`) with the same key
+  as the twin. It answers typed questions with calibrated probabilities instead of generating text.
+  One request asks it to pick a topic (hiring / collab / just saying hi) and how likely the note is to
+  be a prompt injection or spam. The visitor's words go only in the `state`, never in a question, and
+  since nothing is generated there is no output for an injection to take over. A note is saved first,
+  then sorted and emailed after the response (`waitUntil`), so a classifier or email outage never
+  loses one: it arrives "unsorted".
+  Nothing is public until I approve it. The email's approve/reject links are HMAC-signed, and a GET
+  only shows a confirm button, so mail scanners that prefetch links can't moderate anything.
+  Limits: 3 notes/min per IP, 60 a day in total, a honeypot field, and optional Turnstile.
 - **LeetCode** uses LeetCode's unofficial GraphQL endpoint. If it changes or blocks the Worker, the
   card falls back to a profile link and the last good data is kept.
 
@@ -98,9 +110,15 @@ java -cp out ParityGen > ../tests/fixtures/parity.jsonl
    and a zone redirect rule sends `www` to the apex with a 301. `SITE_URL` is set in `wrangler.jsonc`
    and defaults to the domain in `astro.config.mjs`. The old `dannguyen111.github.io` redirects here.
 
+6. The fridge: Jev runs on `OPENROUTER_API_KEY` (model `FRIDGE_MODEL`, `typesafe/jev-1.13`). Enable Email Sending for the domain (`npx wrangler email sending enable si-dan.com`), add your inbox
+   as a verified destination address, then set `FRIDGE_NOTIFY_TO` (that address) and `FRIDGE_SECRET`
+   (any long random string, e.g. `openssl rand -base64 32`) as secrets. Without them, notes are still
+   saved, just unsorted or without an email.
+
 Optional Turnstile: set the `TURNSTILE_SECRET` Worker secret and `PUBLIC_TURNSTILE_SITE_KEY` at build time.
 
 ## Costs
 
 Hosting, KV, cron and CI are $0 (free tiers). A domain costs about $10–15/year. The twin's cost is
-OpenRouter's price × usage, capped by the key's credit limit.
+OpenRouter's price × usage, capped by the key's credit limit. The fridge makes at most one Jev call per
+note (capped at 60 a day). Jev bills input tokens only, a fraction of a cent per note, and the notification emails fall within Email Sending's quota.
