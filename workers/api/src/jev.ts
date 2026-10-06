@@ -96,7 +96,8 @@ export async function decide<Qs extends Record<string, Question>>(req: DecisionR
         ...(req.referer ? { "HTTP-Referer": req.referer } : {}),
         ...(req.title ? { "X-Title": req.title } : {}),
       },
-      body: JSON.stringify({ model: req.model || JEV_MODEL, state: req.state, questions: req.questions }),
+      // Zero Data Retention: only route to endpoints that don't retain prompts.
+      body: JSON.stringify({ model: req.model || JEV_MODEL, state: req.state, questions: req.questions, provider: { zdr: true } }),
       signal: AbortSignal.timeout(req.timeoutMs ?? 10_000),
     });
   let res = await call();

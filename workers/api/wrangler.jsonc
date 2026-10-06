@@ -106,7 +106,8 @@
 		{ "name": "FRIDGE_MAIL" }
 	],
 	"vars": {
-		// OpenRouter model ID. Leave TWIN_MODEL empty to keep the twin "offline".
+		// OpenRouter model ID. Leave TWIN_MODEL empty to keep the twin "offline". Every OpenRouter call
+		// is Zero Data Retention only, so each model here needs a ZDR endpoint.
 		"TWIN_MODEL": "openai/gpt-6-luna",
 		// The twin's voice: an OpenRouter speech model and voice. Leave TTS_MODEL empty to turn it off.
 		"TTS_MODEL": "hexgrad/kokoro-82m",

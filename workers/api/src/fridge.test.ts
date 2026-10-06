@@ -75,7 +75,7 @@ describe("jev client", () => {
     expect(url).toBe("https://openrouter.ai/api/alpha/decisions");
     expect(init.headers.Authorization).toBe("Bearer sk-or-k");
     expect(init.headers["HTTP-Referer"]).toBe("https://si-dan.com");
-    expect(JSON.parse(init.body)).toMatchObject({ model: "typesafe/jev-1.13", state: { note: "x" }, questions: { topic: { type: "choice" } } });
+    expect(JSON.parse(init.body)).toMatchObject({ model: "typesafe/jev-1.13", state: { note: "x" }, questions: { topic: { type: "choice" } }, provider: { zdr: true } });
   });
 
   it("throws on other errors", async () => {
