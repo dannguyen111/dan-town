@@ -31,7 +31,7 @@
 			"17 6 * * *"
 		]
 	},
-	// Per-visitor limits: twin messages, arcade results reported, and fridge notes.
+	// Per-visitor limits: twin messages, spoken sentences, arcade results reported, and fridge notes.
 	"ratelimits": [
 		{
 			"name": "TWIN_LIMITER",
@@ -56,10 +56,19 @@
 				"limit": 3,
 				"period": 60
 			}
+		},
+		{
+			// One call per spoken sentence, so looser than TWIN_LIMITER.
+			"name": "SPEAK_LIMITER",
+			"namespace_id": "1004",
+			"simple": {
+				"limit": 60,
+				"period": 60
+			}
 		}
 	],
-	// SQLite-backed Durable Objects, created on deploy: the arcade robot's win/loss record, and
-	// the notes visitors pin on the fridge at Home.
+	// SQLite-backed Durable Objects, created on deploy: the arcade robot's win/loss record, the
+	// notes visitors pin on the fridge at Home, and meeting requests from the twin chat.
 	"durable_objects": {
 		"bindings": [
 			{
@@ -69,6 +78,10 @@
 			{
 				"name": "FRIDGE",
 				"class_name": "FridgeStore"
+			},
+			{
+				"name": "BOOKING",
+				"class_name": "BookingStore"
 			}
 		]
 	},
@@ -80,10 +93,15 @@
 		{
 			"tag": "v2",
 			"new_sqlite_classes": ["FridgeStore"]
+		},
+		{
+			"tag": "v3",
+			"new_sqlite_classes": ["BookingStore"]
 		}
 	],
-	// Emails Dan when someone leaves a note. Sends from fridge@si-dan.com (Email Sending must be
-	// enabled for the domain) to the FRIDGE_NOTIFY_TO secret, a verified destination address.
+	// Emails Dan when someone leaves a note (from fridge@) or asks for a meeting (from twin@), at the
+	// FRIDGE_NOTIFY_TO secret. Email Sending must be enabled for the domain. When Dan declines a
+	// meeting, the visitor gets a short note from twin@ too.
 	"send_email": [
 		{ "name": "FRIDGE_MAIL" }
 	],
@@ -91,14 +109,20 @@
 		// OpenRouter model IDs. Leave TWIN_MODEL empty to keep the twin "offline".
 		"TWIN_MODEL": "openai/gpt-6-luna",
 		"TWIN_MODEL_HIGH": "",
+		// The twin's voice: an OpenRouter speech model and voice. Leave TTS_MODEL empty to turn it off.
+		"TTS_MODEL": "hexgrad/kokoro-82m",
+		"TTS_VOICE": "am_michael",
 		// Jev model that sorts fridge notes (hiring / collab / hi) and flags injection, called through
 		// OpenRouter's Decisions API with OPENROUTER_API_KEY.
 		"FRIDGE_MODEL": "typesafe/jev-1.13",
-		"SITE_URL": "https://si-dan.com"
+		"SITE_URL": "https://si-dan.com",
+		// Calendar the twin checks free/busy on and adds approved meetings to.
+		"GOOGLE_CALENDAR_ID": "primary"
 	},
 	// Secrets (set with `wrangler secret put`): OPENROUTER_API_KEY, GITHUB_TOKEN,
 	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional),
-	// FRIDGE_SECRET, FRIDGE_NOTIFY_TO
+	// FRIDGE_SECRET, FRIDGE_NOTIFY_TO, and for meeting requests (scripts/google-auth.mjs):
+	// GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, BOOKING_SECRET
 	"observability": {
 		"enabled": true
 	}

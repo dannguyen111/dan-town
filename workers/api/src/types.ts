@@ -37,6 +37,34 @@ export interface ChatMessage {
   content: string;
 }
 
+/** A meeting time the twin offers, shown as a button in the chat. */
+export interface Slot {
+  /** ISO 8601, UTC. */
+  start: string;
+  duration: 15 | 30;
+  /** e.g. "Tue, Oct 7, 2:00 PM EDT" */
+  et: string;
+  /** The same instant in the visitor's time zone. */
+  local: string;
+  /** Outside Dan's usual hours (a time the visitor proposed). */
+  custom?: boolean;
+}
+
+/** One line of the NDJSON stream `POST /api/twin` returns. */
+export type TwinEvent = { t: "text"; v: string } | { t: "slots"; v: Slot[] } | { t: "error"; v: string };
+
+/** Body of `POST /api/twin/book`. */
+export interface BookingRequestBody {
+  start: string;
+  duration: 15 | 30;
+  name: string;
+  email: string;
+  topic: string;
+  tz: string;
+  website: string;
+  turnstileToken?: string;
+}
+
 /** Shape of `GET /api/mancala`: the arcade robot's record against everyone, from the robot's side. */
 export type MancalaLevel = "easy" | "medium" | "hard";
 export interface MancalaLevelRecord {

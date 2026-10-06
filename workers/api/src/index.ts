@@ -2,10 +2,13 @@ import type { Env } from "./env.ts";
 import { EMPTY_STATS, readStats, refreshIfEmpty, refreshStats } from "./stats.ts";
 import { handleTwin, HttpError } from "./twin.ts";
 import { handleMancalaResult, readMancalaRecord } from "./mancala.ts";
+import { handleSpeak } from "./speak.ts";
+import { handleBooking, handleBookingModerate } from "./booking.ts";
 import { handleFridgeNote, handleModerate, readPinned } from "./fridge.ts";
 
 export { MancalaRecordStore } from "./mancala-store.ts";
 export { FridgeStore } from "./fridge-store.ts";
+export { BookingStore } from "./booking-store.ts";
 
 const json = (data: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(data), { ...init, headers: { "Content-Type": "application/json; charset=utf-8", ...init.headers } });
@@ -24,7 +27,23 @@ export default {
         if (request.headers.get("Origin") && new URL(request.headers.get("Origin")!).host !== url.host) {
           throw new HttpError(403, "Cross-origin requests are not allowed.");
         }
-        return await handleTwin(request, env);
+        return await handleTwin(request, env, ctx);
+      }
+      if (url.pathname === "/api/twin/speak" && request.method === "POST") {
+        if (request.headers.get("Origin") && new URL(request.headers.get("Origin")!).host !== url.host) {
+          throw new HttpError(403, "Cross-origin requests are not allowed.");
+        }
+        return await handleSpeak(request, env);
+      }
+      if (url.pathname === "/api/twin/book" && request.method === "POST") {
+        if (request.headers.get("Origin") && new URL(request.headers.get("Origin")!).host !== url.host) {
+          throw new HttpError(403, "Cross-origin requests are not allowed.");
+        }
+        return json(await handleBooking(request, env, ctx), { headers: { "Cache-Control": "no-store" } });
+      }
+      // Signed approve/decline links from Dan's meeting-request emails. Serves its own small HTML page.
+      if (url.pathname === "/api/twin/booking/moderate" && (request.method === "GET" || request.method === "POST")) {
+        return await handleBookingModerate(request, env);
       }
       if (url.pathname === "/api/mancala") {
         if (request.method === "GET") return json(await readMancalaRecord(env), { headers: { "Cache-Control": "no-store" } });
