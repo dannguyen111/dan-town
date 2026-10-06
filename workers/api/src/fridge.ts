@@ -14,13 +14,16 @@ import type { FridgeNote, FridgeNoteRequest, FridgeTopic } from "./types.ts";
 import type { FridgeStatus, FridgeVerdict, StoredNote } from "./fridge-store.ts";
 import { JEV_MODEL, choice, decide, noul } from "./jev.ts";
 import { HttpError, verifyTurnstile } from "./twin.ts";
+import { clean, clientIp, escapeHtml, looksLikeEmail } from "./text.ts";
+import { sign, signedUrl, verify } from "./sign.ts";
+import { mailButton, sendMail } from "./mail.ts";
+import { page } from "./page.ts";
+
+export { escapeHtml, looksLikeEmail };
 
 export const FRIDGE_LIMITS = { message: 600, name: 40, contact: 120, minMessage: 2, dailyCap: 60, pinned: 24 } as const;
 /** A note is flagged when Jev puts injection or junk at or above this probability. */
 export const FLAG_AT = 0.5;
-
-/** Drops control characters (keeps newlines and tabs) and trims. */
-const clean = (s: string) => s.replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "").trim();
 
 function field(body: Record<string, unknown>, key: string, max: number, label: string): string {
   const v = body[key];
@@ -87,38 +90,18 @@ export const isFlagged = (v: Pick<FridgeVerdict, "injection" | "junk">) => v.inj
 export type ModerationAction = "approve" | "reject";
 const ACTIONS: Record<ModerationAction, FridgeStatus> = { approve: "approved", reject: "rejected" };
 
-const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const fromB64url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
-const hmacKey = (secret: string) =>
-  crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+export const signAction = (secret: string, id: string, action: ModerationAction) => sign(secret, "fridge", id, action);
 
-export async function signAction(secret: string, id: string, action: ModerationAction): Promise<string> {
-  return b64url(await crypto.subtle.sign("HMAC", await hmacKey(secret), new TextEncoder().encode(`fridge:${id}:${action}`)));
-}
+export const verifyAction = (secret: string, id: string, action: ModerationAction, sig: string) => verify(secret, "fridge", id, action, sig);
 
-export async function verifyAction(secret: string, id: string, action: ModerationAction, sig: string): Promise<boolean> {
-  try {
-    return await crypto.subtle.verify("HMAC", await hmacKey(secret), fromB64url(sig), new TextEncoder().encode(`fridge:${id}:${action}`));
-  } catch {
-    return false; // malformed signature
-  }
-}
-
-export async function moderationUrl(env: Env, id: string, action: ModerationAction): Promise<string> {
-  const url = new URL("/api/fridge/moderate", env.SITE_URL);
-  url.search = new URLSearchParams({ id, action, sig: await signAction(env.FRIDGE_SECRET!, id, action) }).toString();
-  return url.toString();
-}
+export const moderationUrl = (env: Env, id: string, action: ModerationAction) =>
+  signedUrl(env.SITE_URL, "/api/fridge/moderate", env.FRIDGE_SECRET!, "fridge", id, action);
 
 // ───────────────────────────── email ─────────────────────────────
 
 export const TOPIC_LABEL: Record<FridgeTopic, string> = { hiring: "💼 Hiring", collab: "🤝 Collab", hi: "👋 Just saying hi", unsorted: "📝 Unsorted" };
 
-export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-
 const pct = (n: number) => `${Math.round(n * 100)}%`;
-const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
-export const looksLikeEmail = (s: string) => EMAIL.test(s);
 
 /** The notification Dan receives. Pure, so it can be tested; every visitor string is escaped in the HTML. */
 export function renderNotification(note: StoredNote, verdict: FridgeVerdict | null, links: Record<ModerationAction, string> | null) {
@@ -146,8 +129,7 @@ export function renderNotification(note: StoredNote, verdict: FridgeVerdict | nu
     links ? `Pin it on the fridge: ${links.approve}\nReject it: ${links.reject}` : "Set the FRIDGE_SECRET secret to get approve/reject links.",
   ].join("\n");
 
-  const button = (href: string, label: string, bg: string) =>
-    `<a href="${escapeHtml(href)}" style="display:inline-block;padding:10px 16px;margin-right:8px;border:3px solid #2b1d14;border-radius:6px;background:${bg};color:#2b1d14;font-weight:700;text-decoration:none">${label}</a>`;
+  const button = (href: string, label: string, bg: string) => mailButton(escapeHtml(href), label, bg);
   const html = `<div style="font-family:system-ui,sans-serif;max-width:560px;color:#2b1d14">
   ${flagged ? `<p style="padding:10px;background:#ffe1dc;border:2px solid #c8322b;border-radius:6px">${escapeHtml(warning)}</p>` : ""}
   <p style="margin:0 0 4px"><strong>${escapeHtml(note.name || "(no name)")}</strong>${note.contact ? ` · ${escapeHtml(note.contact)}` : ""}</p>
@@ -160,22 +142,14 @@ export function renderNotification(note: StoredNote, verdict: FridgeVerdict | nu
 }
 
 async function notify(env: Env, note: StoredNote, verdict: FridgeVerdict | null) {
-  if (!env.FRIDGE_MAIL || !env.FRIDGE_NOTIFY_TO) {
-    console.warn("[fridge] email not configured (FRIDGE_MAIL binding / FRIDGE_NOTIFY_TO secret); note", note.id, "saved without a notification");
-    return;
-  }
   const links = env.FRIDGE_SECRET
     ? { approve: await moderationUrl(env, note.id, "approve"), reject: await moderationUrl(env, note.id, "reject") }
     : null;
-  const { subject, text, html } = renderNotification(note, verdict, links);
-  await env.FRIDGE_MAIL.send({
-    from: { name: "The Fridge", email: `fridge@${new URL(env.SITE_URL).hostname}` },
-    to: env.FRIDGE_NOTIFY_TO,
+  await sendMail(env, {
+    from: { name: "The Fridge", local: "fridge" },
     // Reply straight to the visitor when they left an email address.
     ...(looksLikeEmail(note.contact) ? { replyTo: note.contact } : {}),
-    subject,
-    text,
-    html,
+    ...renderNotification(note, verdict, links),
   });
 }
 
@@ -202,7 +176,7 @@ async function processNote(env: Env, note: StoredNote) {
 }
 
 export async function handleFridgeNote(request: Request, env: Env, ctx: ExecutionContext): Promise<{ ok: true }> {
-  const ip = request.headers.get("CF-Connecting-IP") ?? "anon";
+  const ip = clientIp(request);
   const { success } = await env.FRIDGE_LIMITER.limit({ key: ip });
   if (!success) throw new HttpError(429, "That's a lot of notes! Give the magnets a minute.");
 
@@ -221,20 +195,6 @@ export async function handleFridgeNote(request: Request, env: Env, ctx: Executio
 }
 
 // ───────────────────────────── moderation page ─────────────────────────────
-
-function page(title: string, body: string, status = 200): Response {
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeHtml(title)}</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;color:#2b1d14;background:#efe3c8}.note{white-space:pre-wrap;padding:14px;background:#fff6b8;border:2px solid #2b1d14;border-radius:4px;box-shadow:3px 3px 0 #2b1d14}button{font:inherit;font-weight:700;padding:10px 16px;border:3px solid #2b1d14;border-radius:6px;background:#bfe3d6;cursor:pointer}.muted{color:#7a6a5a;font-size:14px}</style></head><body><h1>${escapeHtml(title)}</h1>${body}</body></html>`;
-  return new Response(html, {
-    status,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
-      "Referrer-Policy": "no-referrer",
-    },
-  });
-}
 
 /**
  * The links in Dan's email. GET only shows a confirmation with a button; the change happens on
