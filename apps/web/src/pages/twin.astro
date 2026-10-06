@@ -10,6 +10,7 @@ const suggestions = [
   "Tell me about your experience.",
   "What technologies do you use?",
   "What are you interested in outside of tech?",
+  "When are you free for a quick chat?",
   featured ? `Tell me about ${featured.title}.` : "What are you working on now?",
 ];
 ---
@@ -21,7 +22,7 @@ const suggestions = [
     </p>
   </PageHeader>
 
-  <section class="chat" data-chat aria-label="Conversation">
+  <section class="chat" data-chat data-first={first} aria-label="Conversation">
     <ol class="clean chat__log" data-log aria-live="polite" aria-relevant="additions">
       <li class="msg msg--twin">Hey! 👋 Ask me anything about my work, projects, or interests.</li>
     </ol>
@@ -37,160 +38,29 @@ const suggestions = [
       <label for="chat-input" class="visually-hidden">Your question</label>
       <textarea id="chat-input" name="q" rows="2" maxlength="1500" placeholder="Ask me something…" required></textarea>
       <div class="chat__actions">
-        <label class="mode">
-          <input type="checkbox" name="deep" /> Think harder
-        </label>
+        <div class="chat__toggles">
+          <label class="mode">
+            <input type="checkbox" name="deep" /> Think harder
+          </label>
+          <button type="button" class="btn btn--small voice" data-voice aria-pressed="false" title="Read replies aloud">🔇 Voice off</button>
+        </div>
         <button class="btn btn--teal" type="submit" data-send>Send</button>
       </div>
       <div data-turnstile></div>
     </form>
     <p class="muted fine">
-      Messages are sent to an AI model via OpenRouter to generate replies. Please don't share personal information. For anything important, email {first} directly.
+      Messages are sent to an AI model via OpenRouter to generate replies, and spoken replies are generated the same way. Please don't share personal information in chat. Meeting requests go to {first} directly, never to the AI.
     </p>
   </section>
 </TownLayout>
 
 <script>
-  import type { ChatMessage } from "@dan-town/api/types";
+  import { setupChat } from "../twin/chat.ts";
 
-  const SITE_KEY = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | undefined;
-
-  /** Escape, then allow a tiny, safe subset of Markdown (bold, bullets, links). */
-  function renderMarkdown(text: string): string {
-    const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const inline = (s: string) =>
-      s
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:|\/)[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    const out: string[] = [];
-    let list: string[] = [];
-    const flush = () => {
-      if (list.length) out.push(`<ul>${list.map((li) => `<li>${inline(li)}</li>`).join("")}</ul>`);
-      list = [];
-    };
-    for (const line of esc.split("\n")) {
-      const m = line.match(/^\s*[-*•]\s+(.*)$/);
-      if (m) list.push(m[1]!);
-      else {
-        flush();
-        if (line.trim()) out.push(`<p>${inline(line)}</p>`);
-      }
-    }
-    flush();
-    return out.join("");
-  }
-
-  let turnstileToken: string | undefined;
-  async function ensureTurnstile(container: HTMLElement) {
-    if (!SITE_KEY || turnstileToken) return;
-    // Loaded lazily, only for visitors who actually chat.
-    await new Promise<void>((resolve, reject) => {
-      if ((window as any).turnstile) return resolve();
-      const s = document.createElement("script");
-      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error("turnstile"));
-      document.head.append(s);
-    });
-    await new Promise<void>((resolve) => {
-      (window as any).turnstile.render(container, {
-        sitekey: SITE_KEY,
-        size: "flexible",
-        callback: (t: string) => {
-          turnstileToken = t;
-          resolve();
-        },
-      });
-    });
-  }
-
-  function setup() {
+  document.addEventListener("astro:page-load", () => {
     const root = document.querySelector<HTMLElement>("[data-chat]");
-    if (!root || root.dataset.ready) return;
-    root.dataset.ready = "1";
-
-    const log = root.querySelector<HTMLOListElement>("[data-log]")!;
-    const form = root.querySelector<HTMLFormElement>("[data-form]")!;
-    const input = form.querySelector<HTMLTextAreaElement>("textarea")!;
-    const send = form.querySelector<HTMLButtonElement>("[data-send]")!;
-    const suggest = root.querySelector<HTMLElement>("[data-suggest]")!;
-    const history: ChatMessage[] = [];
-    let busy = false;
-
-    const add = (role: "user" | "twin", text = "") => {
-      const li = document.createElement("li");
-      li.className = `msg msg--${role}`;
-      li.textContent = text;
-      log.append(li);
-      li.scrollIntoView({ block: "nearest" });
-      return li;
-    };
-
-    async function ask(question: string) {
-      if (busy || !question.trim()) return;
-      busy = true;
-      send.disabled = true;
-      suggest.hidden = true;
-      add("user", question);
-      history.push({ role: "user", content: question });
-      const reply = add("twin");
-      reply.classList.add("msg--typing");
-      reply.setAttribute("aria-busy", "true");
-      let text = "";
-      try {
-        await ensureTurnstile(form.querySelector("[data-turnstile]")!);
-        const res = await fetch("/api/twin", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: history,
-            mode: (form.elements.namedItem("deep") as HTMLInputElement).checked ? "high" : "low",
-            turnstileToken,
-          }),
-        });
-        if (!res.ok || !res.body) {
-          const err = await res.json().catch(() => ({ error: "The twin couldn't answer right now." }));
-          throw new Error(err.error ?? "The twin couldn't answer right now.");
-        }
-        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          text += value;
-          reply.innerHTML = renderMarkdown(text);
-          reply.scrollIntoView({ block: "nearest" });
-        }
-        if (!text.trim()) throw new Error("I blanked for a second. Mind asking again?");
-        history.push({ role: "assistant", content: text });
-      } catch (err) {
-        history.pop();
-        reply.classList.add("msg--error");
-        reply.textContent = err instanceof Error ? err.message : String(err);
-      } finally {
-        reply.classList.remove("msg--typing");
-        reply.removeAttribute("aria-busy");
-        turnstileToken = undefined;
-        busy = false;
-        send.disabled = false;
-      }
-    }
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const q = input.value.trim();
-      input.value = "";
-      void ask(q);
-    });
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        form.requestSubmit();
-      }
-    });
-    root.querySelectorAll<HTMLButtonElement>("[data-prompt]").forEach((b) => b.addEventListener("click", () => void ask(b.dataset.prompt!)));
-  }
-
-  document.addEventListener("astro:page-load", setup);
+    if (root) setupChat(root);
+  });
 </script>
 
 <style is:global>
@@ -234,7 +104,7 @@ const suggestions = [
     color: #fff;
     border-bottom-right-radius: 4px;
   }
-  .chat .msg--typing:empty::after {
+  .chat .msg--typing > div:empty::after {
     content: "…";
     animation: blink 1s steps(3) infinite;
   }
@@ -283,6 +153,88 @@ const suggestions = [
     justify-content: space-between;
     align-items: center;
     margin-top: 0.5rem;
+  }
+  .chat__toggles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.9rem;
+  }
+  .chat .voice {
+    font-size: 0.85rem;
+  }
+  .chat .voice[aria-pressed="true"] {
+    background: var(--sun);
+  }
+  .chat .slots {
+    margin-top: 0.6rem;
+    white-space: normal;
+  }
+  .chat .slots__label {
+    margin: 0 0 0.35rem;
+    font-size: 0.82rem;
+  }
+  .chat .slots .chips {
+    margin-bottom: 0.4rem;
+  }
+  .chat .slot {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--paper);
+  }
+  .chat .slot[aria-pressed="true"] {
+    border-color: var(--ink);
+    background: var(--sand);
+  }
+  .chat .slot__et {
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+  .chat .book {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 2px dashed var(--line);
+    border-radius: 12px;
+  }
+  .chat .book__title {
+    margin: 0;
+  }
+  .chat .book__field {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.85rem;
+  }
+  .chat .book__field input,
+  .chat .book__field textarea {
+    font: inherit;
+    padding: 0.45rem 0.65rem;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    background: #fff;
+    min-height: 40px;
+  }
+  .chat .book__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  .chat .book__status {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .chat .book__status:empty {
+    display: none;
+  }
+  .chat .book__status--error {
+    color: var(--coral);
+  }
+  .chat .book__done {
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+    border: 2px solid var(--teal);
+    border-radius: 12px;
   }
   .chat .mode {
     font-size: 0.9rem;

@@ -7,10 +7,11 @@ buildings, play my Mancala bot, chat with my digital twin, and leave me a note o
 apps/web/          Astro site: town canvas, content pages, chat UI, Arcade UI
 engine/mancala/    Rust port of my FairKalah bot → 37 KB WebAssembly (+ Java parity tests)
 packages/profile/  Profile schema (zod) + compiler (public JSON, twin context, Markdown export)
-workers/api/       Cloudflare Worker: serves the site, /api/stats (cron + KV), /api/twin (OpenRouter),
-                   /api/fridge (notes sorted by Jev, emailed to me, pinned once I approve)
+workers/api/       Cloudflare Worker: serves the site, /api/stats (cron + KV), /api/twin (OpenRouter,
+                   with calendar tools), /api/twin/speak (Kokoro voice), /api/twin/book (meeting
+                   requests I approve by email), /api/fridge (notes sorted by Jev, pinned once I approve)
 profile/           profile.example.yaml (the real profile lives in the private dan-profile repo)
-scripts/           build-engine.mjs, spotify-auth.mjs
+scripts/           build-engine.mjs, spotify-auth.mjs, google-auth.mjs
 ```
 
 ## Architecture
@@ -69,6 +70,22 @@ secrets and are never committed (`.dev.vars` is git-ignored).
   Nothing is public until I approve it. The email's approve/reject links are HMAC-signed, and a GET
   only shows a confirm button, so mail scanners that prefetch links can't moderate anything.
   Limits: 3 notes/min per IP, 60 a day in total, a honeypot field, and optional Turnstile.
+- **The twin has a voice.** With 🔊 on, the browser cuts the streaming reply into sentences and sends
+  each to `/api/twin/speak`, which calls OpenRouter's speech API (`TTS_MODEL` `hexgrad/kokoro-82m`,
+  voice `TTS_VOICE` `am_michael`, about $0.62 per million characters). Clips play strictly in order
+  while the rest is still streaming, so speech starts after the first sentence. Limits: 600 characters
+  per call, 60 calls/min per IP, same-origin only. Off by default, remembered per browser.
+- **The twin can set up meetings, but only I can confirm them.** `/api/twin` runs a small agent loop
+  (at most 3 rounds) with two read-only tools: `check_availability` (free 9–5 ET weekday slots) and
+  `check_time` (a time the visitor proposes: Mon–Thu 7:30 AM–midnight, Fri until 5 PM ET). Both read
+  only Google free/busy, never event details, and arguments are validated with zod. Slots reach the
+  browser as NDJSON `slots` events and render as buttons. A visitor's name and email go from a form
+  straight to `/api/twin/book`, never through the model. That endpoint re-checks the rules and the
+  calendar, stores the request as pending (2 per visitor and 20 in total per day, keyed by a hashed IP)
+  and emails me signed Approve/Decline links. Approving re-checks the calendar, then creates the event
+  with a Google Meet link, and Google emails the invite. Personal details are wiped on decline, when a
+  request expires, and 30 days after the meeting. The hours live in `workers/api/src/schedule.ts`:
+  keep them in sync with my Google "Coffee Chat" booking page, whose rules the Calendar API can't read.
 - **LeetCode** uses LeetCode's unofficial GraphQL endpoint. If it changes or blocks the Worker, the
   card falls back to a profile link and the last good data is kept.
 
@@ -115,6 +132,12 @@ java -cp out ParityGen > ../tests/fixtures/parity.jsonl
    (any long random string, e.g. `openssl rand -base64 32`) as secrets. Without them, notes are still
    saved, just unsorted or without an email.
 
+7. Meetings: create a Google OAuth client and run `node scripts/google-auth.mjs` (the header lists the
+   steps; publish the OAuth app to "In production" or the token expires in 7 days). Then set
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` and `BOOKING_SECRET` as secrets.
+   Without them the twin says it can't check the calendar and suggests email. Emails reuse the fridge's
+   Email Sending setup.
+
 Optional Turnstile: set the `TURNSTILE_SECRET` Worker secret and `PUBLIC_TURNSTILE_SITE_KEY` at build time.
 
 ## Costs
@@ -122,3 +145,4 @@ Optional Turnstile: set the `TURNSTILE_SECRET` Worker secret and `PUBLIC_TURNSTI
 Hosting, KV, cron and CI are $0 (free tiers). A domain costs about $10–15/year. The twin's cost is
 OpenRouter's price × usage, capped by the key's credit limit. The fridge makes at most one Jev call per
 note (capped at 60 a day). Jev bills input tokens only, a fraction of a cent per note, and the notification emails fall within Email Sending's quota.
+The twin's voice costs about $0.25 per 1,000 spoken replies (Kokoro). Google Calendar's API is free.

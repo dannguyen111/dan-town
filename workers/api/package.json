@@ -14,5 +14,8 @@
   },
   "exports": {
     "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
   }
 }
