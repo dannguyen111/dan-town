@@ -83,7 +83,6 @@ export function setupChat(root: HTMLElement) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
-          mode: (form.elements.namedItem("deep") as HTMLInputElement).checked ? "high" : "low",
           tz,
           turnstileToken: await turnstileToken(turnstile),
         }),

@@ -33,5 +33,14 @@ export default defineConfig({
       subsets: ["latin"],
       fallbacks: ["ui-monospace", "monospace"],
     },
+    {
+      // Code in the twin's chat: an old terminal look.
+      provider: fontProviders.fontsource(),
+      name: "VT323",
+      cssVariable: "--font-terminal",
+      weights: ["400"],
+      subsets: ["latin"],
+      fallbacks: ["ui-monospace", "monospace"],
+    },
   ],
 });

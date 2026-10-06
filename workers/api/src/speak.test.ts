@@ -60,7 +60,7 @@ describe("handleSpeak", () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://openrouter.ai/api/v1/audio/speech");
     expect(init.headers.Authorization).toBe("Bearer sk-or-k");
-    expect(JSON.parse(init.body)).toEqual({ model: "hexgrad/kokoro-82m", voice: "am_michael", input: "Hello there.", response_format: "mp3" });
+    expect(JSON.parse(init.body)).toEqual({ model: "hexgrad/kokoro-82m", voice: "am_michael", input: "Hello there.", response_format: "mp3", provider: { zdr: true } });
   });
 
   it("retries once when the provider is busy", async () => {
