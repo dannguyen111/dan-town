@@ -42,8 +42,10 @@ export class Town {
   private readonly twinSprites: SpriteSheet = bakeSprites(TWIN_PALETTE, { headphones: true });
   private readonly labels = new Map<string, HTMLElement>();
   private readonly bubble: HTMLElement;
-  /** The link in the open bubble, followed when the visitor presses Enter. */
-  private bubbleLink: HTMLAnchorElement | null = null;
+  /** The link (or action button) in the open bubble, followed when the visitor presses Enter. */
+  private bubbleLink: HTMLAnchorElement | HTMLButtonElement | null = null;
+  /** The open bubble is a "press Enter" prompt for the object the visitor faces; it closes when they move. */
+  private facingPrompt = false;
   /** Typewriter timer (retro scenes) and the timer that fades the bubble away. */
   private typer = 0;
   private dismiss = 0;
@@ -334,6 +336,7 @@ export class Town {
       next = target;
     }
     if (!next) return;
+    if (this.facingPrompt) this.hideBubble();
     this.from = { ...this.pos };
     this.pos = next;
     this.quietObj = null;
@@ -363,7 +366,15 @@ export class Town {
       this.pendingInteract = null;
       this.facing = face;
       if (!obj.door) this.trigger(obj);
+    } else {
+      this.promptFacing();
     }
+  }
+
+  /** Standing still facing something you use on purpose (the TV, the fridge) offers to open it. */
+  private promptFacing() {
+    const obj = this.grid.objectAt(this.pos.x + DELTA[this.facing].x, this.pos.y + DELTA[this.facing].y);
+    if (obj?.hint) this.showHint(obj, obj.hint);
   }
 
   private interactFacing() {
@@ -372,15 +383,48 @@ export class Town {
     if (obj) this.walkToObject(obj);
   }
 
-  /** Walking into an object with a hint says how to use it, once, until the visitor steps away. */
+  /**
+   * Facing an object with a hint shows its action with a "Press Enter to open" prompt, once, until
+   * the visitor steps away. Enter (or a tap on the action) triggers it.
+   */
   private showHint(obj: TownObject, hint: string) {
-    if (obj.id === this.hinted) return;
+    if (obj.id === this.hinted && !this.bubble.hidden) return;
     this.hinted = obj.id;
-    this.showNote(obj.label, hint);
+    this.holdBubble();
+    clearInterval(this.typer);
+    this.bubble.replaceChildren();
+    const title = document.createElement("strong");
+    title.textContent = obj.label;
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "town-bubble__action";
+    action.textContent = hint;
+    action.addEventListener("click", () => {
+      this.hideBubble();
+      this.trigger(obj);
+    });
+    const prompt = document.createElement("span");
+    prompt.className = "town-bubble__hint";
+    prompt.setAttribute("aria-hidden", "true");
+    prompt.innerHTML = "Press <kbd>Enter</kbd> to open";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "town-bubble__close";
+    close.setAttribute("aria-label", "Close");
+    close.textContent = "×";
+    close.addEventListener("click", () => {
+      this.hideBubble();
+      this.focus();
+    });
+    this.bubble.append(title, action, prompt, close);
+    this.bubbleLink = action;
+    this.facingPrompt = true;
+    this.bubble.hidden = false;
+    this.announce(`${obj.label}: ${hint}. Press Enter to open.`);
   }
 
   private trigger(obj: TownObject) {
-    if (this.scene.retro && obj.kind === "prop") {
+    if (this.scene.retro && obj.kind === "prop" && !obj.hint) {
       if (obj.id === this.quietObj) return;
       this.quietObj = obj.id;
     }
@@ -452,6 +496,7 @@ export class Town {
 
   private showLinkBubble(obj: TownObject) {
     const { target } = obj;
+    this.facingPrompt = false;
     const url = target.type === "link" ? this.config.links[target.id]?.url : target.type === "url" ? target.href : undefined;
     this.holdBubble();
     this.bubble.replaceChildren();
@@ -543,6 +588,8 @@ export class Town {
     clearInterval(this.typer);
     this.holdBubble();
     this.bubble.hidden = true;
+    this.bubbleLink = null;
+    this.facingPrompt = false;
   }
 
   private announce(text: string) {

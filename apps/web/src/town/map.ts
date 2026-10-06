@@ -68,8 +68,9 @@ export interface TownObject {
   /** Raise the name tag this many world pixels, for art that pokes above the object's tiles. */
   labelLift?: number;
   /**
-   * Walking into the object only shows this hint; Enter, a click or a tap triggers it. For things
-   * that shouldn't go off by accident, like the TV at Home starting a video.
+   * The object's action, e.g. "Turn on the TV". Facing it (or walking into it) only offers the action
+   * with a "Press Enter to open" prompt; Enter, a click or a tap triggers it. For things that
+   * shouldn't go off by accident, like the TV at Home starting a video.
    */
   hint?: string;
 }

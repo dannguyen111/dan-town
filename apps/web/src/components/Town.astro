@@ -164,6 +164,18 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   .town-bubble :global(a) {
     font-weight: 800;
   }
+  /* The action of something you face (the TV, the fridge): looks like the bubble's links. */
+  .town-bubble :global(.town-bubble__action) {
+    padding: 0;
+    font: inherit;
+    font-weight: 800;
+    color: var(--coral-ink);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
   .town-bubble :global(.town-bubble__hint) {
     position: absolute;
     left: 50%;

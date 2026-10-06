@@ -78,7 +78,7 @@ export const HOME_OBJECTS: readonly TownObject[] = [
     label: "TV",
     style: "tv",
     labelLift: 30,
-    hint: "Press Enter (or tap the TV) to turn it on.",
+    hint: "Turn on the TV ▶",
   },
   prop("sigma-chi", "Sigma Chi flag", 10, 1, 2, 1, "Sigma Chi, Theta Chapter at Gettysburg College. Dan was a brother and served as chapter president. In hoc signo vinces."),
   prop("window", "Window", 12, 1, 2, 1, "Rooftops of Hanoi's Old Quarter. The sky outside follows Dan's clock (Eastern Time)."),
