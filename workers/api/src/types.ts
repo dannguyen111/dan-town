@@ -53,3 +53,25 @@ export interface MancalaResult {
   robot: number;
   human: number;
 }
+
+/** Why a visitor left a note on the fridge, as sorted by Jev. "unsorted" when the classifier was unavailable. */
+export type FridgeTopic = "hiring" | "collab" | "hi" | "unsorted";
+
+/** A note pinned on the fridge, as `GET /api/fridge` shows it. Contact details are never public. */
+export interface FridgeNote {
+  id: string;
+  name: string;
+  message: string;
+  topic: FridgeTopic;
+  /** ISO time the note was left. */
+  at: string;
+}
+
+/** Body of `POST /api/fridge`. `website` is a honeypot: people never see it, bots fill it in. */
+export interface FridgeNoteRequest {
+  message: string;
+  name?: string;
+  contact?: string;
+  website?: string;
+  turnstileToken?: string;
+}

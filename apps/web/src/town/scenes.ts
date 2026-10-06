@@ -59,6 +59,6 @@ export const INTERIORS: Record<string, Scene> = {
     bake: bakeHome,
     live: { draw: drawHomeLive, drawOver: drawHomeOver, everyMs: 20_000 },
     retro: true,
-    intro: { title: "Home", text: "Welcome to Dan's place! Walk up to the TV and press Enter (or tap it) to watch. Step on the mat to leave." },
+    intro: { title: "Home", text: "Welcome to Dan's place! Walk up to the TV and press Enter (or tap it) to watch, or leave Dan a note on the fridge. Step on the mat to leave." },
   },
 };

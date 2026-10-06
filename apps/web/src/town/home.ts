@@ -1,6 +1,6 @@
 /**
  * The inside of Home: a Hanoi tube house (nhà ống), two rooms deep. The living room at the back
- * has the TV, the flags and the twin on the couch; the front room has the desk, the bookshelf of
+ * has the TV, the flags, the fridge and the twin on the couch; the front room has the desk, the bookshelf of
  * papers, a tea table, and a motorbike parked indoors, as is tradition.
  *
  * The wall clock and the view out the window follow Dan's time zone (US Eastern).
@@ -52,6 +52,19 @@ const prop = (id: string, label: string, x: number, y: number, w: number, h: num
 
 export const HOME_OBJECTS: readonly TownObject[] = [
   // ── Living room ──
+  {
+    id: "fridge",
+    kind: "prop",
+    x: 1,
+    y: 2,
+    w: 1,
+    h: 2,
+    target: { type: "event", name: "fridge" },
+    label: "Fridge",
+    style: "fridge",
+    labelLift: 10,
+    hint: "Leave Dan a note 📌",
+  },
   prop("vn-flag", "Vietnamese flag", 2, 1, 2, 1, "The red flag with the golden star. Dan is from Hanoi, Vietnam."),
   { id: "clock", kind: "prop", x: 4, y: 1, w: 1, h: 1, target: { type: "event", name: "clock" }, label: "Clock", style: "clock", hideLabel: true },
   {
@@ -83,7 +96,7 @@ export const HOME_OBJECTS: readonly TownObject[] = [
     hideLabel: false,
     labelLift: 24,
   },
-  prop("hornets", "Charlotte Hornets flag", 4, 10, 2, 1, "Charlotte Hornets. Buzz City, all the way."),
+  prop("hornets", "Charlotte Hornets flag", 4, 10, 2, 1, "Charlotte Hornets flag... He must be depressed..."),
   {
     ...prop("book-stpete", "Saint Petersburg AI Agent", 11, 11, 1, 1, ""),
     target: paper("/docs/cs391-final-report.pdf", "An MCTS agent with learned evaluation that won 1st place in a class tournament."),
@@ -420,6 +433,37 @@ function lanterns(ctx: Ctx) {
   }
 }
 
+const MINT = "#9fd3c7";
+const MINT_SHADE = "#7fb8ab";
+const MINT_LIGHT = "#d4f0e8";
+
+/** A retro mint fridge in the corner, covered in notes and magnets. Visitors pin theirs here. */
+function fridge(ctx: Ctx, o: TownObject) {
+  const x = o.x * TILE;
+  const y = o.y * TILE - 8; // pokes up against the back wall
+  const h = o.h * TILE + 6;
+  rect(ctx, "rgba(0,0,0,0.3)", x + 2, y + h, 14, 2);
+  rect(ctx, INK, x + 1, y, 14, h);
+  rect(ctx, MINT, x + 2, y + 1, 12, h - 2);
+  rect(ctx, MINT_LIGHT, x + 2, y + 1, 1, h - 2);
+  rect(ctx, MINT_SHADE, x + 13, y + 1, 1, h - 2);
+  // Freezer door, and the handles
+  rect(ctx, INK, x + 2, y + 11, 12, 1);
+  rect(ctx, "#c0c6cc", x + 11, y + 4, 1, 5);
+  rect(ctx, "#c0c6cc", x + 11, y + 14, 1, 7);
+  // Notes held up by little magnets
+  for (const [dx, dy, paper, magnet] of [
+    [3, 3, "#fff6b8", RED],
+    [4, 15, "#ffd1dc", GOLD],
+    [7, 22, "#cfe8ff", TILE_TEAL],
+    [3, 28, "#fff6b8", "#2f6db5"],
+  ] as const) {
+    rect(ctx, paper, x + dx, y + dy, 5, 5);
+    rect(ctx, MINT_SHADE, x + dx + 1, y + dy + 2, 3, 1);
+    rect(ctx, magnet, x + dx + 2, y + dy, 1, 1);
+  }
+}
+
 /** A CRT on a low wooden cabinet, with rabbit ears. The screen invites you to press play. */
 function tv(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE;
@@ -667,7 +711,7 @@ function bookshelf(ctx: Ctx, books: TownObject[]) {
   const shelves = [y - 23, y - 10, y + 3];
   for (const [i, sy] of shelves.entries()) {
     rect(ctx, BEAM_DARK, x + 3, sy, w - 6, 10);
-    for (let bx = x + 4; bx < x + w - 6; ) {
+    for (let bx = x + 4; bx < x + w - 6;) {
       const bw = 2 + Math.floor(rand(bx, i, 1) * 2);
       const bh = 6 + Math.floor(rand(bx, i, 2) * 4);
       const col = ["#c8322b", "#2f6db5", "#e0b040", "#4f9d4a", "#efe3c8", "#8a6fbf"][Math.floor(rand(bx, i, 3) * 6)]!;
@@ -813,6 +857,7 @@ export function bakeHome(): HTMLCanvasElement {
     else if (o.style === "sigma-chi") sigmaChiFlag(ctx, o);
     else if (o.style === "hornets") hornetsFlag(ctx, o);
     else if (o.style === "tv") tv(ctx, o);
+    else if (o.style === "fridge") fridge(ctx, o);
     else if (o.style === "phin") phin(ctx, o);
     else if (o.style === "palm") palm(ctx, o);
     else if (o.style === "bamboo") bamboo(ctx, o);

@@ -120,6 +120,14 @@ describe("home interior", () => {
     expect(grid.objectAt(tv.x + 1, tv.y)?.id).toBe("tv");
   });
 
+  it("you can walk up to the fridge and leave a note", () => {
+    const fridge = HOME_OBJECTS.find((o) => o.id === "fridge")!;
+    expect(fridge.hint).toBeTruthy();
+    expect(fridge.target).toEqual({ type: "event", name: "fridge" });
+    expect(grid.isWalkable(fridge.x + 1, fridge.y + 1)).toBe(true);
+    expect(grid.objectAt(fridge.x, fridge.y + 1)?.id).toBe("fridge");
+  });
+
   it("the doorway between the rooms is open", () => {
     expect(grid.isWalkable(7, 9)).toBe(true);
     expect(grid.isWalkable(6, 9)).toBe(false);

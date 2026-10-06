@@ -121,7 +121,7 @@ export function renderLiveContext(stats: Stats | null): string {
   return lines.join("\n");
 }
 
-async function verifyTurnstile(env: Env, token: string | undefined, ip: string) {
+export async function verifyTurnstile(env: Env, token: string | undefined, ip: string) {
   if (!env.TURNSTILE_SECRET) return;
   if (!token) throw new HttpError(403, "Please complete the human check.");
   const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {

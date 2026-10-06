@@ -2,8 +2,10 @@ import type { Env } from "./env.ts";
 import { EMPTY_STATS, readStats, refreshIfEmpty, refreshStats } from "./stats.ts";
 import { handleTwin, HttpError } from "./twin.ts";
 import { handleMancalaResult, readMancalaRecord } from "./mancala.ts";
+import { handleFridgeNote, handleModerate, readPinned } from "./fridge.ts";
 
 export { MancalaRecordStore } from "./mancala-store.ts";
+export { FridgeStore } from "./fridge-store.ts";
 
 const json = (data: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(data), { ...init, headers: { "Content-Type": "application/json; charset=utf-8", ...init.headers } });
@@ -32,6 +34,20 @@ export default {
           }
           return json(await handleMancalaResult(request, env), { headers: { "Cache-Control": "no-store" } });
         }
+      }
+      if (url.pathname === "/api/fridge") {
+        // Pinned notes change only when Dan approves one, so a short cache is plenty.
+        if (request.method === "GET") return json(await readPinned(env), { headers: { "Cache-Control": "public, max-age=60" } });
+        if (request.method === "POST") {
+          if (request.headers.get("Origin") && new URL(request.headers.get("Origin")!).host !== url.host) {
+            throw new HttpError(403, "Cross-origin requests are not allowed.");
+          }
+          return json(await handleFridgeNote(request, env, ctx), { headers: { "Cache-Control": "no-store" } });
+        }
+      }
+      // Signed approve/reject links from Dan's email. Serves its own small HTML page.
+      if (url.pathname === "/api/fridge/moderate" && (request.method === "GET" || request.method === "POST")) {
+        return await handleModerate(request, env);
       }
       if (url.pathname.startsWith("/api/")) throw new HttpError(404, "Not found.");
       return env.ASSETS.fetch(request);

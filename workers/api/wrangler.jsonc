@@ -31,7 +31,7 @@
 			"17 6 * * *"
 		]
 	},
-	// Per-visitor limits: twin messages, and arcade results reported.
+	// Per-visitor limits: twin messages, arcade results reported, and fridge notes.
 	"ratelimits": [
 		{
 			"name": "TWIN_LIMITER",
@@ -48,14 +48,27 @@
 				"limit": 6,
 				"period": 60
 			}
+		},
+		{
+			"name": "FRIDGE_LIMITER",
+			"namespace_id": "1003",
+			"simple": {
+				"limit": 3,
+				"period": 60
+			}
 		}
 	],
-	// The arcade robot's win/loss record: one SQLite-backed Durable Object, created on deploy.
+	// SQLite-backed Durable Objects, created on deploy: the arcade robot's win/loss record, and
+	// the notes visitors pin on the fridge at Home.
 	"durable_objects": {
 		"bindings": [
 			{
 				"name": "MANCALA",
 				"class_name": "MancalaRecordStore"
+			},
+			{
+				"name": "FRIDGE",
+				"class_name": "FridgeStore"
 			}
 		]
 	},
@@ -63,16 +76,29 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["MancalaRecordStore"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["FridgeStore"]
 		}
+	],
+	// Emails Dan when someone leaves a note. Sends from fridge@si-dan.com (Email Sending must be
+	// enabled for the domain) to the FRIDGE_NOTIFY_TO secret, a verified destination address.
+	"send_email": [
+		{ "name": "FRIDGE_MAIL" }
 	],
 	"vars": {
 		// OpenRouter model IDs. Leave TWIN_MODEL empty to keep the twin "offline".
 		"TWIN_MODEL": "openai/gpt-6-luna",
 		"TWIN_MODEL_HIGH": "",
+		// Jev model that sorts fridge notes (hiring / collab / hi) and flags injection, called through
+		// OpenRouter's Decisions API with OPENROUTER_API_KEY.
+		"FRIDGE_MODEL": "typesafe/jev-1.13",
 		"SITE_URL": "https://si-dan.com"
 	},
 	// Secrets (set with `wrangler secret put`): OPENROUTER_API_KEY, GITHUB_TOKEN,
-	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional)
+	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional),
+	// FRIDGE_SECRET, FRIDGE_NOTIFY_TO
 	"observability": {
 		"enabled": true
 	}
