@@ -21,7 +21,6 @@ export interface Env {
 
   SITE_URL: string;
   TWIN_MODEL: string;
-  TWIN_MODEL_HIGH: string;
   /** OpenRouter speech model for the twin's voice (e.g. "hexgrad/kokoro-82m"). Empty turns the voice off. */
   TTS_MODEL?: string;
   /** Voice ID for TTS_MODEL. Defaults to "am_michael". */

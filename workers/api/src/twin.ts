@@ -24,7 +24,6 @@ export class HttpError extends Error {
 
 export interface TwinRequest {
   messages: ChatMessage[];
-  mode: "low" | "high";
   /** The visitor's IANA time zone, from their browser. Falls back to Eastern. */
   tz: string;
   turnstileToken?: string;
@@ -32,7 +31,7 @@ export interface TwinRequest {
 
 export function parseTwinRequest(body: unknown): TwinRequest {
   if (!body || typeof body !== "object") throw new HttpError(400, "Expected a JSON body.");
-  const { messages, mode, tz, turnstileToken } = body as Record<string, unknown>;
+  const { messages, tz, turnstileToken } = body as Record<string, unknown>;
   if (!Array.isArray(messages) || messages.length === 0) throw new HttpError(400, "messages must be a non-empty array.");
   const recent = messages.slice(-LIMITS.messages);
   const clean: ChatMessage[] = recent.map((m) => {
@@ -46,7 +45,6 @@ export function parseTwinRequest(body: unknown): TwinRequest {
   if (clean.reduce((n, m) => n + m.content.length, 0) > LIMITS.total) throw new HttpError(413, "This conversation is too long. Start a new one.");
   return {
     messages: clean,
-    mode: mode === "high" ? "high" : "low",
     tz: isTimeZone(tz) ? tz : ET,
     turnstileToken: typeof turnstileToken === "string" ? turnstileToken : undefined,
   };
@@ -177,15 +175,9 @@ export async function handleTwin(request: Request, env: Env, ctx?: Pick<Executio
   };
 
   const now = Date.now();
-  const model = req.mode === "high" && env.TWIN_MODEL_HIGH ? env.TWIN_MODEL_HIGH : env.TWIN_MODEL;
   const done = runAgent({
     env,
-    request: {
-      model,
-      max_tokens: LIMITS.maxTokens,
-      // Same model, different reasoning depth. Ignored by models without reasoning controls.
-      reasoning: { effort: req.mode, exclude: true },
-    },
+    request: { model: env.TWIN_MODEL, max_tokens: LIMITS.maxTokens },
     messages: [{ role: "system", content: systemPrompt(renderLiveContext(stats), { now, tz: req.tz }) }, ...req.messages],
     ctx: { now, tz: req.tz, emit, freeBusy: calendarConfigured(env) ? (from, to) => freeBusy(env, from, to) : null },
   })

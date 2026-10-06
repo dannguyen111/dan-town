@@ -10,9 +10,8 @@ vi.mock("./generated/twin-context.ts", () => ({
 const { HttpError, LIMITS, parseTwinRequest, renderLiveContext, systemPrompt } = await import("./twin.ts");
 
 describe("parseTwinRequest", () => {
-  it("accepts a normal conversation and defaults to low effort", () => {
+  it("accepts a normal conversation", () => {
     const req = parseTwinRequest({ messages: [{ role: "user", content: "hi" }] });
-    expect(req.mode).toBe("low");
     expect(req.tz).toBe("America/New_York");
     expect(req.messages).toHaveLength(1);
   });

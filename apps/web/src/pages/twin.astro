@@ -39,9 +39,6 @@ const suggestions = [
       <textarea id="chat-input" name="q" rows="2" maxlength="1500" placeholder="Ask me something…" required></textarea>
       <div class="chat__actions">
         <div class="chat__toggles">
-          <label class="mode">
-            <input type="checkbox" name="deep" /> Think harder
-          </label>
           <button type="button" class="btn btn--small voice" data-voice aria-pressed="false" title="Read replies aloud">🔇 Voice off</button>
         </div>
         <button class="btn btn--teal" type="submit" data-send>Send</button>
@@ -235,13 +232,6 @@ const suggestions = [
     padding: 0.6rem 0.75rem;
     border: 2px solid var(--teal);
     border-radius: 12px;
-  }
-  .chat .mode {
-    font-size: 0.9rem;
-    display: inline-flex;
-    gap: 0.4rem;
-    align-items: center;
-    min-height: 44px;
   }
   .chat .fine {
     font-size: 0.78rem;

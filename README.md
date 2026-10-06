@@ -58,7 +58,6 @@ secrets and are never committed (`.dev.vars` is git-ignored).
 - **Links open from speech bubbles**, not automatically after walking, so popup blockers never interfere.
 - **Twin cost controls.** It's called only on send (never on approach). Limits: 8 messages/min per IP,
   input caps, `max_tokens` 700, optional Turnstile, plus a credit limit on the OpenRouter key.
-  "Think harder" maps to OpenRouter `reasoning.effort: high` (or `TWIN_MODEL_HIGH` if set).
 - **The fridge sorts notes with Jev, not a chat model.** Jev (`typesafe/jev-1.13`) is TypeSafe's
   decision model, called through OpenRouter's Decisions API (`/api/alpha/decisions`) with the same key
   as the twin. It answers typed questions with calibrated probabilities instead of generating text.
@@ -118,7 +117,7 @@ java -cp out ParityGen > ../tests/fixtures/parity.jsonl
 1. `cd workers/api && npx wrangler login && npx wrangler deploy` (the KV namespace is created automatically).
 2. Secrets: `npx wrangler secret put OPENROUTER_API_KEY` (also `GITHUB_TOKEN`, a fine-grained
    read-only token, and the Spotify trio from `node scripts/spotify-auth.mjs`).
-3. Set `TWIN_MODEL` (and optionally `TWIN_MODEL_HIGH`) in `wrangler.jsonc` to the OpenRouter model IDs.
+3. Set `TWIN_MODEL` in `wrangler.jsonc` to the OpenRouter model ID.
    Put a monthly credit limit on the OpenRouter key.
 4. GitHub repo secrets for CI: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `PROFILE_DEPLOY_KEY`
    (a read-only deploy key for `dan-profile`). In `dan-profile`, add `SITE_DISPATCH_TOKEN`.
