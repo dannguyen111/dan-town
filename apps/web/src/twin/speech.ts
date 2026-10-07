@@ -166,7 +166,12 @@ export function browserSpeechQueue(onError?: (err: unknown) => void): SpeechQueu
     play: (audio, signal) =>
       new Promise<void>((resolve) => {
         const url = URL.createObjectURL(audio);
+        // The twin's face moves his mouth while a clip plays (twin/face.ts).
+        const speaking = (on: boolean) => document.dispatchEvent(new CustomEvent("twin:speaking", { detail: { on } }));
+        let finished = false;
         const done = () => {
+          finished = true;
+          speaking(false);
           el.onended = el.onerror = null;
           signal.removeEventListener("abort", stop);
           URL.revokeObjectURL(url);
@@ -180,7 +185,7 @@ export function browserSpeechQueue(onError?: (err: unknown) => void): SpeechQueu
         el.onended = done;
         el.onerror = done;
         el.src = url;
-        el.play().catch(done); // autoplay refused: skip quietly
+        el.play().then(() => finished || speaking(true), done); // autoplay refused: skip quietly
       }),
   });
 }

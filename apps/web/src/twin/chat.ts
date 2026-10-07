@@ -6,6 +6,7 @@
 import type { ChatMessage } from "@dan-town/api/types";
 import { renderSlots } from "./booking.ts";
 import { NdjsonParser, renderMarkdown } from "./events.ts";
+import { rememberRun } from "./traces.ts";
 import { browserSpeechQueue, readVoicePref, SentenceChunker, unlockAudio, writeVoicePref } from "./speech.ts";
 import { resetTurnstile, turnstileToken } from "./turnstile.ts";
 
@@ -41,6 +42,9 @@ export function setupChat(root: HTMLElement) {
     voiceBtn.textContent = voice ? "🔊 Voice on" : "🔇 Voice off";
   };
   showVoice();
+  // A still "speaking" light for visitors who turned animation off (the face doesn't move then).
+  const onSpeaking = (e: Event) => root.toggleAttribute("data-speaking", !!(e as CustomEvent<{ on: boolean }>).detail?.on);
+  document.addEventListener("twin:speaking", onSpeaking);
   voiceBtn.addEventListener("click", () => {
     voice = !voice;
     writeVoicePref(voice);
@@ -51,6 +55,7 @@ export function setupChat(root: HTMLElement) {
   document.addEventListener("astro:before-swap", () => {
     speech.stop();
     resetTurnstile();
+    document.removeEventListener("twin:speaking", onSpeaking);
   }, { once: true });
 
   const add = (role: "user" | "twin", text = "") => {
@@ -96,8 +101,11 @@ export function setupChat(root: HTMLElement) {
       let failure: string | null = null;
       const handle = (events: ReturnType<NdjsonParser["push"]>) => {
         for (const e of events) {
-          if (e.t === "text") {
+          if (e.t === "run") rememberRun(e.v);
+          else if (e.t === "text") {
             text += e.v;
+            // Moves the twin's mouth (twin/face.ts) while the words come in.
+            document.dispatchEvent(new CustomEvent("twin:talk"));
             reply.innerHTML = renderMarkdown(text);
             if (voice) chunker.push(e.v).forEach((s) => speech.add(s));
           } else if (e.t === "slots" && e.v.length) {
