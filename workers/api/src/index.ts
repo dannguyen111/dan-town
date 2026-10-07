@@ -5,10 +5,12 @@ import { handleMancalaResult, readMancalaRecord } from "./mancala.ts";
 import { handleSpeak } from "./speak.ts";
 import { handleBooking, handleBookingModerate } from "./booking.ts";
 import { handleFridgeNote, handleModerate, readPinned } from "./fridge.ts";
+import { readTraces } from "./traces.ts";
 
 export { MancalaRecordStore } from "./mancala-store.ts";
 export { FridgeStore } from "./fridge-store.ts";
 export { BookingStore } from "./booking-store.ts";
+export { TraceStore } from "./trace-store.ts";
 
 const json = (data: unknown, init: ResponseInit = {}) =>
   new Response(JSON.stringify(data), { ...init, headers: { "Content-Type": "application/json; charset=utf-8", ...init.headers } });
@@ -44,6 +46,10 @@ export default {
       // Signed approve/decline links from Dan's meeting-request emails. Serves its own small HTML page.
       if (url.pathname === "/api/twin/booking/moderate" && (request.method === "GET" || request.method === "POST")) {
         return await handleBookingModerate(request, env);
+      }
+      // The computer at Home polls this while it's open, so let the edge absorb repeats for a few seconds.
+      if (url.pathname === "/api/traces" && request.method === "GET") {
+        return json(await readTraces(env), { headers: { "Cache-Control": "public, max-age=5" } });
       }
       if (url.pathname === "/api/mancala") {
         if (request.method === "GET") return json(await readMancalaRecord(env), { headers: { "Cache-Control": "no-store" } });

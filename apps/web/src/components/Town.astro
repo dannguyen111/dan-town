@@ -13,6 +13,7 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   </p>
   <canvas tabindex="0" role="img" aria-label="Pixel-art town. Walk into buildings to explore." aria-describedby="town-help"></canvas>
   <div class="town-labels" data-town-labels></div>
+  <button class="town-pov-exit" type="button" data-pov-exit>← Back to the room</button>
   <div class="town-bubble" data-town-bubble role="status" hidden></div>
   <div class="visually-hidden" aria-live="polite" data-town-live></div>
   <noscript><p class="town-noscript">The town needs JavaScript, but every page works without it. Use the menu above.</p></noscript>
@@ -42,10 +43,13 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
     if (town.hasInterior(place)) {
       // Places with an interior: the visitor walks inside the room.
       town.enterScene(place);
+      town.setPov(null);
     } else if (town.hasPlaceHere(place)) {
-      // A place reachable from inside the room (the twin on the Home couch) opens beside it.
+      // A place reachable from inside the room (the twin on the Home couch) opens beside it,
+      // and the room cuts to the twin facing you while you talk.
       town.setActivePlace(place);
       if (!enteredFromTown) town.teleportToPlace(place);
+      town.setPov(place === "twin" ? "couch" : null);
     } else {
       const inside = town.sceneId;
       // Leaving a building puts the visitor back outside its door, facing the street.
@@ -70,6 +74,17 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   document.addEventListener("astro:page-load", () => requestAnimationFrame(updateInset));
   addEventListener("resize", updateInset);
 
+  // Leaving the close-up of the twin: back to the room's own page, where walking works again.
+  const places = JSON.parse(root.dataset.places!) as Record<string, { href: string }>;
+  root.querySelector("[data-pov-exit]")!.addEventListener("click", () => {
+    const room = places[town.sceneId];
+    if (room) navigate(room.href);
+  });
+  // Close-ups (the TV, the desk) zoom in from the object on screen. Replies synchronously.
+  document.addEventListener("town:rect", (e) => {
+    const { id, reply } = (e as CustomEvent<{ id: string; reply: (r: DOMRect | null) => void }>).detail;
+    reply(town.objectScreenRect(id));
+  });
   // The Map menu and other links can ask the town to walk somewhere.
   document.addEventListener("town:focus", () => town.focus());
   // Pages can show a message in the town's text box, e.g. the arcade scoreboard.
@@ -105,6 +120,38 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
     position: absolute;
     inset: 0;
     pointer-events: none;
+  }
+  /* A close-up (the twin facing you) replaces the room: its name tags would float over nothing. */
+  .town[data-pov] .town-labels {
+    display: none;
+  }
+  .town[data-pov] canvas {
+    cursor: default;
+  }
+  .town-pov-exit {
+    display: none;
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    min-height: 36px;
+    padding: 6px 10px;
+    font: 10px/1 var(--font-retro, monospace);
+    color: #181820;
+    background: #f8f8f0;
+    border: 0;
+    box-shadow:
+      0 -3px 0 0 #181820,
+      0 3px 0 0 #181820,
+      -3px 0 0 0 #181820,
+      3px 0 0 0 #181820;
+    cursor: pointer;
+  }
+  .town[data-pov] .town-pov-exit {
+    display: block;
+  }
+  .town-pov-exit:hover,
+  .town-pov-exit:focus-visible {
+    background: var(--sun);
   }
   .town-labels :global(.town-label) {
     position: absolute;

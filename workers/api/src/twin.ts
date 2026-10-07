@@ -11,7 +11,8 @@ import { readStats } from "./stats.ts";
 import { TWIN_CONTEXT, TWIN_NAME, TWIN_VOICE } from "./generated/twin-context.ts";
 import { calendarConfigured, freeBusy } from "./gcal.ts";
 import { ET, isTimeZone } from "./schedule.ts";
-import { runAgent, type TwinEvent } from "./twin-agent.ts";
+import { newTrace, runAgent, type TwinEvent } from "./twin-agent.ts";
+import { recordTrace } from "./traces.ts";
 import { clientIp } from "./text.ts";
 
 export const LIMITS = { messages: 12, perMessage: 1500, total: 8000, maxTokens: 700 } as const;
@@ -175,14 +176,22 @@ export async function handleTwin(request: Request, env: Env, ctx?: Pick<Executio
   };
 
   const now = Date.now();
+  // Timings and token counts for the computer at Home. The browser gets the id to spot its own runs.
+  const trace = newTrace(env.TWIN_MODEL, now);
+  emit({ t: "run", v: trace.id });
   const done = runAgent({
     env,
     request: { model: env.TWIN_MODEL, max_tokens: LIMITS.maxTokens },
     messages: [{ role: "system", content: systemPrompt(renderLiveContext(stats), { now, tz: req.tz }) }, ...req.messages],
     ctx: { now, tz: req.tz, emit, freeBusy: calendarConfigured(env) ? (from, to) => freeBusy(env, from, to) : null },
+    trace,
   })
+    .then(() => void (trace.ok = true))
     .catch(() => emit({ t: "error", v: "My brain is offline for a moment. Try again soon!" }))
-    .finally(() => queue.then(() => writer.close()).catch(() => {}));
+    .finally(() => {
+      trace.totalMs = Date.now() - now;
+      return Promise.all([queue.then(() => writer.close()).catch(() => {}), env.TRACES ? recordTrace(env, trace) : undefined]);
+    });
   ctx?.waitUntil(done);
 
   return new Response(readable, {

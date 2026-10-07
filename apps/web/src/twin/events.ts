@@ -23,7 +23,7 @@ function parseLine(line: string): TwinEvent[] {
   if (!line.trim()) return [];
   try {
     const e = JSON.parse(line);
-    if ((e?.t === "text" || e?.t === "error") && typeof e.v === "string") return [e];
+    if ((e?.t === "text" || e?.t === "error" || e?.t === "run") && typeof e.v === "string") return [e];
     if (e?.t === "slots" && Array.isArray(e.v)) return [e];
   } catch {
     /* skip */

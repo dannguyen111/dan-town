@@ -12,6 +12,11 @@ describe("NdjsonParser", () => {
     expect(p.push(',"v":"oops"}')).toEqual([]);
     expect(p.flush()).toEqual([{ t: "error", v: "oops" }]);
   });
+
+  it("passes on the run id, and drops a malformed one", () => {
+    const p = new NdjsonParser();
+    expect(p.push('{"t":"run","v":"a3f9c0d1"}\n{"t":"run","v":7}\n')).toEqual([{ t: "run", v: "a3f9c0d1" }]);
+  });
 });
 
 describe("renderMarkdown", () => {

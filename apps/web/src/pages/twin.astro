@@ -17,17 +17,25 @@ const suggestions = [
 ---
 
 <TownLayout place="twin" title="Digital Twin" description={`Ask ${first}'s AI twin about projects, experience, and interests.`}>
-  <PageHeader kicker="💬 Town Plaza" title={`Chat with ${first}'s digital twin`}>
-    <p class="muted twin-intro">
-      I'm an AI version of {first}, grounded only in {first}'s profile. I might not know everything, and I'll say so when I don't.
-    </p>
-  </PageHeader>
+  <div class="twin-head">
+    <PageHeader kicker="💬 Town Plaza" title={`Chat with ${first}'s digital twin`}>
+      <p class="muted twin-intro">
+        I'm an AI version of {first}, grounded only in {first}'s profile. I might not know everything, and I'll say so when I don't.
+      </p>
+    </PageHeader>
+  </div>
 
   <section class="chat" data-chat data-first={first} aria-label="Conversation" style={`--twin-tag: "${handle}"`}>
     <div class="chat__titlebar" aria-hidden="true">
       <span class="chat__title">💬 {handle} · Instant Message</span>
       <span class="chat__winbtns"><span>_</span><span>□</span><span>×</span></span>
     </div>
+
+    <!-- Out in town, a little webcam of the twin on his couch. At Home the room itself shows him. -->
+    <figure class="chat__cam" aria-hidden="true">
+      <canvas data-twin-cam></canvas>
+      <figcaption>● live</figcaption>
+    </figure>
 
     <div class="chat__screen">
       <ol class="clean chat__log" data-log aria-live="polite" aria-relevant="additions">
@@ -59,18 +67,83 @@ const suggestions = [
 
 <script>
   import { setupChat } from "../twin/chat.ts";
+  import { PovView, WEBCAM } from "../town/pov.ts";
 
+  let cam: PovView | null = null;
   document.addEventListener("astro:page-load", () => {
     const root = document.querySelector<HTMLElement>("[data-chat]");
-    if (root) setupChat(root);
+    if (!root) return;
+    setupChat(root);
+    cam?.destroy();
+    cam = new PovView(root.querySelector<HTMLCanvasElement>("[data-twin-cam]")!, "couch", { focus: WEBCAM });
+    cam.start();
+  });
+  document.addEventListener("astro:before-swap", () => {
+    cam?.destroy();
+    cam = null;
   });
 </script>
 
 <style is:global>
   /* A late-90s instant-messenger window, in the town's palette: hard pixel shadows, square corners,
      a sunken transcript "screen", and screen-name tags on every message. */
+  /* The heading in arcade type, the intro as a terminal readout with a blinking cursor. */
+  .twin-head h1 {
+    font: 400 clamp(15px, 3.6vw, 22px) / 1.6 var(--font-retro, monospace);
+    letter-spacing: 0;
+    text-shadow: 3px 3px 0 var(--sun);
+  }
   .twin-intro {
-    font-size: 0.92rem;
+    font: 1.3rem/1.15 var(--font-terminal, monospace);
+    letter-spacing: 0.02em;
+  }
+  .twin-intro::before {
+    content: "> ";
+    color: var(--teal-ink);
+  }
+  .twin-intro::after {
+    content: "▮";
+    margin-left: 0.2em;
+    color: var(--teal-ink);
+    animation: blink 1s steps(1) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .twin-intro::after {
+      animation: none;
+    }
+  }
+  .chat__cam {
+    position: relative;
+    width: min(100%, 288px);
+    aspect-ratio: 16 / 9;
+    margin: 0.5rem auto 0;
+    border: 2px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    background: #2b1d14;
+  }
+  .chat__cam canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+  .chat__cam figcaption {
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    font: 8px/1 var(--font-retro, monospace);
+    color: #ff5a4a;
+    text-shadow: 1px 1px 0 #000;
+  }
+  /* At Home the room has already cut to the twin facing you (town/pov.ts), so no webcam. */
+  html:has(.town[data-pov]) .chat__cam {
+    display: none;
+  }
+  /* Without animation his mouth stays still, so say when he's talking. */
+  @media (prefers-reduced-motion: reduce) {
+    .chat[data-speaking] .chat__title::after {
+      content: " · speaking…";
+    }
   }
   .chat {
     --bevel-hi: #fffdf8;
@@ -333,8 +406,10 @@ const suggestions = [
   .chat__form textarea {
     display: block;
     width: 100%;
-    font: inherit;
-    padding: 0.6rem 0.75rem;
+    /* Typing looks like an old terminal. */
+    font: 1.35rem/1.2 var(--font-terminal, monospace);
+    letter-spacing: 0.02em;
+    padding: 0.5rem 0.75rem;
     border: 2px solid var(--ink);
     border-radius: 0;
     background: var(--paper);
@@ -342,7 +417,7 @@ const suggestions = [
     resize: vertical;
   }
   .chat__form textarea::placeholder {
-    font-family: var(--font-pixel, monospace);
+    font-family: var(--font-terminal, monospace);
   }
   .chat__actions {
     display: flex;
