@@ -37,7 +37,12 @@ const status = async (p: Promise<unknown>) => {
 
 describe("parseSpeakRequest", () => {
   it("cleans control characters and trims", () => {
-    expect(parseSpeakRequest({ text: "  Hi\u0007 there.  " })).toBe("Hi there.");
+    expect(parseSpeakRequest({ text: "  Hi\u0007 there.  " })).toEqual({ text: "Hi there.", persona: "twin" });
+  });
+
+  it("picks the persona's voice: the twin's by default, LeBronette's when asked", () => {
+    expect(parseSpeakRequest({ text: "Hi.", persona: "receptionist" }).persona).toBe("receptionist");
+    expect(parseSpeakRequest({ text: "Hi.", persona: "admin" }).persona).toBe("twin");
   });
 
   it.each([
@@ -61,6 +66,15 @@ describe("handleSpeak", () => {
     expect(url).toBe("https://openrouter.ai/api/v1/audio/speech");
     expect(init.headers.Authorization).toBe("Bearer sk-or-k");
     expect(JSON.parse(init.body)).toEqual({ model: "hexgrad/kokoro-82m", voice: "am_michael", input: "Hello there.", response_format: "mp3", provider: { zdr: true } });
+  });
+
+  it("speaks LeBronette's lines in her own voice", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(new Uint8Array([1])));
+    vi.stubGlobal("fetch", fetchMock);
+    await handleSpeak(post({ text: "Copy that.", persona: "receptionist" }), env());
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body).voice).toBe("af_heart");
+    await handleSpeak(post({ text: "Copy that.", persona: "receptionist" }), env({ TTS_VOICE_RECEPTIONIST: "af_bella" }));
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body).voice).toBe("af_bella");
   });
 
   it("retries once when the provider is busy", async () => {

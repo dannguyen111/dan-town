@@ -121,6 +121,8 @@
 		// The twin's voice: an OpenRouter speech model and voice. Leave TTS_MODEL empty to turn it off.
 		"TTS_MODEL": "hexgrad/kokoro-82m",
 		"TTS_VOICE": "am_michael",
+		// LeBronette's voice at the Dev Center front desk: Kokoro's American female voice.
+		"TTS_VOICE_RECEPTIONIST": "af_heart",
 		// Jev model that sorts fridge notes (hiring / collab / hi) and flags injection, called through
 		// OpenRouter's Decisions API with OPENROUTER_API_KEY.
 		"FRIDGE_MODEL": "typesafe/jev-1.13",

@@ -28,6 +28,8 @@ export interface Env {
   TTS_MODEL?: string;
   /** Voice ID for TTS_MODEL. Defaults to "am_michael". */
   TTS_VOICE?: string;
+  /** LeBronette's voice ID for TTS_MODEL. Defaults to "af_heart". */
+  TTS_VOICE_RECEPTIONIST?: string;
   /** Jev model (OpenRouter Decisions API) that sorts fridge notes. Defaults to "typesafe/jev-1.13". */
   FRIDGE_MODEL?: string;
   /** Google Calendar the twin reads free/busy from and books into. Defaults to "primary". */

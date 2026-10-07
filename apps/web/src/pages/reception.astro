@@ -1,0 +1,319 @@
+---
+/**
+ * LeBronette's front desk: her chat opens beside the Dev Center, the way the twin's opens beside
+ * the couch at Home. Talking to her in the room (town/dev.ts) brings you here.
+ */
+import TownLayout from "../layouts/TownLayout.astro";
+import TwinChat from "../components/TwinChat.astro";
+import { profile } from "../lib/profile";
+import { LEBRONETTE, LEBRONETTE_COLOURS } from "../town/dev";
+
+const first = profile.identity.short_name;
+const chat = {
+  persona: "receptionist",
+  first,
+  speaker: "LeBronette",
+  handle: "lebronette_fd",
+  icon: "🎧",
+  greeting: `Hey, welcome to mission control! 👋 I'm LeBronette, ${first}'s friend at the front desk. Ask me anything about ${first}: what he's built, where he's worked, or how to reach him. I can also find a time for you two to chat.`,
+  suggestions: [
+    `Give me the 30-second version of ${first}.`,
+    `What's ${first} working on right now?`,
+    `What's his strongest tech?`,
+    `How do I reach ${first}?`,
+    `Can I book a quick chat with ${first}?`,
+  ],
+  placeholder: `Ask LeBronette about ${first}…`,
+} as const;
+
+// Her portrait: the sprite from the room's front desk, on a 16×16 screen tile.
+const SIZE = 16;
+const cells = LEBRONETTE.flatMap((row, y) => [...row].flatMap((ch, x) => (LEBRONETTE_COLOURS[ch] ? [{ x: x + 2, y: y + 4, c: LEBRONETTE_COLOURS[ch]! }] : [])));
+---
+
+<TownLayout place="reception" title="Front Desk" description={`Ask LeBronette, the flight controller at the Dev Center's front desk, about ${first}.`}>
+  <div class="mcp">
+    <a href="/dev" class="mcp-btn desk-back">← Mission control</a>
+
+    <header class="desk-id">
+      <svg class="desk-id__avatar" viewBox={`0 0 ${SIZE} ${SIZE}`} shape-rendering="crispEdges" role="img" aria-label="LeBronette, in her headset">
+        <rect width={SIZE} height={SIZE} fill="#0f1a33" />
+        <rect y={SIZE - 1} width={SIZE} height="1" fill="#3a4670" />
+        {cells.map((p) => <rect x={p.x} y={p.y} width="1" height="1" fill={p.c} />)}
+      </svg>
+      <div class="desk-id__text">
+        <p class="mcp-kicker">📡 Dev Center · Front desk</p>
+        <h1 id="panel-title" class="desk-id__name" tabindex="-1">LeBronette</h1>
+        <p class="desk-id__role">Flight controller · {first}'s friend</p>
+      </div>
+    </header>
+
+    <TwinChat {...chat} suggestions={[...chat.suggestions]} />
+
+    <p class="desk-fine">
+      LeBronette is an AI model (via OpenRouter) that only knows what's in {first}'s profile, and her voice is generated the same way. Please don't share
+      personal information in chat. Meeting requests go to {first} directly.
+    </p>
+  </div>
+</TownLayout>
+
+<script>
+  import { setupChat } from "../twin/chat.ts";
+
+  document.addEventListener("astro:page-load", () => {
+    const root = document.querySelector<HTMLElement>('[data-chat][data-persona="receptionist"]');
+    if (!root) return;
+    setupChat(root);
+    root.querySelector("textarea")?.focus({ preventScroll: true });
+  });
+</script>
+
+<style>
+  .desk-back {
+    justify-self: start;
+  }
+  .desk-id {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .desk-id__avatar {
+    flex: none;
+    width: 88px;
+    height: 88px;
+    border: 3px solid var(--mcp-amber);
+    box-shadow:
+      4px 4px 0 #070a14,
+      0 0 16px rgba(255, 200, 87, 0.3);
+  }
+  .desk-id__text {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+  .desk-id__name {
+    font: 400 clamp(1rem, 2.2vw, 1.35rem) / 1.35 var(--font-retro, monospace);
+    color: #fff;
+    text-shadow: 3px 3px 0 #552583;
+  }
+  .desk-id__name:focus {
+    outline: none;
+  }
+  .desk-id__role {
+    color: var(--mcp-amber);
+  }
+  .desk-id__role::before {
+    content: "> ";
+  }
+  .desk-fine {
+    font-size: 1.05rem;
+    color: var(--mcp-dim);
+  }
+  @media (max-width: 480px) {
+    .desk-id__avatar {
+      width: 64px;
+      height: 64px;
+    }
+  }
+</style>
+
+<style is:global>
+  /* ─────────────── the chat window (components/TwinChat.astro), as a mission-control console ─────────────── */
+  .mcp .chat {
+    --bevel-hi: #26325c;
+    --bevel-lo: #070a14;
+    color: var(--mcp-text);
+    background: var(--mcp-card);
+    border: 2px solid var(--mcp-cyan);
+    box-shadow:
+      5px 5px 0 #070a14,
+      0 0 18px rgba(62, 230, 255, 0.22);
+  }
+  .mcp .chat__titlebar {
+    background: linear-gradient(90deg, #0f5266, #1d6f86);
+    border-bottom: 2px solid var(--mcp-line);
+  }
+  .mcp .chat__winbtns span {
+    color: var(--mcp-text);
+    background: #0b1020;
+    border-color: var(--mcp-line);
+    box-shadow: none;
+  }
+  .mcp .chat__screen {
+    background:
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px),
+      #070d1a;
+    border-color: var(--mcp-line);
+    box-shadow: inset 0 0 18px rgba(62, 230, 255, 0.08);
+  }
+
+  /* Messages: terminal type, screen names in arcade type. */
+  .mcp .chat .msg {
+    color: var(--mcp-text);
+    background: #111a33;
+    border-color: #1d6f86;
+    box-shadow: 3px 3px 0 #070a14;
+    font: 1.3rem/1.25 var(--font-terminal, monospace);
+    letter-spacing: 0.02em;
+  }
+  .mcp .chat .msg::before {
+    margin-bottom: 0.35rem;
+    font: 400 0.5rem/1.4 var(--font-retro, monospace);
+  }
+  .mcp .chat .msg--twin::before {
+    color: var(--mcp-cyan);
+  }
+  .mcp .chat .msg--user {
+    background: #241f12;
+    border-color: #7a6330;
+  }
+  .mcp .chat .msg--user::before {
+    color: var(--mcp-amber);
+  }
+  .mcp .chat .msg--error {
+    background: #2a1018;
+    border-color: #ff5a6a;
+    box-shadow: 3px 3px 0 #070a14;
+  }
+  .mcp .chat .msg strong {
+    color: #fff;
+    font-weight: 400;
+    background: linear-gradient(transparent 60%, rgba(62, 230, 255, 0.28) 60%);
+  }
+  .mcp .chat .msg em {
+    color: var(--mcp-amber);
+  }
+  .mcp .chat .msg a {
+    color: var(--mcp-cyan);
+  }
+  .mcp .chat .msg a:hover {
+    color: #070a14;
+    background: var(--mcp-cyan);
+  }
+  .mcp .chat .msg :is(h3, h4, h5, h6) {
+    color: var(--mcp-amber);
+  }
+  .mcp .chat .msg ul > li::before {
+    background: var(--mcp-cyan);
+    box-shadow: none;
+  }
+  .mcp .chat .msg ol > li::marker {
+    color: var(--mcp-cyan);
+  }
+  .mcp .chat .msg code {
+    color: var(--mcp-green);
+    background: #070a14;
+    border-color: var(--mcp-line);
+  }
+  .mcp .chat .msg blockquote {
+    color: var(--mcp-dim);
+    border-left-color: var(--mcp-cyan);
+    background: rgba(62, 230, 255, 0.06);
+  }
+
+  /* Suggestions and meeting times: console buttons in arcade type. */
+  .mcp .chat__suggest {
+    border-top-color: var(--mcp-line);
+  }
+  .mcp .chat__suggest-label,
+  .mcp .chat .slots__label {
+    font: 400 0.5rem/1.6 var(--font-retro, monospace);
+    color: var(--mcp-dim);
+    text-transform: uppercase;
+  }
+  .mcp .chat .suggestion {
+    color: var(--mcp-text);
+    background: #0b1020;
+    border-color: var(--mcp-line);
+    box-shadow: 3px 3px 0 #070a14;
+    font: 400 0.5rem/1.7 var(--font-retro, monospace);
+    padding: 0.45rem 0.7rem;
+  }
+  .mcp .chat .suggestion:hover:not([disabled]),
+  .mcp .chat .suggestion:focus-visible {
+    color: var(--mcp-cyan);
+    background: #0f1a33;
+    border-color: var(--mcp-cyan);
+  }
+  .mcp .chat .slot[aria-pressed="true"] {
+    color: #070a14;
+    background: var(--mcp-amber);
+    border-color: var(--mcp-amber);
+  }
+  .mcp .chat .slot__et {
+    font: 1rem/1.2 var(--font-terminal, monospace);
+  }
+
+  /* The input: a green-on-black terminal line. */
+  .mcp .chat__form {
+    border-top-color: var(--mcp-line);
+    box-shadow: none;
+  }
+  .mcp .chat__form textarea {
+    color: var(--mcp-green);
+    background: #070d1a;
+    border-color: var(--mcp-line);
+    box-shadow: inset 0 0 12px rgba(125, 255, 176, 0.06);
+    caret-color: var(--mcp-green);
+  }
+  .mcp .chat__form textarea::placeholder {
+    color: var(--mcp-dim);
+  }
+  .mcp .chat__form textarea:focus {
+    outline: none;
+    border-color: var(--mcp-cyan);
+  }
+  .mcp .chat .btn {
+    min-height: 38px;
+    color: var(--mcp-text);
+    background: #0b1020;
+    border: 2px solid var(--mcp-line);
+    box-shadow: 3px 3px 0 #070a14;
+    font: 400 0.5rem/1.4 var(--font-retro, monospace);
+  }
+  .mcp .chat .btn:hover:not([disabled]),
+  .mcp .chat .btn:focus-visible {
+    color: var(--mcp-cyan);
+    border-color: var(--mcp-cyan);
+  }
+  .mcp .chat .btn--teal {
+    color: #070a14;
+    background: var(--mcp-cyan);
+    border-color: var(--mcp-cyan);
+  }
+  .mcp .chat .btn--teal:hover:not([disabled]),
+  .mcp .chat .btn--teal:focus-visible {
+    color: #070a14;
+    background: var(--mcp-amber);
+    border-color: var(--mcp-amber);
+  }
+  .mcp .chat .voice[aria-pressed="true"] {
+    color: #070a14;
+    background: var(--mcp-amber);
+    border-color: var(--mcp-amber);
+  }
+
+  /* The meeting request form. */
+  .mcp .chat .book {
+    background: #0b1020;
+    border-color: var(--mcp-line);
+  }
+  .mcp .chat .book__field {
+    font: 1.1rem/1.2 var(--font-terminal, monospace);
+  }
+  .mcp .chat .book__field :is(input, textarea) {
+    color: var(--mcp-green);
+    background: #070d1a;
+    border-color: var(--mcp-line);
+    box-shadow: none;
+    font: 1.2rem/1.2 var(--font-terminal, monospace);
+  }
+  .mcp .chat .book__status--error {
+    color: #ff5a6a;
+  }
+  .mcp .chat .book__done {
+    color: var(--mcp-text);
+    background: #0d2a22;
+    border-color: var(--mcp-green);
+  }
+</style>

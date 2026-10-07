@@ -1,0 +1,468 @@
+---
+/**
+ * A late-90s instant-messenger chat window. The twin uses it on the plaza and at Home, and
+ * LeBronette at the Dev Center front desk. twin/chat.ts drives it: `persona` picks who answers.
+ */
+interface Props {
+  persona: "twin" | "receptionist";
+  /** Dan's first name, for the booking form. */
+  first: string;
+  /** Who is talking, in error messages: "The twin", "LeBronette". */
+  speaker: string;
+  /** The screen name on the window and on each of their messages. */
+  handle: string;
+  icon: string;
+  greeting: string;
+  suggestions: string[];
+  placeholder: string;
+  /** Show the little webcam of the twin on his couch. */
+  cam?: boolean;
+}
+const { persona, first, speaker, handle, icon, greeting, suggestions, placeholder, cam = false } = Astro.props;
+const inputId = `chat-input-${persona}`;
+---
+
+<section class="chat" data-chat data-first={first} data-persona={persona} data-speaker={speaker} aria-label={`Conversation with ${speaker}`} style={`--twin-tag: "${handle}"`}>
+  <div class="chat__titlebar" aria-hidden="true">
+    <span class="chat__title">{icon} {handle} · Instant Message</span>
+    <span class="chat__winbtns"><span>_</span><span>□</span><span>×</span></span>
+  </div>
+
+  <!-- Out in town, a little webcam of the twin on his couch. At Home the room itself shows him. -->
+  {
+    cam && (
+      <figure class="chat__cam" aria-hidden="true">
+        <canvas data-twin-cam />
+        <figcaption>● live</figcaption>
+      </figure>
+    )
+  }
+
+  <div class="chat__screen">
+    <ol class="clean chat__log" data-log aria-live="polite" aria-relevant="additions">
+      <li class="msg msg--twin">{greeting}</li>
+    </ol>
+
+    <div class="chat__suggest" data-suggest>
+      <p class="chat__suggest-label">Try asking:</p>
+      <ul class="clean chips">
+        {suggestions.map((s) => <li><button type="button" class="chip suggestion" data-prompt={s}>{s}</button></li>)}
+      </ul>
+    </div>
+  </div>
+
+  <form class="chat__form" data-form>
+    <label for={inputId} class="visually-hidden">Your question</label>
+    <textarea id={inputId} name="q" rows="2" maxlength="1500" placeholder={placeholder} required></textarea>
+    <div class="chat__actions">
+      <button type="button" class="btn btn--small voice" data-voice aria-pressed="false" title="Read replies aloud">🔇 Voice off</button>
+      <button class="btn btn--teal" type="submit" data-send>Send</button>
+    </div>
+    <div data-turnstile></div>
+  </form>
+</section>
+
+<style is:global>
+  /* A late-90s instant-messenger window, in the town's palette: hard pixel shadows, square corners,
+     a sunken transcript "screen", and screen-name tags on every message. */
+  .chat__cam {
+    position: relative;
+    width: min(100%, 288px);
+    aspect-ratio: 16 / 9;
+    margin: 0.5rem auto 0;
+    border: 2px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    background: #2b1d14;
+  }
+  .chat__cam canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+  }
+  .chat__cam figcaption {
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    font: 8px/1 var(--font-retro, monospace);
+    color: #ff5a4a;
+    text-shadow: 1px 1px 0 #000;
+  }
+  /* At Home the room has already cut to the twin facing you (town/pov.ts), so no webcam. */
+  html:has(.town[data-pov]) .chat__cam {
+    display: none;
+  }
+  /* Without animation his mouth stays still, so say when he's talking. */
+  @media (prefers-reduced-motion: reduce) {
+    .chat[data-speaking] .chat__title::after {
+      content: " · speaking…";
+    }
+  }
+  .chat {
+    --bevel-hi: #fffdf8;
+    --bevel-lo: #b9a68c;
+    border: 2px solid var(--ink);
+    background: var(--sand);
+    box-shadow: 5px 5px 0 var(--ink);
+    margin: 0 5px 5px 0;
+  }
+  .chat__titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.4rem 0.3rem 0.6rem;
+    background: linear-gradient(90deg, var(--teal-ink), var(--teal));
+    color: #fff;
+    border-bottom: 2px solid var(--ink);
+  }
+  .chat__title {
+    font: 9px/1.6 var(--font-retro, monospace);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .chat__winbtns {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .chat__winbtns span {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 16px;
+    background: var(--sand);
+    color: var(--ink);
+    font: 700 11px/1 var(--font-pixel, monospace);
+    border: 1px solid var(--ink);
+    box-shadow: inset 1px 1px 0 var(--bevel-hi), inset -1px -1px 0 var(--bevel-lo);
+  }
+
+  /* ───── the transcript ───── */
+  .chat__screen {
+    margin: 0.6rem;
+    padding: 0.9rem 0.9rem 1.1rem;
+    background:
+      repeating-linear-gradient(0deg, rgba(59, 47, 42, 0.035) 0 1px, transparent 1px 3px),
+      var(--cream);
+    border: 2px solid var(--ink);
+    box-shadow: inset 2px 2px 0 var(--bevel-lo);
+  }
+  .chat__log {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .chat .msg {
+    max-width: 90%;
+    padding: 0.5rem 0.75rem 0.6rem;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 3px 3px 0 var(--ink);
+    white-space: pre-wrap;
+    /* Leaves room under a new message when it scrolls into view, so it never sits on the input. */
+    scroll-margin-bottom: 1.5rem;
+  }
+  .chat .msg::before {
+    display: block;
+    margin-bottom: 0.15rem;
+    font: 700 0.8rem/1.3 var(--font-pixel, monospace);
+    letter-spacing: 0.03em;
+    white-space: normal;
+  }
+  /* ───── message text: the twin's Markdown, in pixel and terminal type ───── */
+  .chat .msg {
+    font-family: var(--font-pixel, monospace);
+    font-weight: 500;
+    font-size: 1.02rem;
+    line-height: 1.5;
+    letter-spacing: 0.01em;
+  }
+  .chat .msg > div > * {
+    margin: 0 0 0.6em;
+    white-space: normal;
+  }
+  .chat .msg > div > :last-child {
+    margin-bottom: 0;
+  }
+  .chat .msg :is(h3, h4, h5, h6) {
+    margin-top: 0.9em;
+    font: 10px/1.7 var(--font-retro, monospace);
+    text-transform: uppercase;
+    color: var(--teal-ink);
+  }
+  .chat .msg h3 {
+    font-size: 12px;
+  }
+  .chat .msg > div > :is(h3, h4, h5, h6):first-child {
+    margin-top: 0.2em;
+  }
+  .chat .msg strong {
+    font-weight: 700;
+    background: linear-gradient(transparent 55%, rgba(255, 200, 87, 0.55) 55%);
+  }
+  .chat .msg em {
+    font-style: normal;
+    color: var(--coral-ink);
+  }
+  .chat .msg del {
+    text-decoration-thickness: 2px;
+    opacity: 0.7;
+  }
+  .chat .msg a {
+    color: var(--teal-ink);
+    font-weight: 700;
+    text-decoration: underline dotted 2px;
+    text-underline-offset: 3px;
+  }
+  .chat .msg a:hover {
+    background: var(--sun);
+    color: var(--ink);
+  }
+  .chat .msg :is(ul, ol) {
+    padding-left: 1.6rem;
+  }
+  .chat .msg li + li {
+    margin-top: 0.2em;
+  }
+  .chat .msg ul {
+    list-style: none;
+  }
+  .chat .msg ul > li::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 0.6em 0.15em -1em;
+    background: var(--coral);
+    box-shadow: 1px 1px 0 var(--ink);
+  }
+  .chat .msg ol > li::marker {
+    font: 9px var(--font-retro, monospace);
+    color: var(--teal-ink);
+  }
+  .chat .msg :is(code, pre) {
+    font-family: var(--font-terminal, monospace);
+    font-size: 1.15em;
+  }
+  .chat .msg code {
+    padding: 0 0.3em;
+    background: var(--sand);
+    border: 1px solid var(--line);
+  }
+  .chat .msg pre {
+    padding: 0.5rem 0.7rem;
+    background: var(--ink);
+    color: #b8f5a2;
+    border: 2px solid var(--ink);
+    box-shadow: inset 0 0 0 2px #5b4a42;
+    overflow-x: auto;
+    line-height: 1.25;
+  }
+  .chat .msg pre code {
+    padding: 0;
+    background: none;
+    border: 0;
+    font-size: inherit;
+  }
+  .chat .msg blockquote {
+    padding: 0.2em 0.7em;
+    border-left: 4px solid var(--teal);
+    background: rgba(43, 179, 163, 0.08);
+    color: var(--ink-soft);
+  }
+  .chat .msg hr {
+    height: 0;
+    border: 0;
+    border-top: 2px dashed var(--ink-soft);
+  }
+  .chat .msg--twin {
+    align-self: flex-start;
+  }
+  .chat .msg--twin::before {
+    content: var(--twin-tag, "twin") ":";
+    color: var(--coral-ink);
+  }
+  .chat .msg--user {
+    align-self: flex-end;
+    background: #e3f5f2;
+  }
+  .chat .msg--user::before {
+    content: "you:";
+    color: var(--teal-ink);
+  }
+  .chat .msg--typing > div:empty::after {
+    content: "▮";
+    font-family: var(--font-pixel, monospace);
+    animation: blink 1s steps(1) infinite;
+  }
+  .chat .msg--error {
+    background: #fff1ec;
+    border-color: var(--coral-ink);
+    box-shadow: 3px 3px 0 var(--coral-ink);
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ───── suggestions & chips ───── */
+  .chat__suggest {
+    margin-top: 1.1rem;
+    padding-top: 0.8rem;
+    border-top: 2px dashed var(--line);
+  }
+  .chat__suggest[hidden] {
+    display: none;
+  }
+  .chat__suggest-label {
+    margin: 0 0 0.4rem;
+    font: 600 0.85rem var(--font-pixel, monospace);
+    color: var(--ink-soft);
+  }
+  .chat .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .chat .suggestion {
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    box-shadow: 2px 2px 0 var(--ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.3em 0.75em;
+    min-height: 36px;
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+  }
+  .chat .suggestion:hover:not([disabled]) {
+    background: #fff4d6;
+  }
+  .chat .suggestion:active:not([disabled]) {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--ink);
+  }
+
+  /* ───── the input ───── */
+  .chat__form {
+    margin: 0 0.6rem 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 2px solid var(--bevel-lo);
+    box-shadow: inset 0 2px 0 var(--bevel-hi);
+  }
+  .chat__form textarea {
+    display: block;
+    width: 100%;
+    /* Typing looks like an old terminal. */
+    font: 1.35rem/1.2 var(--font-terminal, monospace);
+    letter-spacing: 0.02em;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+    box-shadow: inset 2px 2px 0 var(--line);
+    resize: vertical;
+  }
+  .chat__form textarea::placeholder {
+    font-family: var(--font-terminal, monospace);
+  }
+  .chat__actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .chat .btn {
+    border-radius: 0;
+    font-family: var(--font-pixel, monospace);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .chat .voice {
+    font-size: 0.85rem;
+  }
+  .chat .voice[aria-pressed="true"] {
+    background: var(--sun);
+  }
+
+  /* ───── offered meeting times & the request form ───── */
+  .chat .slots {
+    margin-top: 0.6rem;
+    white-space: normal;
+  }
+  .chat .slots__label {
+    margin: 0 0 0.35rem;
+    font-size: 0.82rem;
+  }
+  .chat .slots .chips {
+    margin-bottom: 0.4rem;
+  }
+  .chat .slot {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .chat .slot[aria-pressed="true"] {
+    background: var(--sun);
+  }
+  .chat .slot__et {
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+  .chat .book {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 2px dashed var(--ink-soft);
+    background: var(--cream);
+  }
+  .chat .book__title {
+    margin: 0;
+  }
+  .chat .book__field {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.85rem;
+  }
+  .chat .book__field input,
+  .chat .book__field textarea {
+    font: inherit;
+    padding: 0.45rem 0.65rem;
+    border: 2px solid var(--ink);
+    border-radius: 0;
+    background: #fff;
+    box-shadow: inset 2px 2px 0 var(--line);
+    min-height: 40px;
+  }
+  .chat .book__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  .chat .book__status {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .chat .book__status:empty {
+    display: none;
+  }
+  .chat .book__status--error {
+    color: var(--coral-ink);
+  }
+  .chat .book__done {
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+    border: 2px solid var(--teal-ink);
+    background: #e3f5f2;
+  }
+  .chat .fine {
+    font-size: 0.78rem;
+  }
+</style>

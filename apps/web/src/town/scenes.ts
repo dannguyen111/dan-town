@@ -3,6 +3,7 @@
  * An interior is keyed by the place id of the page that shows it.
  */
 import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN, bakeArcade } from "./arcade.ts";
+import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, bakeDev, drawDevLive } from "./dev.ts";
 import type { Dir } from "./grid.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, bakeHome, drawHomeLive, drawHomeOver } from "./home.ts";
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
@@ -48,6 +49,22 @@ export const INTERIORS: Record<string, Scene> = {
     bake: bakeArcade,
     retro: true,
     intro: { title: "Arcade", text: "Walk up to the robot and press Enter (or tap it) to play Mancala. Step on the mat to leave." },
+  },
+  dev: {
+    id: "dev",
+    ground: DEV_GROUND,
+    objects: DEV_OBJECTS,
+    spawn: DEV_SPAWN,
+    face: "up",
+    backdrop: "#070a14",
+    bake: bakeDev,
+    // A repaint a second: enough for the radar sweep and the blinking lights, and next to free.
+    live: { draw: drawDevLive, everyMs: 1000 },
+    retro: true,
+    intro: {
+      title: "Dev Center",
+      text: "Mission control. LeBronette at the front desk can tell you all about Dan. Check the viewscreen, the stack radar and the telemetry wall. Step on the mat to leave.",
+    },
   },
   home: {
     id: "home",

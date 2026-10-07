@@ -53,7 +53,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     <Font cssVariable="--font-pixel" />
     {/* Always defined: a room's text boxes stay up while pages beside it change (the twin's chat at Home). */}
     <Font cssVariable="--font-retro" preload={interior || room} />
-    <Font cssVariable="--font-terminal" />
+    <Font cssVariable="--font-terminal" preload={room} />
     <ClientRouter fallback="swap" />
   </head>
   <body>

@@ -23,6 +23,9 @@ export function setupChat(root: HTMLElement) {
   root.dataset.ready = "1";
 
   const first = root.dataset.first ?? "me";
+  /** Who answers: the twin by default, or LeBronette at the Dev Center front desk. */
+  const persona = root.dataset.persona ?? "twin";
+  const speaker = root.dataset.speaker ?? "The twin";
   const log = root.querySelector<HTMLOListElement>("[data-log]")!;
   const form = root.querySelector<HTMLFormElement>("[data-form]")!;
   const input = form.querySelector<HTMLTextAreaElement>("textarea")!;
@@ -36,7 +39,7 @@ export function setupChat(root: HTMLElement) {
 
   // ───── voice ─────
   let voice = readVoicePref();
-  const speech = browserSpeechQueue((err) => console.warn("[twin] voice:", err instanceof Error ? err.message : err));
+  const speech = browserSpeechQueue((err) => console.warn(`[${persona}] voice:`, err instanceof Error ? err.message : err), persona);
   const showVoice = () => {
     voiceBtn.setAttribute("aria-pressed", String(voice));
     voiceBtn.textContent = voice ? "🔊 Voice on" : "🔇 Voice off";
@@ -90,13 +93,14 @@ export function setupChat(root: HTMLElement) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
+          persona,
           tz,
           turnstileToken: await turnstileToken(turnstile),
         }),
       });
       if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({ error: "The twin couldn't answer right now." }));
-        throw new Error(err.error ?? "The twin couldn't answer right now.");
+        const err = await res.json().catch(() => ({ error: `${speaker} couldn't answer right now.` }));
+        throw new Error(err.error ?? `${speaker} couldn't answer right now.`);
       }
       const parser = new NdjsonParser();
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
