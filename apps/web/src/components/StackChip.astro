@@ -1,0 +1,20 @@
+---
+/**
+ * A tech, the retro way: its pixel logo in the brand colour and its name in arcade type, with a
+ * brand-coloured underline. Styles live in global.css (.stack-chip).
+ */
+import PixelLogo from "./PixelLogo.astro";
+import { logoFor } from "../lib/stack";
+
+interface Props {
+  name: string;
+  /** Rendered element: a list item inside a .stack-chips list, or a span inline. */
+  as?: "li" | "span";
+}
+const { name, as: Tag = "li" } = Astro.props;
+---
+
+<Tag class="stack-chip" style={`--brand: ${logoFor(name).hex}`}>
+  <PixelLogo name={name} class="stack-chip__logo" />
+  <span class="stack-chip__name">{name}</span>
+</Tag>

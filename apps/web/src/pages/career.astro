@@ -2,6 +2,7 @@
 import TownLayout from "../layouts/TownLayout.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { profile, formatMonth, formatRange } from "../lib/profile";
+import StackChip from "../components/StackChip.astro";
 ---
 
 <TownLayout place="career" title="Career Hall" description="Experience, education, and honors.">
@@ -23,8 +24,8 @@ import { profile, formatMonth, formatRange } from "../lib/profile";
             {e.highlights.map((h) => <li>{h}</li>)}
           </ul>
           {e.skills.length > 0 && (
-            <ul class="clean job__skills" aria-label="Skills used">
-              {e.skills.map((s) => <li class="chip">{s}</li>)}
+            <ul class="stack-chips job__skills" aria-label="Skills used">
+              {e.skills.map((s) => <StackChip name={s} />)}
             </ul>
           )}
         </li>

@@ -1,0 +1,18 @@
+---
+/** A tech's pixel logo (lib/stack.ts) as a crisp SVG, on a tile that keeps any brand colour visible. */
+import { logoFor, logoRuns } from "../lib/stack";
+import { LOGO_GRID } from "../lib/stack-meta";
+
+interface Props {
+  name: string;
+  class?: string;
+}
+const { name, class: className } = Astro.props;
+const logo = logoFor(name);
+const runs = logoRuns(logo.rows);
+---
+
+<svg class={className} viewBox={`-1 -1 ${LOGO_GRID + 2} ${LOGO_GRID + 2}`} shape-rendering="crispEdges" aria-hidden="true">
+  <rect x="-1" y="-1" width={LOGO_GRID + 2} height={LOGO_GRID + 2} fill={logo.tile} />
+  {runs.map((r) => <rect x={r.x} y={r.y} width={r.w} height="1" fill={r.white ? "#fff" : logo.hex} />)}
+</svg>
