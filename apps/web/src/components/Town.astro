@@ -1,11 +1,11 @@
 ---
-import { EXTERNAL_LINKS, PLACES } from "../lib/locations";
+import { EXTERNAL_LINKS, PLACES, PLACE_ROOMS } from "../lib/locations";
 
 const places = Object.fromEntries(PLACES.map((p) => [p.id, { name: p.name, href: p.href }]));
 const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.label, url: l.url }]));
 ---
 
-<section class="town" aria-labelledby="town-title" transition:persist="town" data-town data-places={JSON.stringify(places)} data-links={JSON.stringify(links)}>
+<section class="town" aria-labelledby="town-title" transition:persist="town" data-town data-places={JSON.stringify(places)} data-links={JSON.stringify(links)} data-place-rooms={JSON.stringify(PLACE_ROOMS)}>
   <h2 id="town-title" class="visually-hidden">Town map</h2>
   <p id="town-help" class="visually-hidden">
     An interactive pixel-art town. Use the arrow keys or W A S D to walk, Enter to interact, or click or tap where you want to go.
@@ -38,8 +38,12 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
     onEvent: (name) => document.dispatchEvent(new CustomEvent(`town:${name}`)),
   });
 
+  /** Places inside a building (LeBronette's desk), by their room: a deep link walks into that room first. */
+  const placeRooms = JSON.parse(root.dataset.placeRooms!) as Record<string, string>;
   const sync = () => {
     const place = document.documentElement.dataset.place ?? "town";
+    const host = placeRooms[place];
+    if (host && town.sceneId !== host) town.enterScene(host);
     if (town.hasInterior(place)) {
       // Places with an interior: the visitor walks inside the room.
       town.enterScene(place);
