@@ -51,7 +51,7 @@ const UNAVAILABLE = {
   note: "The calendar can't be reached right now. Say you can't check the schedule at the moment and suggest reaching out by email instead.",
 };
 const SUGGEST =
-  "If nothing works for them, invite the visitor to suggest a time: Mon–Thu 7:30 AM to midnight ET or Fri 7:30 AM–5 PM ET, at least 24 hours ahead and within 14 days.";
+  "If nothing works for them, invite the visitor to suggest a time: Mon–Thu 7:30 AM to midnight ET or Fri 7:30 AM–5 PM ET, at least 24 hours ahead and within 30 days.";
 
 const slotsForModel = (slots: Slot[]) => slots.map(({ et, local, duration, custom }) => ({ et, visitor_local: local, duration, ...(custom ? { custom } : {}) }));
 
@@ -61,7 +61,7 @@ const etMidnight = (d: string) => parseLocal(`${d}T00:00`, ET)!;
 export const TOOLS = {
   check_availability: {
     description:
-      `Find open meeting slots on ${FIRST}'s calendar (weekdays 9 AM–5 PM Eastern). Use ONLY when the visitor explicitly asks when ${FIRST} is free, or after a time they proposed didn't work. Matching slots are shown to the visitor as clickable buttons.`,
+      `Find open meeting slots on ${FIRST}'s calendar (weekdays 9 AM–5 PM Eastern, favoring 10 AM–4 PM). Use ONLY when the visitor explicitly asks when ${FIRST} is free, or after a time they proposed didn't work. Matching slots are shown to the visitor as clickable buttons.`,
     args: z
       .object({
         from_date: date.optional().describe("First day to search (YYYY-MM-DD, Eastern). Defaults to the earliest bookable day."),
@@ -75,7 +75,7 @@ export const TOOLS = {
       const range = bookableRange(ctx.now);
       const from = Math.max(a.from_date ? etMidnight(a.from_date) : range.start, range.start);
       const to = Math.min(a.to_date ? etMidnight(a.to_date) + DAY : from + 7 * DAY, range.end);
-      if (to <= from) return { slots: [], note: "That range is outside the bookable window (24 hours to 14 days from now). " + SUGGEST };
+      if (to <= from) return { slots: [], note: "That range is outside the bookable window (24 hours to 30 days from now). " + SUGGEST };
       const busy = await ctx.freeBusy(from, to);
       const zone = a.visitor_tz ?? ctx.tz;
       const slots = findSlots({ from, to, duration: a.duration, busy, now: ctx.now }).map((s) => toSlot(s, a.duration, zone));

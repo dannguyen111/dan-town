@@ -332,10 +332,9 @@ const inputId = `chat-input-${persona}`;
     border-radius: 0;
     background: var(--paper);
     box-shadow: 2px 2px 0 var(--ink);
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 0.3em 0.75em;
+    /* Suggested prompts and meeting times read like an old arcade cabinet. */
+    font: 400 0.55rem/1.7 var(--font-retro, monospace);
+    padding: 0.45rem 0.7rem;
     min-height: 36px;
     cursor: pointer;
     text-align: left;
@@ -413,7 +412,7 @@ const inputId = `chat-input-${persona}`;
     background: var(--sun);
   }
   .chat .slot__et {
-    font-size: 0.75rem;
+    font-size: 0.45rem;
     opacity: 0.75;
   }
   .chat .book {
