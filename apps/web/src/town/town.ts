@@ -6,6 +6,7 @@
  */
 import { DELTA, TownGrid, dirBetween, type Dir } from "./grid.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
+import { PovView, type PovId } from "./pov.ts";
 import { INTERIORS, TOWN, type Scene } from "./scenes.ts";
 import { PLAYER_PALETTE, SPRITE_H, SPRITE_W, TWIN_PALETTE, bakeSprites, type SpriteSheet } from "./sprites.ts";
 
@@ -60,6 +61,9 @@ export class Town {
   private liveTimer = 0;
   private readonly live: HTMLElement;
   private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  /** A close-up view drawn instead of the room (the twin on the couch while you chat), or null. */
+  private pov: { id: PovId; view: PovView } | null = null;
+  private readonly roomLabel: string;
 
   // Player state
   private pos: Point = { ...TOWN.spawn };
@@ -92,6 +96,7 @@ export class Town {
     this.bubble.addEventListener("pointerleave", () => this.scheduleDismiss());
     this.bubble.addEventListener("focusout", () => this.scheduleDismiss());
     this.live = root.querySelector("[data-town-live]")!;
+    this.roomLabel = this.canvas.getAttribute("aria-label") ?? "";
     this.buildLabels();
     this.bindInput();
     new ResizeObserver(() => this.resize()).observe(root);
@@ -123,6 +128,7 @@ export class Town {
   enterScene(id: string) {
     const scene = id === TOWN.id ? TOWN : INTERIORS[id];
     if (!scene || scene === this.scene) return false;
+    this.setPov(null);
     this.scene = scene;
     this.grid = new TownGrid(scene.objects, scene.ground);
     if (!this.baked.has(scene.id)) this.baked.set(scene.id, scene.bake());
@@ -149,6 +155,50 @@ export class Town {
     if (!obj) return;
     const { at, face } = this.grid.arrivalTile(obj, this.scene.spawn);
     this.placePlayer(at, facing ?? face);
+  }
+
+  /**
+   * Show a close-up of the room instead of the map: "couch" is the twin facing you while you chat.
+   * Walking pauses until it's cleared with null. The cut zooms in on the object it shows.
+   */
+  setPov(id: PovId | null) {
+    if ((this.pov?.id ?? null) === id) return;
+    const from = id === "couch" ? this.objectScreenRect("twin") : null;
+    this.pov?.view.destroy();
+    // Sitting down with him at Home, he takes his headphones off to talk.
+    this.pov = id ? { id, view: new PovView(this.canvas, id, { phonesOff: id === "couch" }) } : null;
+    if (id) this.root.dataset.pov = id;
+    else delete this.root.dataset.pov;
+    this.canvas.setAttribute("aria-label", id === "couch" ? "The digital twin on the couch, facing you, with posters on the wall behind him." : this.roomLabel);
+    this.held.length = 0;
+    this.hideBubble();
+    if (this.pov) this.pov.view.start();
+    else this.resize();
+    if (this.reducedMotion.matches) return;
+    if (from) {
+      const box = this.canvas.getBoundingClientRect();
+      const origin = `${from.left + from.width / 2 - box.left}px ${from.top + from.height / 2 - box.top}px`;
+      this.canvas.animate(
+        [
+          { transform: "scale(1.6)", transformOrigin: origin, filter: "brightness(0.4)" },
+          { transform: "scale(1)", transformOrigin: origin, filter: "brightness(1)" },
+        ],
+        { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)" },
+      );
+    } else {
+      this.canvas.animate([{ filter: "brightness(0.4)" }, { filter: "brightness(1)" }], { duration: 300, easing: "ease-out" });
+    }
+  }
+
+  /** Where an object of the current room is on screen (viewport CSS pixels), e.g. to zoom in from it. */
+  objectScreenRect(id: string): DOMRect | null {
+    const obj = this.scene.objects.find((o) => o.id === id);
+    if (!obj || this.pov) return null;
+    const box = this.canvas.getBoundingClientRect();
+    const lift = obj.labelLift ?? 0;
+    const x = (obj.x * TILE - this.cam.x) * this.scale + box.left;
+    const y = (obj.y * TILE - lift - this.cam.y) * this.scale + box.top;
+    return new DOMRect(x, y, obj.w * TILE * this.scale, (obj.h * TILE + lift) * this.scale);
   }
 
   setActivePlace(placeId: string | null) {
@@ -240,14 +290,14 @@ export class Town {
     window.addEventListener("blur", () => (this.held.length = 0));
 
     this.canvas.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+      if ((e.key === "Enter" || e.key === " ") && !this.pov) {
         e.preventDefault();
         this.interactFacing();
       }
     });
 
     this.canvas.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || this.pov) return;
       const rect = this.canvas.getBoundingClientRect();
       const wx = (e.clientX - rect.left) / this.scale + this.cam.x;
       const wy = (e.clientY - rect.top) / this.scale + this.cam.y;
@@ -257,7 +307,7 @@ export class Town {
 
   /** Keys move the player unless the visitor is typing or working inside the content panel. */
   private keyboardTargetsTown(e: KeyboardEvent) {
-    if (!this.enabled || e.altKey || e.ctrlKey || e.metaKey) return false;
+    if (!this.enabled || this.pov || e.altKey || e.ctrlKey || e.metaKey) return false;
     const el = document.activeElement;
     if (!el || el === document.body || el === this.canvas) return !document.querySelector("dialog[open]");
     return this.root.contains(el) && !(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement);
@@ -649,6 +699,8 @@ export class Town {
   }
 
   private draw(now: number) {
+    // A close-up draws itself; resizing cleared the canvas, so have it draw again.
+    if (this.pov) return this.pov.view.redraw();
     const { ctx, canvas } = this;
     const dpr = window.devicePixelRatio || 1;
     const s = this.scale * dpr;

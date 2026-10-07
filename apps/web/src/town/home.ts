@@ -91,10 +91,19 @@ export const HOME_OBJECTS: readonly TownObject[] = [
   prop("bamboo", "Plant", 13, 8, 1, 1, "Lucky bamboo. Good for the house, and for passing exams."),
 
   // ── Front room ──
+  // Sitting down shows the twin's live agent traces on the monitor (pages/about.astro).
   {
-    ...prop("desk", "AI Desk", 1, 11, 2, 1, "$ tail -f pipeline.log\n> 30,000+ complaints/yr scored by LLMs\n> prompt caching: compute -50%\n> JSON output contracts: cost -70%\n> status: shipping"),
+    ...prop("desk", "Computer", 1, 11, 2, 1, ""),
+    target: { type: "event", name: "desk" },
     hideLabel: false,
     labelLift: 24,
+    hint: "Sit at the computer ⌨",
+  },
+  // The desk chair, pulled up to the computer. Walking into it sits you down too.
+  {
+    ...prop("chair", "Desk chair", 1, 12, 2, 1, ""),
+    target: { type: "event", name: "desk" },
+    hint: "Sit at the computer ⌨",
   },
   prop("hornets", "Charlotte Hornets flag", 4, 10, 2, 1, "Charlotte Hornets flag... He must be depressed..."),
   {
@@ -143,46 +152,46 @@ export function formatEastern(now = new Date()) {
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
-type Sky = "night" | "dawn" | "day" | "dusk";
-const skyAt = (t: number): Sky => (t < 5 || t >= 20 ? "night" : t < 7 ? "dawn" : t < 17 ? "day" : "dusk");
+export type Sky = "night" | "dawn" | "day" | "dusk";
+export const skyAt = (t: number): Sky => (t < 5 || t >= 20 ? "night" : t < 7 ? "dawn" : t < 17 ? "day" : "dusk");
 
 // ───────────────────────────── art ─────────────────────────────
 
-const INK = "#2b1d14";
-const OCHRE = "#e9b949"; // Hanoi's yellow plaster
-const OCHRE_SHADE = "#d6a63c";
-const BEAM = "#5e3a22";
-const BEAM_DARK = "#432817";
-const BEAM_LIGHT = "#7a4d2e";
-const WOOD = "#b0703f";
-const WOOD_DARK = "#965a30";
-const WOOD_LIGHT = "#c4844f";
-const TILE_BASE = "#efe3c8";
-const TILE_GROUT = "#d8c9a8";
-const TILE_RED = "#c9786a";
-const TILE_TEAL = "#6aa89f";
-const RED = "#da251d";
-const GOLD = "#e0b040";
-const WHITE = "#fffaf0";
-const COUCH = "#2e6b5a";
-const COUCH_LIGHT = "#3f8a74";
-const COUCH_DARK = "#22503f";
+export const INK = "#2b1d14";
+export const OCHRE = "#e9b949"; // Hanoi's yellow plaster
+export const OCHRE_SHADE = "#d6a63c";
+export const BEAM = "#5e3a22";
+export const BEAM_DARK = "#432817";
+export const BEAM_LIGHT = "#7a4d2e";
+export const WOOD = "#b0703f";
+export const WOOD_DARK = "#965a30";
+export const WOOD_LIGHT = "#c4844f";
+export const TILE_BASE = "#efe3c8";
+export const TILE_GROUT = "#d8c9a8";
+export const TILE_RED = "#c9786a";
+export const TILE_TEAL = "#6aa89f";
+export const RED = "#da251d";
+export const GOLD = "#e0b040";
+export const WHITE = "#fffaf0";
+export const COUCH = "#2e6b5a";
+export const COUCH_LIGHT = "#3f8a74";
+export const COUCH_DARK = "#22503f";
 
 /** Deterministic noise so the room looks the same on every visit. */
-function rand(x: number, y: number, salt = 0) {
+export function rand(x: number, y: number, salt = 0) {
   let h = (x * 374761393 + y * 668265263 + salt * 2147483647) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-type Ctx = CanvasRenderingContext2D;
-const rect = (ctx: Ctx, color: string, x: number, y: number, w: number, h: number) => {
+export type Ctx = CanvasRenderingContext2D;
+export const rect = (ctx: Ctx, color: string, x: number, y: number, w: number, h: number) => {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
 };
 
 /** Draw a text bitmap: each non-"." letter is looked up in `colors`. */
-function bitmap(ctx: Ctx, rows: readonly string[], x: number, y: number, colors: Record<string, string>) {
+export function bitmap(ctx: Ctx, rows: readonly string[], x: number, y: number, colors: Record<string, string>) {
   rows.forEach((row, ry) => [...row].forEach((c, rx) => colors[c] && rect(ctx, colors[c]!, x + rx, y + ry, 1, 1)));
 }
 
@@ -308,7 +317,7 @@ function hangingFlag(ctx: Ctx, o: TownObject, wallTop: number, paint: (x: number
   paint(x, y, w, h);
 }
 
-const STAR = ["....#....", "....#....", "...###...", "#########", ".#######.", "..#####..", "..##.##..", ".##...##.", ".#.....#."];
+export const STAR = ["....#....", "....#....", "...###...", "#########", ".#######.", "..#####..", "..##.##..", ".##...##.", ".#.....#."];
 
 function vnFlag(ctx: Ctx, o: TownObject) {
   hangingFlag(ctx, o, 0, (x, y, w, h) => {
@@ -319,7 +328,7 @@ function vnFlag(ctx: Ctx, o: TownObject) {
 }
 
 /** Draw a bitmap with a 1px dark outline around its "#" pixels, like stitched felt letters. */
-function outlined(ctx: Ctx, rows: readonly string[], x: number, y: number, fill: string, edge: string) {
+export function outlined(ctx: Ctx, rows: readonly string[], x: number, y: number, fill: string, edge: string) {
   for (const [dx, dy] of [
     [-1, 0],
     [1, 0],
@@ -330,8 +339,8 @@ function outlined(ctx: Ctx, rows: readonly string[], x: number, y: number, fill:
   bitmap(ctx, rows, x, y, { "#": fill });
 }
 
-const SIGMA = ["#######", "##....#", ".##....", "..##...", "...##..", "..##...", ".##....", "##....#", "#######"];
-const CHI = ["##...##", "##...##", ".##.##.", "..###..", "..###..", "..###..", ".##.##.", "##...##", "##...##"];
+export const SIGMA = ["#######", "##....#", ".##....", "..##...", "...##..", "..##...", ".##....", "##....#", "#######"];
+export const CHI = ["##...##", "##...##", ".##.##.", "..###..", "..###..", "..###..", ".##.##.", "##...##", "##...##"];
 
 /** The fraternity's letters in old gold on Sigma Chi blue. */
 function sigmaChiFlag(ctx: Ctx, o: TownObject) {
@@ -348,7 +357,7 @@ function sigmaChiFlag(ctx: Ctx, o: TownObject) {
  * A pixel take on the Hornets' logo: a teal-and-purple hornet with white wings spread, raised
  * antennae, and a basketball for a body, ending in a stinger.
  */
-const HORNETS_LOGO = [
+export const HORNETS_LOGO = [
   "......k.....k......",
   ".......k...k.......",
   "www.....kkk.....www",
@@ -433,9 +442,9 @@ function lanterns(ctx: Ctx) {
   }
 }
 
-const MINT = "#9fd3c7";
-const MINT_SHADE = "#7fb8ab";
-const MINT_LIGHT = "#d4f0e8";
+export const MINT = "#9fd3c7";
+export const MINT_SHADE = "#7fb8ab";
+export const MINT_LIGHT = "#d4f0e8";
 
 /** A retro mint fridge in the corner, covered in notes and magnets. Visitors pin theirs here. */
 function fridge(ctx: Ctx, o: TownObject) {
@@ -642,7 +651,7 @@ function pot(ctx: Ctx, px: number, py: number) {
   rect(ctx, WHITE, px + 7, py + 9, 2, 2);
 }
 
-/** Dan's AI desk: a terminal tailing an LLM pipeline's log. */
+/** Dan's computer desk: a terminal tailing an LLM pipeline's log. */
 function desk(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE;
   const y = o.y * TILE;
@@ -675,6 +684,25 @@ function desk(ctx: Ctx, o: TownObject) {
   // A tiny robot sticker on the bezel
   rect(ctx, "#d5dde8", x + 23, y - 22, 2, 2);
   rect(ctx, "#7df9ff", x + 23, y - 22, 1, 1);
+}
+
+/** An office chair pulled up to the desk, seen from behind: backrest, seat, five-star base on wheels. */
+function deskChair(ctx: Ctx, o: TownObject) {
+  const x = o.x * TILE + 8; // centred under the monitor, across both tiles
+  const y = o.y * TILE;
+  rect(ctx, "rgba(0,0,0,0.3)", x + 1, y + 12, 14, 3);
+  // Base and wheels
+  rect(ctx, "#3a3a44", x + 7, y + 9, 2, 4);
+  rect(ctx, "#3a3a44", x + 2, y + 12, 12, 1);
+  for (const wx of [x + 1, x + 7, x + 13]) rect(ctx, INK, wx, y + 13, 2, 2);
+  // Seat, peeking out on both sides of the backrest
+  rect(ctx, INK, x + 1, y + 1, 14, 6);
+  rect(ctx, "#4a4a58", x + 2, y + 2, 12, 4);
+  // Backrest, facing the room, with a little lumbar highlight
+  rect(ctx, INK, x + 3, y - 4, 10, 13);
+  rect(ctx, "#2f2f3a", x + 4, y - 3, 8, 11);
+  rect(ctx, "#4a4a58", x + 5, y - 2, 6, 1);
+  rect(ctx, "#3d3d4a", x + 5, y + 4, 6, 2);
 }
 
 /** Framed photos on the front room wall: decoration only. */
@@ -862,6 +890,7 @@ export function bakeHome(): HTMLCanvasElement {
     else if (o.style === "palm") palm(ctx, o);
     else if (o.style === "bamboo") bamboo(ctx, o);
     else if (o.style === "desk") desk(ctx, o);
+    else if (o.style === "chair") deskChair(ctx, o);
     else if (o.style === "trophies") trophies(ctx, o);
     else if (o.style === "tea") teaTable(ctx, o);
     else if (o.style === "motorbike") motorbike(ctx, o);
@@ -878,7 +907,7 @@ function hand(ctx: Ctx, angle: number, len: number, color: string) {
   for (let i = 1; i <= len; i++) rect(ctx, color, CLOCK.x + Math.round(Math.cos(angle) * i), CLOCK.y + Math.round(Math.sin(angle) * i), 1, 1);
 }
 
-const SKIES: Record<Sky, { top: string; bottom: string; roofs: [string, string]; lights: string }> = {
+export const SKIES: Record<Sky, { top: string; bottom: string; roofs: [string, string]; lights: string }> = {
   night: { top: "#141b3a", bottom: "#2a3266", roofs: ["#2a2340", "#352c4f"], lights: "#ffd166" },
   dawn: { top: "#7a6fb0", bottom: "#ffb38a", roofs: ["#8a5a5a", "#a86b5a"], lights: "#ffe9a8" },
   day: { top: "#6cc4ff", bottom: "#bfe6ff", roofs: ["#c98f5c", "#e9b949"], lights: "#5e3a22" },
@@ -886,7 +915,7 @@ const SKIES: Record<Sky, { top: string; bottom: string; roofs: [string, string];
 };
 
 /** Old Quarter rooftops: [x offset, width, height]. */
-const ROOFS = [
+export const ROOFS = [
   [0, 4, 6],
   [4, 5, 9],
   [9, 3, 5],
@@ -894,10 +923,12 @@ const ROOFS = [
   [16, 4, 6],
 ] as const;
 
-function windowView(ctx: Ctx, sky: Sky) {
+/** The view out of a window: sky, sun or moon, and Old Quarter rooftops. Sized for `win`, 20×16 by default. */
+export function windowView(ctx: Ctx, sky: Sky, win: { x: number; y: number; w: number; h: number } = WIN) {
+  const k = win.w / WIN.w;
   const s = SKIES[sky];
-  rect(ctx, s.top, WIN.x, WIN.y, WIN.w, WIN.h / 2);
-  rect(ctx, s.bottom, WIN.x, WIN.y + WIN.h / 2, WIN.w, WIN.h / 2);
+  rect(ctx, s.top, win.x, win.y, win.w, Math.floor(win.h / 2));
+  rect(ctx, s.bottom, win.x, win.y + Math.floor(win.h / 2), win.w, Math.ceil(win.h / 2));
   if (sky === "night") {
     for (const [sx, sy] of [
       [2, 2],
@@ -905,25 +936,28 @@ function windowView(ctx: Ctx, sky: Sky) {
       [11, 1],
       [3, 6],
     ] as const)
-      rect(ctx, "#ffffff", WIN.x + sx, WIN.y + sy, 1, 1);
-    rect(ctx, "#fff3c4", WIN.x + 14, WIN.y + 2, 3, 3);
-    rect(ctx, s.top, WIN.x + 15, WIN.y + 2, 2, 1);
+      rect(ctx, "#ffffff", win.x + Math.round(sx * k), win.y + Math.round(sy * k), 1, 1);
+    rect(ctx, "#fff3c4", win.x + Math.round(14 * k), win.y + Math.round(2 * k), Math.round(3 * k), Math.round(3 * k));
+    rect(ctx, s.top, win.x + Math.round(15 * k), win.y + Math.round(2 * k), Math.round(2 * k), Math.round(k));
   } else if (sky === "day") {
-    rect(ctx, "#fff3a0", WIN.x + 14, WIN.y + 2, 3, 3);
-    rect(ctx, "#ffffff", WIN.x + 3, WIN.y + 4, 6, 2);
-    rect(ctx, "#ffffff", WIN.x + 4, WIN.y + 3, 3, 1);
+    rect(ctx, "#fff3a0", win.x + Math.round(14 * k), win.y + Math.round(2 * k), Math.round(3 * k), Math.round(3 * k));
+    rect(ctx, "#ffffff", win.x + Math.round(3 * k), win.y + Math.round(4 * k), Math.round(6 * k), Math.round(2 * k));
+    rect(ctx, "#ffffff", win.x + Math.round(4 * k), win.y + Math.round(3 * k), Math.round(3 * k), Math.round(k));
   } else {
-    rect(ctx, "#ffcf66", WIN.x + (sky === "dawn" ? 3 : 13), WIN.y + 8, 4, 2);
+    rect(ctx, "#ffcf66", win.x + Math.round((sky === "dawn" ? 3 : 13) * k), win.y + Math.round(8 * k), Math.round(4 * k), Math.round(2 * k));
   }
-  ROOFS.forEach(([dx, w, h], i) => {
-    const top = WIN.y + WIN.h - h;
-    rect(ctx, s.roofs[i % 2]!, WIN.x + dx, top, w, h);
-    rect(ctx, s.roofs[(i + 1) % 2]!, WIN.x + dx, top, w, 1);
-    for (let wy = top + 2; wy < WIN.y + WIN.h - 1; wy += 3) if (rand(i, wy, 5) < 0.6) rect(ctx, s.lights, WIN.x + dx + 1, wy, 1, 1);
+  ROOFS.forEach(([dx0, w0, h0], i) => {
+    const dx = Math.round(dx0 * k);
+    const w = Math.round((dx0 + w0) * k) - dx;
+    const h = Math.round(h0 * k);
+    const top = win.y + win.h - h;
+    rect(ctx, s.roofs[i % 2]!, win.x + dx, top, w, h);
+    rect(ctx, s.roofs[(i + 1) % 2]!, win.x + dx, top, w, 1);
+    for (let wy = top + 2; wy < win.y + win.h - 1; wy += 3) if (rand(i, wy - win.y + WIN.y, 5) < 0.6) rect(ctx, s.lights, win.x + dx + 1, wy, 1, 1);
   });
   // Window bars
-  rect(ctx, BEAM_DARK, WIN.x + WIN.w / 2 - 1, WIN.y, 2, WIN.h);
-  rect(ctx, BEAM_DARK, WIN.x, WIN.y + WIN.h / 2 - 1, WIN.w, 1);
+  rect(ctx, BEAM_DARK, win.x + Math.floor(win.w / 2) - 1, win.y, 2, win.h);
+  rect(ctx, BEAM_DARK, win.x, win.y + Math.floor(win.h / 2) - 1, win.w, 1);
 }
 
 /** The visitor is standing behind the couch (between it and the TV), so it hides their legs. */
