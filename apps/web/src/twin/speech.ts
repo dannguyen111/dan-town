@@ -156,8 +156,11 @@ export class SpeechQueue {
 let shared: HTMLAudioElement | null = null;
 const audioEl = () => (shared ??= new Audio());
 
-/** The browser wiring: POST to /api/twin/speak, play through the shared <audio> element. */
-export function browserSpeechQueue(onError?: (err: unknown) => void): SpeechQueue {
+/**
+ * The browser wiring: POST to /api/twin/speak, play through the shared <audio> element.
+ * `persona` picks the voice: the twin's, or LeBronette's at the Dev Center front desk.
+ */
+export function browserSpeechQueue(onError?: (err: unknown) => void, persona = "twin"): SpeechQueue {
   const el = audioEl();
   return new SpeechQueue({
     onError,
@@ -165,7 +168,7 @@ export function browserSpeechQueue(onError?: (err: unknown) => void): SpeechQueu
       const res = await fetch("/api/twin/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, persona }),
         signal,
       });
       if (!res.ok) {
