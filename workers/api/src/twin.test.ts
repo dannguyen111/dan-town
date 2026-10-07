@@ -62,6 +62,24 @@ describe("systemPrompt", () => {
   it("embeds the live stats block", () => {
     expect(systemPrompt("LIVE DATA")).toContain("<live>\nLIVE DATA\n</live>");
   });
+
+  it("lets LeBronette talk about Dan as a friend, in the third person", () => {
+    const p = systemPrompt(undefined, undefined, "receptionist");
+    expect(p).toContain("You are LeBronette");
+    expect(p).toContain('always call him "Test"');
+    expect(p).toContain("in the third person");
+    expect(p).not.toContain("Speak as Test, in the first person");
+    // Same booking rules and grounding as the twin.
+    expect(p).toContain("never share a booking link");
+    expect(p).toContain("<profile>\n# Test Person");
+  });
+});
+
+it("picks the persona, defaulting to the twin", () => {
+  const messages = [{ role: "user", content: "hi" }];
+  expect(parseTwinRequest({ messages }).persona).toBe("twin");
+  expect(parseTwinRequest({ messages, persona: "receptionist" }).persona).toBe("receptionist");
+  expect(parseTwinRequest({ messages, persona: "admin" }).persona).toBe("twin");
 });
 
 describe("renderLiveContext", () => {
