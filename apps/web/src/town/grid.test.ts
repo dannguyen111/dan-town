@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN } from "./arcade.ts";
+import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, streakOf, timelineIndex } from "./dev.ts";
 import { TownGrid } from "./grid.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, easternTime, formatEastern } from "./home.ts";
 import { COLS, GROUND, OBJECTS, SPAWN } from "./map.ts";
@@ -131,6 +132,64 @@ describe("home interior", () => {
   it("the doorway between the rooms is open", () => {
     expect(grid.isWalkable(7, 9)).toBe(true);
     expect(grid.isWalkable(6, 9)).toBe(false);
+  });
+});
+
+describe("dev center interior", () => {
+  const grid = new TownGrid(DEV_OBJECTS, DEV_GROUND);
+
+  it("has a rectangular ground layer", () => {
+    for (const row of DEV_GROUND) expect(row).toHaveLength(DEV_GROUND[0].length);
+  });
+
+  it("spawns just inside the exit, facing LeBronette", () => {
+    expect(grid.isWalkable(DEV_SPAWN.x, DEV_SPAWN.y)).toBe(true);
+    expect(grid.doorAt(DEV_SPAWN.x, DEV_SPAWN.y + 1)?.target).toEqual({ type: "place", id: "town" });
+    const desk = DEV_OBJECTS.find((o) => o.id === "lebronette")!;
+    expect(desk.target).toEqual({ type: "place", id: "reception" });
+    expect(grid.isWalkable(DEV_SPAWN.x, desk.y + desk.h)).toBe(true);
+    expect(grid.objectAt(DEV_SPAWN.x, desk.y + desk.h - 1)?.id).toBe("lebronette");
+  });
+
+  it("does not overlap objects", () => {
+    const seen = new Set<string>();
+    for (const o of DEV_OBJECTS)
+      for (let y = o.y; y < o.y + o.h; y++)
+        for (let x = o.x; x < o.x + o.w; x++) {
+          const k = `${x},${y}`;
+          expect(seen.has(k), `${o.id} overlaps at ${k}`).toBe(false);
+          seen.add(k);
+        }
+  });
+
+  it.each(DEV_OBJECTS.map((o) => [o.id, o] as const))("%s is reachable from the entrance", (_id, obj) => {
+    expect(grid.approach(obj, DEV_SPAWN)).not.toBeNull();
+  });
+
+  it("the stations open their screens on purpose", () => {
+    for (const id of ["timeline", "radar", "telemetry", "lebronette"]) expect(DEV_OBJECTS.find((o) => o.id === id)?.hint, id).toBeTruthy();
+  });
+
+  it("the town has a matching door to walk back out of", () => {
+    const town = new TownGrid();
+    const dev = OBJECTS.find((o) => o.target.type === "place" && o.target.id === "dev")!;
+    const { at } = town.arrivalTile(dev, SPAWN);
+    expect(town.isWalkable(at.x, at.y)).toBe(true);
+  });
+
+  it("cycles the viewscreen through the timeline", () => {
+    expect(timelineIndex(0, 0)).toBe(-1);
+    expect(timelineIndex(0, 3)).toBe(0);
+    expect(timelineIndex(2500 * 4, 3)).toBe(1);
+  });
+
+  it("counts the GitHub streak back from the latest day", () => {
+    const days = (counts: number[]) => counts.map((count) => ({ count }));
+    expect(streakOf(days([1, 0, 2, 3, 1]))).toBe(3);
+    // Nothing yet today doesn't break the streak.
+    expect(streakOf(days([1, 2, 3, 0]))).toBe(3);
+    expect(streakOf(days([1, 0, 0]))).toBe(0);
+    expect(streakOf([])).toBe(0);
   });
 });
 

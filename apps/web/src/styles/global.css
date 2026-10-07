@@ -203,6 +203,137 @@ p {
   image-rendering: pixelated;
 }
 
+/* ───────────── mission control: the Dev Center's dark terminal panel ─────────────
+   Any page whose content sits in a .mcp wrapper (the Dev Center, project debriefs) turns the whole
+   side panel, bar and footer included, into the console beside the room. */
+html:has(.mcp) .panel {
+  --mcp-bg: #0b1020;
+  --mcp-card: #111a33;
+  --mcp-line: #26325c;
+  --mcp-cyan: #3ee6ff;
+  --mcp-amber: #ffc857;
+  --mcp-green: #7dffb0;
+  --mcp-text: #dfe7ff;
+  --mcp-dim: #8b9ac4;
+  color: var(--mcp-text);
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px),
+    var(--mcp-bg);
+  border-left-color: var(--mcp-line);
+  scrollbar-color: var(--mcp-line) var(--mcp-bg);
+}
+html:has(.mcp) .panel__bar,
+html:has(.mcp) .panel__footer {
+  color: var(--mcp-dim);
+  background: #080d1b;
+  border-color: var(--mcp-line);
+}
+html:has(.mcp) .panel__where,
+html:has(.mcp) .panel__footer a {
+  color: var(--mcp-cyan);
+}
+.mcp {
+  display: grid;
+  gap: 1.4rem;
+  font: 1.3rem/1.25 var(--font-terminal, monospace);
+}
+.mcp :is(section, p, h1, h2, h3, h4) {
+  margin: 0;
+}
+.mcp a {
+  color: var(--mcp-cyan);
+}
+.mcp a:hover {
+  color: var(--mcp-amber);
+}
+.mcp-kicker {
+  font: 400 0.5rem/1.4 var(--font-retro, monospace);
+  color: var(--mcp-dim);
+  text-transform: uppercase;
+}
+/* Section headings: "// STACK" in arcade type. */
+.mcp-h {
+  margin-bottom: 0.7rem !important;
+  font: 400 0.7rem/1.5 var(--font-retro, monospace);
+  color: var(--mcp-cyan);
+  text-transform: uppercase;
+}
+.mcp-h::before {
+  content: "// ";
+  color: var(--mcp-dim);
+}
+.mcp-sub {
+  margin-bottom: 0.4rem !important;
+  font: 400 0.5rem/1.6 var(--font-retro, monospace);
+  color: var(--mcp-amber);
+  text-transform: uppercase;
+}
+.mcp-card {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  background: var(--mcp-card);
+  border: 2px solid var(--mcp-line);
+  border-top: 4px solid var(--mcp-cyan);
+  box-shadow: 4px 4px 0 #070a14;
+}
+.mcp-card .mcp-h {
+  margin-bottom: 0 !important;
+}
+.mcp-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0.45rem 0.7rem;
+  font: 400 0.5rem/1.4 var(--font-retro, monospace);
+  color: var(--mcp-text);
+  background: #0b1020;
+  border: 2px solid var(--mcp-line);
+  box-shadow: 3px 3px 0 #070a14;
+  text-decoration: none;
+  cursor: pointer;
+}
+.mcp .mcp-btn {
+  color: var(--mcp-text);
+}
+.mcp .mcp-btn:hover,
+.mcp .mcp-btn:focus-visible {
+  color: var(--mcp-cyan);
+  border-color: var(--mcp-cyan);
+}
+.mcp-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #070a14;
+}
+.mcp .mcp-btn--primary {
+  color: #070a14;
+  background: var(--mcp-cyan);
+  border-color: var(--mcp-cyan);
+}
+.mcp .mcp-btn--primary:hover,
+.mcp .mcp-btn--primary:focus-visible {
+  color: #070a14;
+  background: var(--mcp-amber);
+  border-color: var(--mcp-amber);
+}
+/* Stack chips, recoloured for the console: the logo tiles and brand underlines stay. */
+.mcp .stack-chip {
+  color: var(--mcp-text);
+  background: #0f1730;
+  border-color: #33416f;
+}
+.mcp code {
+  padding: 0 0.3em;
+  font: inherit;
+  color: var(--mcp-green);
+  background: #070a14;
+}
+@keyframes mcp-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 .card {
   background: var(--paper);
   border: 2px solid var(--line);

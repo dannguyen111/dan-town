@@ -1,0 +1,28 @@
+---
+/**
+ * Dan's pixel character as a profile picture: head and shoulders of the twin's in-town sprite
+ * (with headphones), cropped like the favicon, on a screen-dark tile.
+ */
+import { TWIN_PALETTE, cellColour, compose } from "../town/sprites";
+
+interface Props {
+  class?: string;
+  /** Tile colour behind the sprite. */
+  bg?: string;
+}
+const { class: className, bg = "#0f1a33" } = Astro.props;
+const SIZE = 16;
+const rows = compose("down", 0, true).slice(0, 13);
+const cells: { x: number; y: number; c: string }[] = [];
+rows.forEach((row, y) =>
+  [...row].forEach((ch, x) => {
+    const c = cellColour(TWIN_PALETTE, ch, y);
+    if (c && y + 3 < SIZE) cells.push({ x: x + 2, y: y + 3, c });
+  }),
+);
+---
+
+<svg class={className} viewBox={`0 0 ${SIZE} ${SIZE}`} shape-rendering="crispEdges" role="img" aria-label="Dan's pixel character">
+  <rect width={SIZE} height={SIZE} fill={bg} />
+  {cells.map((p) => <rect x={p.x} y={p.y} width="1" height="1" fill={p.c} />)}
+</svg>
