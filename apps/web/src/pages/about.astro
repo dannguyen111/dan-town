@@ -57,21 +57,30 @@ const first = profile.identity.short_name;
     Next stop: the <a href="/dev">Dev Center</a> for projects, or the <a href="/career">Career Hall</a> for my experience.
   </p>
 
-  <dialog slot="screen" class="tv" data-tv aria-labelledby="tv-title">
-    <div class="tv__set">
-      <div class="tv__body">
-        <div class="tv__screen" data-tv-screen></div>
-        <div class="tv__side" aria-hidden="true">
-          <span class="tv__knob"></span>
-          <span class="tv__knob"></span>
-          <span class="tv__grille"></span>
-        </div>
+  <!-- The TV, seen from the couch: the room around it, the video inside the set (town/pov.ts). -->
+  <dialog slot="screen" class="pov-dialog" data-tv aria-labelledby="tv-title">
+    <div class="pov">
+      <canvas class="pov__canvas" aria-hidden="true" data-pov-canvas></canvas>
+      <div class="pov__screen tv__screen" data-tv-screen></div>
+      <div class="pov__bar">
+        <h2 id="tv-title" class="pov__title">CH 23 · LeBron's most clutch moments</h2>
+        <a class="pov__btn" href={`https://www.youtube.com/watch?v=${TV_VIDEO}`} target="_blank" rel="noopener noreferrer">YouTube ↗</a>
+        <button class="pov__btn" type="button" data-tv-off>Turn off</button>
       </div>
-      <div class="tv__bar">
-        <h2 id="tv-title" class="tv__title">CH 23 · LeBron's most clutch moments</h2>
-        <a class="tv__btn" href={`https://www.youtube.com/watch?v=${TV_VIDEO}`} target="_blank" rel="noopener noreferrer">YouTube ↗</a>
-        <button class="tv__btn" type="button" data-tv-off>Turn off</button>
+    </div>
+  </dialog>
+
+  <!-- The computer, sitting down: the twin's live agent traces on the monitor (twin/traces.ts). -->
+  <dialog slot="screen" class="pov-dialog" data-desk aria-labelledby="desk-title">
+    <div class="pov">
+      <canvas class="pov__canvas" aria-hidden="true" data-pov-canvas></canvas>
+      <section class="pov__screen term" data-term aria-label="Agent traces"></section>
+      <div class="pov__bar">
+        <h2 id="desk-title" class="pov__title">Computer · how the twin answered, live</h2>
+        <a class="pov__btn" href="/twin" data-desk-ask>Ask the twin</a>
+        <button class="pov__btn" type="button" data-desk-off>Stand up</button>
       </div>
+      <p class="pov__fine">Only timings, token counts and tool names are kept. Never what anyone asked or what the twin said.</p>
     </div>
   </dialog>
 
@@ -111,24 +120,33 @@ const first = profile.identity.short_name;
 <script>
   import { navigate } from "astro:transitions/client";
   import { formatEastern } from "../town/home";
+  import { PovView } from "../town/pov";
+  import { objectRect, zoomIn } from "../town/zoom";
+  import { TraceTerminal } from "../twin/traces";
   import type { FridgeNote, FridgeTopic } from "@dan-town/api/types";
 
   const VIDEO = "GWshHUF05DM";
   /** The TV was turned on from another page beside the room (the twin's chat). */
   let pending = false;
 
-  // The TV in the living room. The YouTube player only loads once someone turns the TV on, and
-  // is removed again when they turn it off, so the room costs nothing until then.
+  // The TV in the living room, seen from the couch. The YouTube player only loads once someone
+  // turns the TV on, and is removed again when they turn it off, so the room costs nothing until then.
+  let tvView: PovView | null = null;
   function turnOn(tv: HTMLDialogElement) {
     if (tv.open) return;
+    const from = objectRect("tv");
     const frame = document.createElement("iframe");
     frame.src = `https://www.youtube-nocookie.com/embed/${VIDEO}?autoplay=1&rel=0&playsinline=1`;
     frame.title = "LeBron James' Most Clutch Moments, on YouTube";
     frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
     frame.allowFullscreen = true;
     frame.referrerPolicy = "strict-origin-when-cross-origin";
-    tv.querySelector("[data-tv-screen]")!.replaceChildren(frame);
+    const screen = tv.querySelector<HTMLElement>("[data-tv-screen]")!;
+    screen.replaceChildren(frame);
     tv.showModal();
+    tvView = new PovView(tv.querySelector("canvas")!, "tv", { overlay: screen });
+    tvView.start();
+    zoomIn(tv, from);
   }
 
   document.addEventListener("town:tv", () => {
@@ -138,24 +156,68 @@ const first = profile.identity.short_name;
     void navigate("/about");
   });
 
+  // The computer: sit down and the monitor shows the twin's agent traces, updating live.
+  let deskPending = false;
+  let deskView: PovView | null = null;
+  let terminal: TraceTerminal | null = null;
+  function sitDown(desk: HTMLDialogElement) {
+    if (desk.open) return;
+    const from = objectRect("desk");
+    desk.showModal();
+    const screen = desk.querySelector<HTMLElement>("[data-term]")!;
+    deskView = new PovView(desk.querySelector("canvas")!, "desk", { overlay: screen });
+    deskView.start();
+    terminal = new TraceTerminal(screen);
+    terminal.start();
+    zoomIn(desk, from);
+  }
+
+  document.addEventListener("town:desk", () => {
+    const desk = document.querySelector<HTMLDialogElement>("[data-desk]");
+    if (desk) return sitDown(desk);
+    deskPending = true;
+    void navigate("/about");
+  });
+
   document.addEventListener("astro:page-load", () => {
     const tv = document.querySelector<HTMLDialogElement>("[data-tv]");
-    if (!tv) return;
+    const desk = document.querySelector<HTMLDialogElement>("[data-desk]");
+    if (!tv || !desk) return;
     // Removing the player stops the video. Escape closes the dialog without a click, hence "close" too.
     const turnOff = () => {
       tv.querySelector("[data-tv-screen]")!.replaceChildren();
+      tvView?.destroy();
+      tvView = null;
       if (tv.open) tv.close();
     };
     tv.querySelector("[data-tv-off]")!.addEventListener("click", turnOff);
-    // Clicking the room around the TV turns it off too.
-    tv.addEventListener("click", (e) => e.target === tv && turnOff());
     tv.addEventListener("close", () => {
       turnOff();
       document.dispatchEvent(new CustomEvent("town:focus"));
     });
+
+    const standUp = () => {
+      terminal?.stop();
+      terminal = null;
+      deskView?.destroy();
+      deskView = null;
+      if (desk.open) desk.close();
+    };
+    desk.querySelector("[data-desk-off]")!.addEventListener("click", standUp);
+    // Asking the twin opens the chat beside the room; leave the desk first.
+    desk.querySelector("[data-desk-ask]")!.addEventListener("click", standUp);
+    desk.addEventListener("close", () => {
+      standUp();
+      document.dispatchEvent(new CustomEvent("town:focus"));
+    });
+
     if (pending) {
       pending = false;
       turnOn(tv);
+    }
+    if (deskPending) {
+      deskPending = false;
+      sitDown(desk);
     }
   });
 
@@ -318,63 +380,45 @@ const first = profile.identity.short_name;
     font-size: 0.9rem;
   }
 
-  /* ─────────────── the living-room TV: a CRT over the room, not the whole screen ─────────────── */
-  .tv {
-    --ink: #2b1d14;
+  /* ─────────────── close-ups (the TV, the desk): the room fills the space where the map was ─────────────── */
+  .pov-dialog {
     position: fixed;
     inset: var(--header-h) var(--panel-w) 0 0;
-    margin: auto;
-    width: min(calc((100vw - var(--panel-w)) * 0.92), 720px);
-    max-height: calc(100dvh - var(--header-h) - 24px);
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
     padding: 0;
     border: 0;
-    background: none;
-    overflow: visible;
-    font: 11px/1.6 var(--font-retro, monospace);
+    overflow: hidden;
+    background: #2b1d14;
+    font: 10px/1.6 var(--font-retro, monospace);
   }
-  .tv::backdrop {
+  .pov-dialog::backdrop {
     background: rgba(20, 12, 6, 0.55);
   }
-  .tv__set {
+  .pov {
     position: relative;
-    padding: 14px;
-    background: #cfc6b4;
-    border: 4px solid var(--ink);
-    border-radius: 18px;
-    box-shadow:
-      inset -6px -6px 0 rgba(0, 0, 0, 0.12),
-      0 10px 0 var(--ink);
+    width: 100%;
+    height: 100%;
   }
-  /* Rabbit ears */
-  .tv__set::before,
-  .tv__set::after {
-    content: "";
+  .pov__canvas {
     position: absolute;
-    bottom: 100%;
-    left: 50%;
-    width: 4px;
-    height: 56px;
-    background: var(--ink);
-    transform-origin: bottom center;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
   }
-  .tv__set::before {
-    transform: translateX(-50%) rotate(-30deg);
-  }
-  .tv__set::after {
-    transform: translateX(-50%) rotate(30deg);
-  }
-  .tv__body {
-    display: flex;
-    gap: 12px;
+  /* Placed over the screen in the art by PovView (town/pov.ts). */
+  .pov__screen {
+    position: absolute;
+    overflow: hidden;
   }
   .tv__screen {
-    flex: 1;
-    aspect-ratio: 16 / 9;
     background: #22303f;
-    border: 4px solid var(--ink);
-    border-radius: 14px / 18px;
-    overflow: hidden;
-    animation: tv-on 0.45s ease-out;
+    animation: tv-on 0.45s ease-out 0.25s both;
   }
   .tv__screen :global(iframe) {
     display: block;
@@ -392,67 +436,228 @@ const first = profile.identity.short_name;
       filter: brightness(2);
     }
   }
-  .tv__side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    width: 34px;
-    padding-top: 8px;
-  }
-  .tv__knob {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #e0b040 0 3px, #2b1d14 4px);
-  }
-  .tv__grille {
-    width: 26px;
-    height: 40px;
-    background: repeating-linear-gradient(#9a917f 0 3px, transparent 3px 7px);
-  }
-  .tv__bar {
+  .pov__bar {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 12px;
-    margin-top: 12px;
+    padding: 10px 12px;
+    color: #181820;
+    background: rgba(248, 248, 240, 0.95);
+    box-shadow:
+      0 -3px 0 0 #181820,
+      0 3px 0 0 #181820,
+      -3px 0 0 0 #181820,
+      3px 0 0 0 #181820;
   }
-  .tv__title {
+  .pov__title {
     flex: 1;
     min-width: 12em;
     margin: 0;
     font: inherit;
-    color: var(--ink);
   }
-  .tv__btn {
+  .pov__btn {
     min-height: 36px;
     padding: 8px 12px;
     font: inherit;
-    color: var(--ink);
+    color: #181820;
     text-decoration: none;
-    background: #f8f8f0;
-    border: 3px solid var(--ink);
-    border-radius: 6px;
+    background: #ffffff;
+    border: 3px solid #181820;
     cursor: pointer;
   }
-  .tv__btn:hover {
+  .pov__btn:hover,
+  .pov__btn:focus-visible {
     background: var(--sun);
   }
+  .pov__fine {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 12px;
+    margin: 0;
+    font: 8px/1.6 var(--font-retro, monospace);
+    color: #fff8ec;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events: none;
+  }
   @media (max-width: 899px) {
-    .tv {
+    .pov-dialog {
       inset: var(--header-h) 0 0 0;
-      width: min(calc(100vw - 24px), 720px);
-    }
-    .tv__side {
-      display: none;
-    }
-    .tv__set {
-      padding: 10px;
     }
   }
   @media (prefers-reduced-motion: reduce) {
     .tv__screen {
+      animation: none;
+    }
+  }
+
+  /* ─────────────── the desk's monitor: a green-phosphor terminal of agent traces ─────────────── */
+  .term {
+    --px: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    padding: 0.5em 0.7em;
+    overflow: hidden auto;
+    font: clamp(11px, calc(var(--px) * 6.5), 19px) / 1.15 var(--font-terminal, monospace);
+    color: #7dffb0;
+    background:
+      repeating-linear-gradient(rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at center, #12261b, #0b1711 80%);
+    text-shadow: 0 0 4px rgba(125, 255, 176, 0.35);
+    scrollbar-width: thin;
+    scrollbar-color: #3f8f63 transparent;
+  }
+  /* Phones: the monitor is too small to read, so the terminal takes most of the view. */
+  @media (max-width: 599px) {
+    .term {
+      inset: 40px 10px 84px 10px !important;
+      width: auto !important;
+      height: auto !important;
+      outline: 6px solid #2a2a33;
+    }
+  }
+  .term :global(.term__head) {
+    padding-bottom: 0.3em;
+    border-bottom: 1px dashed #3f8f63;
+  }
+  .term :global(.term__l) {
+    display: block;
+  }
+  .term :global(.term__rows) {
+    display: grid;
+    gap: 0.15em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .term :global(.term__line) {
+    display: block;
+    width: 100%;
+    padding: 0.1em 0.2em;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .term :global(.term__line:hover),
+  .term :global(.term__line[aria-expanded="true"]) {
+    background: rgba(125, 255, 176, 0.08);
+  }
+  .term :global(.term__line:focus-visible) {
+    outline: 1px dashed #ffd166;
+  }
+  .term :global(.is-mine) {
+    background: rgba(255, 209, 102, 0.07);
+  }
+  .term :global(.is-new) {
+    animation: term-type 0.7s steps(28) both;
+  }
+  @keyframes term-type {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
+  .term :global(.term__dim) {
+    color: #3f8f63;
+  }
+  .term :global(.term__accent),
+  .term :global(.term__id),
+  .term :global(.term__you) {
+    color: #ffd166;
+  }
+  .term :global(.term__ok) {
+    color: #7dffb0;
+  }
+  .term :global(.term__bad) {
+    color: #ff6b6b;
+  }
+  .term :global(.term__tool) {
+    color: #59f0d0;
+  }
+  .term :global(.term__empty a) {
+    color: #ffd166;
+  }
+  .term :global(.term__prompt),
+  .term :global(.term__status) {
+    margin: 0;
+  }
+  .term :global(.term__prompt::after) {
+    content: "▮";
+    margin-left: 0.2em;
+    animation: term-blink 1s steps(1) infinite;
+  }
+  @keyframes term-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+  .term :global(.term__status) {
+    color: #ffd166;
+  }
+  .term :global(.term__status:empty) {
+    display: none;
+  }
+  .term :global(.wf) {
+    margin: 0.2em 0 0.5em 0.6em;
+    padding-left: 0.5em;
+    border-left: 1px dashed #3f8f63;
+  }
+  .term :global(.wf__row) {
+    display: grid;
+    grid-template-columns: minmax(6em, 10em) 1fr 3.5em;
+    gap: 0.5em;
+    align-items: center;
+    white-space: pre;
+  }
+  .term :global(.wf__label) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .term :global(.wf__track) {
+    position: relative;
+    height: 0.7em;
+    background: rgba(125, 255, 176, 0.06);
+  }
+  .term :global(.wf__bar) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+  }
+  .term :global(.wf__bar--model) {
+    background: #7dffb0;
+  }
+  .term :global(.wf__bar--tool) {
+    background: #ffd166;
+  }
+  .term :global(.wf__bar--bad) {
+    background: #ff6b6b;
+  }
+  .term :global(.wf__wait) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(11, 23, 17, 0.55);
+  }
+  .term :global(.wf__ms) {
+    text-align: right;
+  }
+  .term :global(.wf__legend) {
+    margin: 0.2em 0 0;
+    color: #3f8f63;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .term :global(.is-new),
+    .term :global(.term__prompt::after) {
       animation: none;
     }
   }
