@@ -5,6 +5,7 @@
  * hours are mirrored here. Keep CORE in sync with that page. Busy times come from Google free/busy.
  *
  * - CORE: what the twin offers. Weekdays 9:00–17:00 ET.
+ * - PREFERRED: the part of CORE the twin suggests first. Weekdays 10:00–16:00 ET.
  * - EXTENDED: what a visitor may propose when nothing in CORE works. Mon–Thu 7:30–24:00,
  *   Fri 7:30–17:00 ET (no Friday evenings), never weekends.
  * Every meeting needs NOTICE_H hours' notice and can be at most HORIZON_D days out.
@@ -16,7 +17,7 @@ export const ET = "America/New_York";
 export const DURATIONS = [15, 30] as const;
 export type Duration = (typeof DURATIONS)[number];
 export const NOTICE_H = 24;
-export const HORIZON_D = 14;
+export const HORIZON_D = 30;
 export const SLOT_STEP = 15;
 
 /** Minutes after midnight ET, per ISO weekday (1 = Monday … 7 = Sunday). [start, end) */
@@ -24,6 +25,7 @@ type Hours = Partial<Record<number, [number, number]>>;
 const hm = (h: number, m = 0) => h * 60 + m;
 const weekdays = (from: number, to: number): Hours => Object.fromEntries([1, 2, 3, 4, 5].map((d) => [d, [from, to]]));
 export const CORE: Hours = weekdays(hm(9), hm(17));
+export const PREFERRED: Hours = weekdays(hm(10), hm(16));
 export const EXTENDED: Hours = { ...weekdays(hm(7, 30), hm(24)), 5: [hm(7, 30), hm(17)] };
 
 export const MEETING_LABEL: Record<Duration, string> = { 15: "15-min intro", 30: "30-min chat" };
@@ -166,6 +168,7 @@ export const REASON_TEXT: Record<Exclude<CheckResult, { ok: true }>["reason"], s
 /**
  * Free CORE-hours slots between `from` and `to`, spread out: at most `perDay` a day, at least
  * three hours apart, so a handful of chips covers mornings and afternoons across several days.
+ * Each day fills from PREFERRED hours first and only falls back to the rest of CORE.
  */
 export function findSlots(opts: {
   from: number;
@@ -184,17 +187,17 @@ export function findSlots(opts: {
   // Walk ET days. Starting at noon UTC of each day keeps us safely inside the right ET date.
   const p0 = parts(from, ET);
   for (let day = Date.UTC(p0.y, p0.mo - 1, p0.d, 12); day <= to + DAY && out.length < limit; day += DAY) {
-    const w = windowOn(day, CORE);
-    if (!w) continue;
-    let picked = 0;
-    let last = -Infinity;
-    for (let t = w.start; t + duration * MIN <= w.end && picked < perDay && out.length < limit; t += SLOT_STEP * MIN) {
-      if (t < from || t > to || t - last < 3 * HOUR) continue;
-      if (overlaps({ start: t, end: t + duration * MIN }, busy)) continue;
-      out.push(t);
-      last = t;
-      picked++;
+    const picked: number[] = [];
+    for (const hours of [PREFERRED, CORE]) {
+      const w = windowOn(day, hours);
+      if (!w) continue;
+      for (let t = w.start; t + duration * MIN <= w.end && picked.length < perDay; t += SLOT_STEP * MIN) {
+        if (t < from || t > to || picked.some((p) => Math.abs(t - p) < 3 * HOUR)) continue;
+        if (overlaps({ start: t, end: t + duration * MIN }, busy)) continue;
+        picked.push(t);
+      }
     }
+    out.push(...picked.sort((a, b) => a - b).slice(0, limit - out.length));
   }
   return out;
 }

@@ -47,7 +47,7 @@ describe("checkTime", () => {
     ["Fri 4:45 PM, 30 min (runs past 5)", "2026-10-09T20:45:00Z", 30, { ok: false, reason: "outside_hours" }],
     ["Sat 10 AM", "2026-10-10T14:00:00Z", 30, { ok: false, reason: "outside_hours" }],
     ["Tue 7:30 AM (under 24h notice)", "2026-10-06T11:30:00Z", 30, { ok: false, reason: "too_soon" }],
-    ["15 days out", "2026-10-20T14:00:00Z", 30, { ok: false, reason: "too_far" }],
+    ["31 days out", "2026-11-05T15:00:00Z", 30, { ok: false, reason: "too_far" }],
     ["45 minutes", "2026-10-07T14:00:00Z", 45, { ok: false, reason: "bad_duration" }],
   ])("%s", (_label, start, duration, expected) => {
     expect(checkTime(at(start), duration, [], NOW)).toEqual(expected);
@@ -69,26 +69,32 @@ describe("checkTime", () => {
 describe("findSlots", () => {
   const week = { from: NOW, to: NOW + 7 * 86_400_000, duration: 30 as const, now: NOW };
 
-  it("offers spread-out weekday core-hour slots, starting after the notice period", () => {
+  it("offers spread-out weekday slots in preferred hours, starting after the notice period", () => {
     expect(findSlots({ ...week, busy: [] }).map(iso)).toEqual([
-      "2026-10-06T13:00:00.000Z", // Tue 9 AM
-      "2026-10-06T16:00:00.000Z", // Tue 12 PM
-      "2026-10-07T13:00:00.000Z",
-      "2026-10-07T16:00:00.000Z",
-      "2026-10-08T13:00:00.000Z",
-      "2026-10-08T16:00:00.000Z",
+      "2026-10-06T14:00:00.000Z", // Tue 10 AM
+      "2026-10-06T17:00:00.000Z", // Tue 1 PM
+      "2026-10-07T14:00:00.000Z",
+      "2026-10-07T17:00:00.000Z",
+      "2026-10-08T14:00:00.000Z",
+      "2026-10-08T17:00:00.000Z",
     ]);
+  });
+
+  it("falls back to the rest of core hours when preferred hours are busy", () => {
+    const busy = [{ start: t("2026-10-06T14:00:00Z"), end: t("2026-10-06T20:00:00Z") }]; // Tue 10 AM–4 PM
+    const slots = findSlots({ ...week, busy, from: t("2026-10-06T00:00:00Z"), to: t("2026-10-07T00:00:00Z") }).map(iso);
+    expect(slots).toEqual(["2026-10-06T13:00:00.000Z", "2026-10-06T20:00:00.000Z"]); // Tue 9 AM, 4 PM
   });
 
   it("skips busy times and weekends", () => {
     const busy = [{ start: t("2026-10-06T12:00:00Z"), end: t("2026-10-06T21:00:00Z") }]; // all of Tuesday
     const slots = findSlots({ ...week, busy, from: t("2026-10-06T00:00:00Z"), limit: 3 }).map(iso);
-    expect(slots).toEqual(["2026-10-07T13:00:00.000Z", "2026-10-07T16:00:00.000Z", "2026-10-08T13:00:00.000Z"]);
+    expect(slots).toEqual(["2026-10-07T14:00:00.000Z", "2026-10-07T17:00:00.000Z", "2026-10-08T14:00:00.000Z"]);
     const fri = findSlots({ ...week, busy: [], from: t("2026-10-09T17:00:00Z"), to: t("2026-10-13T00:00:00Z"), limit: 2, perDay: 1 }).map(iso);
-    expect(fri).toEqual(["2026-10-09T17:00:00.000Z", "2026-10-12T13:00:00.000Z"]); // Fri 1 PM, then Monday
+    expect(fri).toEqual(["2026-10-09T17:00:00.000Z", "2026-10-12T14:00:00.000Z"]); // Fri 1 PM, then Monday
   });
 
   it("never goes past the horizon", () => {
-    expect(findSlots({ ...week, busy: [], from: t("2026-10-19T00:00:00Z"), to: t("2026-10-30T00:00:00Z") })).toEqual([]);
+    expect(findSlots({ ...week, busy: [], from: t("2026-11-05T00:00:00Z"), to: t("2026-11-20T00:00:00Z") })).toEqual([]);
   });
 });

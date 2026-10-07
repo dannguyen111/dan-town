@@ -91,7 +91,7 @@ describe("tools", () => {
     const { ctx: c, events } = ctx();
     const out = (await runTool({ id: "x", name: "check_availability", arguments: '{"duration":15,"from_date":"2026-10-07","to_date":"2026-10-07"}' }, c)) as any;
     expect(out.slots).toHaveLength(2);
-    expect(events[0]).toMatchObject({ t: "slots", v: [{ start: "2026-10-07T13:00:00.000Z", duration: 15, local: "Wed, Oct 7, 8:00 AM CDT" }, {}] });
+    expect(events[0]).toMatchObject({ t: "slots", v: [{ start: "2026-10-07T14:00:00.000Z", duration: 15, local: "Wed, Oct 7, 9:00 AM CDT" }, {}] });
   });
 
   it("check_time accepts a free evening as a custom slot, and offers alternatives when busy", async () => {
