@@ -37,3 +37,36 @@ const LINK_LABELS: Record<string, string> = { demo: "Demo ↗", code: "Code ↗"
 /** A project's links with short console labels. */
 export const projectLinks = (p: Project) =>
   Object.entries(p.links).map(([kind, href]) => ({ kind, label: LINK_LABELS[kind] ?? `${kind} ↗`, href, external: href.startsWith("http") }));
+
+/** Roles and projects flagged `research: true`, newest first: the Research Lab's poster wall. */
+export const researchEntries = () =>
+  [
+    ...profile.experience
+      .filter((e) => e.research)
+      .map((e) => ({
+        id: `r-${e.id}`,
+        kind: "role" as const,
+        title: e.role,
+        org: e.org,
+        sub: `${e.org}${e.location ? ` · ${e.location}` : ""} · ${formatRange(e.start, e.end)}`,
+        start: e.start,
+        question: e.highlights[0] ?? "",
+        findings: e.highlights.slice(1),
+        methods: e.skills,
+        links: [] as { label: string; href: string }[],
+      })),
+    ...profile.projects
+      .filter((p) => p.research)
+      .map((p) => ({
+        id: `p-${p.id}`,
+        kind: "project" as const,
+        title: p.title,
+        org: "",
+        sub: projectWhen(p),
+        start: p.start ?? p.date,
+        question: p.tagline,
+        findings: [] as string[],
+        methods: p.tags,
+        links: [{ label: "Full debrief →", href: `/projects/${p.id}` }, ...projectLinks(p).map((l) => ({ label: l.label, href: l.href }))],
+      })),
+  ].sort((a, b) => b.start.localeCompare(a.start));

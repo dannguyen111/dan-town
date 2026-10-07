@@ -66,7 +66,7 @@ export function renderTwinContext(profile: Profile): string {
 
   h("Experience");
   for (const e of p.experience) {
-    lines.push(`### ${e.role}, ${e.org} (${fmtRange(e.start, e.end)}${e.location ? `, ${e.location}` : ""})`);
+    lines.push(`### ${e.role}, ${e.org} (${fmtRange(e.start, e.end)}${e.location ? `, ${e.location}` : ""})${e.research ? " [research]" : ""}`);
     lines.push(...e.highlights.map((x) => `- ${x}`));
     if (e.skills.length) lines.push(`Skills: ${e.skills.join(", ")}`);
   }
@@ -80,11 +80,17 @@ export function renderTwinContext(profile: Profile): string {
 
   h("Projects");
   for (const pr of p.projects) {
-    lines.push(`### ${pr.title} (${pr.start ? fmtRange(pr.start, pr.end ?? null) : pr.date})`, pr.tagline);
+    lines.push(`### ${pr.title} (${pr.start ? fmtRange(pr.start, pr.end ?? null) : pr.date})${pr.research ? " [research]" : ""}`, pr.tagline);
     if (pr.tags.length) lines.push(`Tags: ${pr.tags.join(", ")}`);
     const links = Object.entries(pr.links).map(([k, v]) => `${k}: ${v}`);
     if (links.length) lines.push(`Links: ${links.join(" · ")}`);
     if (pr.body.trim()) lines.push(pr.body.trim());
+  }
+
+  if (p.research.statement || p.research.interests.length) {
+    h("Research interests");
+    if (p.research.statement) lines.push(p.research.statement);
+    lines.push(...p.research.interests.map((i) => `- ${i.text}`));
   }
 
   h("Skills");

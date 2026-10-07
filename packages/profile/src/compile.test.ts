@@ -12,6 +12,12 @@ experience:
   - { id: a, role: Public Role, org: Acme, start: 2024-01, end: null, highlights: [Did public things] }
   - { id: b, role: Twin Role, org: Hidden Co, start: 2023-01, end: 2023-06, visibility: twin }
   - { id: c, role: Private Role, org: Stealth, start: 2022-01, end: 2022-02, visibility: private }
+  - { id: d, role: Lab Assistant, org: Uni, start: 2021-01, end: 2021-06, research: true }
+research:
+  statement: I want to study things.
+  interests:
+    - { text: Public interest }
+    - { text: Secret interest, visibility: private }
 twin:
   notes:
     - { text: Twin-only fact, visibility: twin }
@@ -25,7 +31,7 @@ describe("profile compiler", () => {
   it("public view drops twin, private and the private block", () => {
     const pub = projectFor(profile, "public");
     const json = JSON.stringify(pub);
-    expect(pub.experience.map((e) => e.id)).toEqual(["a"]);
+    expect(pub.experience.map((e) => e.id)).toEqual(["a", "d"]);
     expect(json).not.toContain("Hidden Co");
     expect(json).not.toContain("Stealth");
     expect(json).not.toContain("secret.example");
@@ -41,6 +47,17 @@ describe("profile compiler", () => {
     expect(ctx).not.toContain("Stealth");
     expect(ctx).not.toContain("secret.example");
     expect(ctx).not.toContain("999");
+  });
+
+  it("keeps research flags and public research interests", () => {
+    const pub = projectFor(profile, "public");
+    expect(pub.experience.find((e) => e.id === "d")?.research).toBe(true);
+    expect(pub.experience.find((e) => e.id === "a")?.research).toBe(false);
+    expect(pub.research.interests.map((i) => i.text)).toEqual(["Public interest"]);
+    const ctx = renderTwinContext(profile);
+    expect(ctx).toContain("Lab Assistant, Uni (2021-01 – 2021-06) [research]");
+    expect(ctx).toContain("I want to study things.");
+    expect(ctx).not.toContain("Secret interest");
   });
 
   it("full export includes everything (for private resume workflows)", () => {

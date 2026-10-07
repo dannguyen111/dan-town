@@ -23,6 +23,8 @@ const Experience = z.object({
   end: YearMonth.nullable(),
   highlights: z.array(z.string()).default([]),
   skills: z.array(z.string()).default([]),
+  /** Research experience: also shown in the Research Lab. */
+  research: z.boolean().default(false),
   visibility: Visibility,
 });
 
@@ -51,6 +53,8 @@ const Project = z.object({
   tags: z.array(z.string()).default([]),
   links: z.record(z.string(), Url).prefault({}),
   body: z.string().default(""),
+  /** A research project: also shown in the Research Lab. */
+  research: z.boolean().default(false),
   visibility: Visibility,
 });
 
@@ -79,6 +83,12 @@ const Interest = z.object({
   visibility: Visibility,
 });
 
+/** The Research Lab's whiteboard: what Dan wants to study next. */
+const Research = z.object({
+  statement: z.string().default(""),
+  interests: z.array(z.object({ text: z.string(), visibility: Visibility })).default([]),
+});
+
 const TwinNote = z.object({ text: z.string(), visibility: Visibility });
 
 export const ProfileSchema = z.object({
@@ -103,6 +113,7 @@ export const ProfileSchema = z.object({
   skills: z.array(SkillGroup).default([]),
   honors: z.array(Honor).default([]),
   interests: z.array(Interest).default([]),
+  research: Research.prefault({}),
   twin: z
     .object({
       voice: z.string().default("Friendly and concise, first person."),

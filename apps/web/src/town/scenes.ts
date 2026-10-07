@@ -6,6 +6,7 @@ import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN, bakeArcade } from "./arcad
 import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, bakeDev, drawDevLive } from "./dev.ts";
 import type { Dir } from "./grid.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, bakeHome, drawHomeLive, drawHomeOver } from "./home.ts";
+import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN, bakeLab, drawLabLive } from "./lab.ts";
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
 import { bakeWorld } from "./world.ts";
 
@@ -63,7 +64,22 @@ export const INTERIORS: Record<string, Scene> = {
     retro: true,
     intro: {
       title: "Dev Center",
-      text: "Mission control. LeBronette at the front desk can tell you all about Dan. Check the viewscreen, the stack radar and the telemetry wall. Step on the mat to leave.",
+      text: "Mission control. LeBronette at the front desk can tell you all about Dan. The viewscreen runs his projects, roles, school and honors; check the stack radar and the telemetry wall too. Step on the mat to leave.",
+    },
+  },
+  lab: {
+    id: "lab",
+    ground: LAB_GROUND,
+    objects: LAB_OBJECTS,
+    spawn: LAB_SPAWN,
+    face: "up",
+    backdrop: "#10201b",
+    bake: bakeLab,
+    live: { draw: drawLabLive, everyMs: 1000 },
+    retro: true,
+    intro: {
+      title: "Research Lab",
+      text: "Dan's research. Read the poster wall, see what's next on the whiteboard, and look over the methods on the lab bench. Step on the mat to leave.",
     },
   },
   home: {

@@ -31,7 +31,7 @@ const C = {
 const BUILDING_THEMES: Record<string, { wall: string; roof: string; roofDark: string; trim: string }> = {
   home: { wall: "#fff1d6", roof: "#e76f51", roofDark: "#c0533a", trim: "#f4a261" },
   dev: { wall: "#e8f1ff", roof: "#4a7bd1", roofDark: "#355fa8", trim: "#9dc0ff" },
-  career: { wall: "#f6efe6", roof: "#8a6fbf", roofDark: "#6c539e", trim: "#cbb8ee" },
+  lab: { wall: "#f2f7f5", roof: "#3f8f7a", roofDark: "#2d6b5b", trim: "#9fe0cc" },
   music: { wall: "#ffe3ef", roof: "#d1497a", roofDark: "#a8355f", trim: "#ffa8c8" },
   arcade: { wall: "#3a3160", roof: "#ff7a59", roofDark: "#d95a3c", trim: "#59f0d0" },
 };
@@ -168,10 +168,18 @@ function building(ctx: Ctx, o: TownObject) {
     const sy = py + 4;
     const glyph = ["..#.......#..", ".#....#....#.", "#....#......#", ".#..#......#.", "..#.#.....#.."];
     glyph.forEach((row, y) => [...row].forEach((c, x) => c === "#" && rect(ctx, "#ffffff", sx + x, sy + y, 1, 1)));
-  } else if (o.style === "career") {
-    for (const cx of [px + 4, px + W - 6]) rect(ctx, "#ffffff", cx, py + roofH, 2, H - roofH - 3);
-    rect(ctx, "#ffd166", px + W / 2 - 3, py + 3, 6, 5);
-    rect(ctx, INK, px + W / 2 - 1, py + 2, 2, 1);
+  } else if (o.style === "lab") {
+    // A satellite dish and a vent on the roof, and a flask bubbling green on the roof sign.
+    rect(ctx, INK, px + 6, py - 6, 1, 6);
+    rect(ctx, "#d7e3ea", px + 3, py - 9, 8, 2);
+    rect(ctx, "#d7e3ea", px + 4, py - 7, 6, 1);
+    rect(ctx, "#ff7a59", px + 6, py - 11, 1, 2);
+    rect(ctx, INK, px + W - 11, py - 5, 7, 5);
+    rect(ctx, "#b8c4cc", px + W - 10, py - 4, 5, 4);
+    for (let i = 0; i < 3; i++) rect(ctx, "#7c8a93", px + W - 10, py - 3 + i, 5, 1 - (i % 2));
+    const flask = ["..oo..", "..oo..", ".o..o.", "o.gg.o", "oggggo", ".oooo."];
+    const fx = px + W / 2 - 3;
+    flask.forEach((row, y) => [...row].forEach((c, x) => c !== "." && rect(ctx, c === "g" ? "#7dffb0" : "#ffffff", fx + x, py + 3 + y, 1, 1)));
   } else if (o.style === "music") {
     const note = ["..##", "..#.", "..#.", "###.", "##.."];
     note.forEach((row, y) => [...row].forEach((c, x) => c === "#" && rect(ctx, "#ffffff", px + W / 2 - 2 + x, py + 3 + y, 1, 1)));
