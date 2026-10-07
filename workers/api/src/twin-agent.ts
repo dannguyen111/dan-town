@@ -6,7 +6,9 @@
  * goes straight from a form to /api/twin/book, which re-checks everything server-side and waits for
  * Dan's approval. Tool arguments are validated with zod; anything off-schema runs nothing.
  *
- * Output is NDJSON, one event per line: {"t":"text","v":"…"} | {"t":"slots","v":[…]} | {"t":"error","v":"…"}
+ * Output is NDJSON, one event per line: {"t":"run","v":"<trace id>"} | {"t":"text","v":"…"} |
+ * {"t":"slots","v":[…]} | {"t":"error","v":"…"}. Each run also records a Trace (timings, token
+ * counts, tool names) for the computer at Home.
  */
 import { z } from "zod";
 import type { Env } from "./env.ts";
@@ -26,7 +28,7 @@ import {
   toSlot,
 } from "./schedule.ts";
 
-import type { TwinEvent } from "./types.ts";
+import type { Trace, TraceRound, TwinEvent } from "./types.ts";
 export type { TwinEvent };
 
 export interface ToolContext {
@@ -198,18 +200,42 @@ export async function* sseFrames(body: ReadableStream<Uint8Array>): AsyncGenerat
   if (last !== undefined) yield last;
 }
 
-/** Reads one streamed completion: text deltas go to `onText`, tool-call fragments are stitched together. */
-export async function readCompletion(body: ReadableStream<Uint8Array>, onText: (s: string) => void): Promise<{ text: string; calls: ToolCall[] }> {
+/** Token usage from the final SSE frame, as OpenRouter reports it. */
+export interface Usage {
+  in: number | null;
+  cached: number | null;
+  out: number | null;
+  cost: number | null;
+}
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/**
+ * Reads one streamed completion: text deltas go to `onText`, tool-call fragments are stitched together.
+ * Also returns the usage block (when the provider sends one) and when the first delta arrived.
+ */
+export async function readCompletion(
+  body: ReadableStream<Uint8Array>,
+  onText: (s: string) => void,
+): Promise<{ text: string; calls: ToolCall[]; usage: Usage | null; firstAt: number | null }> {
   let text = "";
+  let usage: Usage | null = null;
+  let firstAt: number | null = null;
   const calls: ToolCall[] = [];
   for await (const frame of sseFrames(body)) {
+    if (frame?.usage && typeof frame.usage === "object") {
+      const u = frame.usage;
+      usage = { in: num(u.prompt_tokens), cached: num(u.prompt_tokens_details?.cached_tokens), out: num(u.completion_tokens), cost: num(u.cost) };
+    }
     const delta = frame?.choices?.[0]?.delta;
     if (!delta) continue;
     if (typeof delta.content === "string" && delta.content) {
+      firstAt ??= Date.now();
       text += delta.content;
       onText(delta.content);
     }
     for (const tc of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
+      firstAt ??= Date.now();
       const i = typeof tc.index === "number" ? tc.index : calls.length;
       const call = (calls[i] ??= { id: "", name: "", arguments: "" });
       if (tc.id) call.id = tc.id;
@@ -217,7 +243,19 @@ export async function readCompletion(body: ReadableStream<Uint8Array>, onText: (
       if (tc.function?.arguments) call.arguments += tc.function.arguments;
     }
   }
-  return { text, calls: calls.filter((c) => c && c.name).map((c, i) => ({ ...c, id: c.id || `call_${i}` })) };
+  return { text, calls: calls.filter((c) => c && c.name).map((c, i) => ({ ...c, id: c.id || `call_${i}` })), usage, firstAt };
+}
+
+/** Did a tool result come back usable? Errors and an unreachable calendar count as failures. */
+const toolOk = (result: unknown) => {
+  if (!result || typeof result !== "object") return true;
+  return !("error" in result) && (result as { available?: unknown }).available !== false;
+};
+
+/** A fresh trace for one reply. `runAgent` fills in the rounds; the caller sets `ok` and `totalMs`. */
+export function newTrace(model: string, now = Date.now()): Trace {
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+  return { id, at: new Date(now).toISOString(), model, totalMs: 0, ok: false, cost: null, rounds: [] };
 }
 
 export interface AgentOptions {
@@ -227,19 +265,25 @@ export interface AgentOptions {
   messages: unknown[];
   ctx: ToolContext;
   maxRounds?: number;
+  /** Filled in as the run goes: round timings, token usage and tool calls (names only). */
+  trace?: Trace;
 }
 
 /**
  * Model → tools → model, at most `maxRounds` completions. The last round can't call tools, so the
  * visitor always gets an answer. Text streams to the visitor as it arrives in every round.
  */
-export async function runAgent({ env, request, messages, ctx, maxRounds = 3 }: AgentOptions): Promise<void> {
+export async function runAgent({ env, request, messages, ctx, maxRounds = 3, trace }: AgentOptions): Promise<void> {
   const convo = [...messages];
+  const start = trace ? Date.parse(trace.at) : Date.now();
   let said = "";
   for (let round = 0; round < maxRounds; round++) {
+    const t0 = Date.now();
     const res = await openrouter(env, "/chat/completions", {
       ...request,
       stream: true,
+      // OpenRouter adds token counts, cached tokens and cost to the last frame.
+      usage: { include: true },
       messages: convo,
       tools: TOOL_DEFS,
       tool_choice: round === maxRounds - 1 ? "none" : "auto",
@@ -250,12 +294,25 @@ export async function runAgent({ env, request, messages, ctx, maxRounds = 3 }: A
     }
     // Keep sentences from separate rounds apart.
     let first = true;
-    const { text, calls } = await readCompletion(res.body, (d) => {
+    const { text, calls, usage, firstAt } = await readCompletion(res.body, (d) => {
       if (first && said && !/\s$/.test(said)) ctx.emit({ t: "text", v: "\n\n" });
       first = false;
       said += d;
       ctx.emit({ t: "text", v: d });
     });
+    const step: TraceRound = {
+      t0: t0 - start,
+      ms: Date.now() - t0,
+      ttftMs: firstAt === null ? null : firstAt - t0,
+      in: usage?.in ?? null,
+      cached: usage?.cached ?? null,
+      out: usage?.out ?? null,
+      tools: [],
+    };
+    if (trace) {
+      trace.rounds.push(step);
+      if (usage?.cost != null) trace.cost = (trace.cost ?? 0) + usage.cost;
+    }
     if (!calls.length) return;
     convo.push({
       role: "assistant",
@@ -263,7 +320,10 @@ export async function runAgent({ env, request, messages, ctx, maxRounds = 3 }: A
       tool_calls: calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments } })),
     });
     for (const call of calls) {
-      convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(await runTool(call, ctx)) });
+      const c0 = Date.now();
+      const result = await runTool(call, ctx);
+      step.tools.push({ name: call.name, t0: c0 - start, ms: Date.now() - c0, ok: toolOk(result) });
+      convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
     }
   }
 }

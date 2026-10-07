@@ -68,7 +68,8 @@
 		}
 	],
 	// SQLite-backed Durable Objects, created on deploy: the arcade robot's win/loss record, the
-	// notes visitors pin on the fridge at Home, and meeting requests from the twin chat.
+	// notes visitors pin on the fridge at Home, meeting requests from the twin chat, and the twin's
+	// recent run traces (timings and token counts only) for the computer at Home.
 	"durable_objects": {
 		"bindings": [
 			{
@@ -82,6 +83,10 @@
 			{
 				"name": "BOOKING",
 				"class_name": "BookingStore"
+			},
+			{
+				"name": "TRACES",
+				"class_name": "TraceStore"
 			}
 		]
 	},
@@ -97,6 +102,10 @@
 		{
 			"tag": "v3",
 			"new_sqlite_classes": ["BookingStore"]
+		},
+		{
+			"tag": "v4",
+			"new_sqlite_classes": ["TraceStore"]
 		}
 	],
 	// Emails Dan when someone leaves a note (from fridge@) or asks for a meeting (from twin@), at the

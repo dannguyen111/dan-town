@@ -1,6 +1,7 @@
 import type { FridgeStore } from "./fridge-store.ts";
 import type { MancalaRecordStore } from "./mancala-store.ts";
 import type { BookingStore } from "./booking-store.ts";
+import type { TraceStore } from "./trace-store.ts";
 
 export interface Env {
   ASSETS: Fetcher;
@@ -16,6 +17,8 @@ export interface Env {
   FRIDGE_LIMITER: RateLimit;
   /** Meeting requests visitors send from the twin chat (one SQLite-backed Durable Object). */
   BOOKING: DurableObjectNamespace<BookingStore>;
+  /** The twin's recent run traces, shown on the computer at Home (one SQLite-backed Durable Object). */
+  TRACES: DurableObjectNamespace<TraceStore>;
   /** Emails Dan about new notes. Optional so the site still works before Email Sending is set up. */
   FRIDGE_MAIL?: SendEmail;
 

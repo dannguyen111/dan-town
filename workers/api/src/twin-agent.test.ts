@@ -8,7 +8,7 @@ vi.mock("./generated/twin-context.ts", () => ({
   INTEGRATIONS: { github: { username: null }, leetcode: { username: null }, spotify: { enabled: false } },
 }));
 
-const { readCompletion, runAgent, runTool, TOOL_DEFS } = await import("./twin-agent.ts");
+const { newTrace, readCompletion, runAgent, runTool, TOOL_DEFS } = await import("./twin-agent.ts");
 const { handleTwin } = await import("./twin.ts");
 type TwinEvent = import("./twin-agent.ts").TwinEvent;
 type ToolContext = import("./twin-agent.ts").ToolContext;
@@ -46,8 +46,16 @@ describe("readCompletion", () => {
       "data: [DONE]\n\n",
     ]);
     const out = await readCompletion(body, (d) => seen.push(d));
-    expect(out).toEqual({ text: "Hello!", calls: [] });
+    expect(out).toMatchObject({ text: "Hello!", calls: [], usage: null });
+    expect(out.firstAt).toEqual(expect.any(Number));
     expect(seen).toEqual(["Hel", "lo!"]);
+  });
+
+  it("reads token usage and cost from the final frame", async () => {
+    const usage = { prompt_tokens: 3100, completion_tokens: 58, prompt_tokens_details: { cached_tokens: 2600 }, cost: 0.0004 };
+    const body = stream([frame({ content: "Hi" }), `data: ${JSON.stringify({ choices: [], usage })}\n\n`, "data: [DONE]\n\n"]);
+    const out = await readCompletion(body, () => {});
+    expect(out.usage).toEqual({ in: 3100, cached: 2600, out: 58, cost: 0.0004 });
   });
 
   it("stitches tool-call fragments together", async () => {
@@ -125,6 +133,28 @@ describe("runAgent", () => {
     expect(second.tools).toHaveLength(2);
   });
 
+  it("records a trace: rounds, tool timings and usage, but never arguments or text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(toolCall("check_availability", { duration: 30, from_date: "2026-10-07", to_date: "2026-10-07" }))
+        .mockResolvedValueOnce(
+          new Response(stream([frame({ content: "Wednesday works." }), `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 900, completion_tokens: 4, prompt_tokens_details: { cached_tokens: 800 }, cost: 0.001 } })}\n\n`])),
+        ),
+    );
+    const trace = newTrace("m", NOW);
+    await runAgent({ env, request: { model: "m" }, messages: [{ role: "user", content: "secret question" }], ctx: ctx({ freeBusy: null }).ctx, trace });
+
+    expect(trace.id).toMatch(/^[0-9a-f]{8}$/);
+    expect(trace.rounds).toHaveLength(2);
+    expect(trace.rounds[0]!.tools).toEqual([{ name: "check_availability", t0: expect.any(Number), ms: expect.any(Number), ok: false }]);
+    expect(trace.rounds[1]).toMatchObject({ in: 900, cached: 800, out: 4, tools: [] });
+    expect(trace.cost).toBe(0.001);
+    const saved = JSON.stringify(trace);
+    for (const leak of ["secret", "Wednesday", "from_date", "2026-10-07"]) expect(saved).not.toContain(leak);
+  });
+
   it("stops after maxRounds, and the last round can't call tools", async () => {
     const fetchMock = vi.fn().mockImplementation(async () => toolCall("check_availability", { duration: 30 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -148,15 +178,28 @@ describe("handleTwin", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sse({ content: "Hi " }, { content: "there!" })));
     const res = await handleTwin(post({ messages: [{ role: "user", content: "hi" }] }), twinEnv);
     expect(res.headers.get("Content-Type")).toContain("application/x-ndjson");
-    expect(await lines(res)).toEqual([
+    const out = await lines(res);
+    expect(out[0]).toEqual({ t: "run", v: expect.stringMatching(/^[0-9a-f]{8}$/) });
+    expect(out.slice(1)).toEqual([
       { t: "text", v: "Hi " },
       { t: "text", v: "there!" },
     ]);
   });
 
+  it("saves the finished trace, marked failed when the upstream fails", async () => {
+    const append = vi.fn(async () => {});
+    const withStore = { ...twinEnv, TRACES: { idFromName: () => "id", get: () => ({ append }) } } as unknown as Env;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("down", { status: 500 })));
+    let done: Promise<unknown> = Promise.resolve();
+    const res = await handleTwin(post({ messages: [{ role: "user", content: "hi" }] }), withStore, { waitUntil: (p) => void (done = p) });
+    await res.text();
+    await done;
+    expect(append).toHaveBeenCalledWith(expect.objectContaining({ model: "openai/test", ok: false, totalMs: expect.any(Number) }));
+  });
+
   it("turns an upstream failure into an error event", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("down", { status: 500 })));
     const res = await handleTwin(post({ messages: [{ role: "user", content: "hi" }] }), twinEnv);
-    expect(await lines(res)).toEqual([{ t: "error", v: "My brain is offline for a moment. Try again soon!" }]);
+    expect((await lines(res)).slice(1)).toEqual([{ t: "error", v: "My brain is offline for a moment. Try again soon!" }]);
   });
 });

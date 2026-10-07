@@ -50,8 +50,62 @@ export interface Slot {
   custom?: boolean;
 }
 
-/** One line of the NDJSON stream `POST /api/twin` returns. */
-export type TwinEvent = { t: "text"; v: string } | { t: "slots"; v: Slot[] } | { t: "error"; v: string };
+/** One line of the NDJSON stream `POST /api/twin` returns. `run` carries the id of this reply's trace. */
+export type TwinEvent = { t: "text"; v: string } | { t: "slots"; v: Slot[] } | { t: "error"; v: string } | { t: "run"; v: string };
+
+/** One tool call inside a round. `t0` is ms since the run started. Arguments are never kept. */
+export interface TraceTool {
+  name: string;
+  t0: number;
+  ms: number;
+  ok: boolean;
+}
+
+/** One model completion. Token counts are null when the provider didn't report usage. */
+export interface TraceRound {
+  t0: number;
+  ms: number;
+  /** Time to the first streamed token, or null when nothing streamed. */
+  ttftMs: number | null;
+  in: number | null;
+  cached: number | null;
+  out: number | null;
+  tools: TraceTool[];
+}
+
+/**
+ * How one twin reply was produced, for the computer's trace viewer. Only timings, token counts and
+ * tool names: never the visitor's words, the reply, tool arguments or anything about the visitor.
+ */
+export interface Trace {
+  id: string;
+  /** ISO time the run started. */
+  at: string;
+  model: string;
+  totalMs: number;
+  ok: boolean;
+  /** USD, as reported by OpenRouter. Null when not reported. */
+  cost: number | null;
+  rounds: TraceRound[];
+}
+
+export interface TraceSummary {
+  runs24h: number;
+  p50Ms: number | null;
+  p95Ms: number | null;
+  /** Share of prompt tokens served from the provider's cache, 0–1. Null without usage data. */
+  cacheHit: number | null;
+  /** Average USD per reply. Null without cost data. */
+  avgCost: number | null;
+  /** How often each tool was called across the kept traces. */
+  tools: Record<string, number>;
+}
+
+/** Shape of `GET /api/traces`. Newest first. */
+export interface TracesResponse {
+  summary: TraceSummary;
+  traces: Trace[];
+}
 
 /** Body of `POST /api/twin/book`. */
 export interface BookingRequestBody {
