@@ -30,6 +30,14 @@ describe("SentenceChunker", () => {
     ]);
   });
 
+  it("lets only the first clip end at a long enough clause", () => {
+    const c = new SentenceChunker();
+    expect(c.push("I'm a software engineer at a big company, currently")).toEqual(["I'm a software engineer at a big company,"]);
+    expect(c.push(" building AI apps, mostly in TypeScript and Python, for")).toEqual([]);
+    expect(c.flush()).toEqual(["currently building AI apps, mostly in TypeScript and Python, for"]);
+    expect(feed(["Hi there, nice to meet you. "])).toEqual(["Hi there, nice to meet you."]); // clause too short
+  });
+
   it("joins very short sentences with the next one", () => {
     expect(feed(["Hi! Yes. I'd be glad to tell you about the arcade bot."])).toEqual(["Hi! Yes. I'd be glad to tell you about the arcade bot."]);
   });
