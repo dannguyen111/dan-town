@@ -73,6 +73,8 @@ export function setupChat(root: HTMLElement) {
     send.disabled = true;
     suggest.hidden = true;
     speech.stop();
+    // Sending is a user gesture: re-unlock audio, since a remembered "voice on" never got one.
+    if (voice) unlockAudio();
     add("user", question);
     history.push({ role: "user", content: question });
     const item = add("twin");

@@ -21,13 +21,17 @@ export function cleanForSpeech(md: string): string {
 const ABBREVIATIONS = /(?:\b(?:e\.g|i\.e|etc|vs|mr|mrs|ms|dr|jr|sr|st|approx|incl)|\b[A-Z])\.$/i;
 const MIN = 24;
 const MAX = 300;
+/** The first clip of a reply may end at a comma once it's this long, so the voice starts sooner. */
+const FIRST_CLAUSE = 40;
 
 /**
  * Collects streamed text and hands back whole sentences. Very short sentences are held and joined
  * with the next one (fewer, smoother audio clips); runaway sentences are cut at MAX characters.
+ * The first clip can be a single clause, since everything waits on it.
  */
 export class SentenceChunker {
   private buffer = "";
+  private first = true;
 
   push(delta: string): string[] {
     this.buffer += delta;
@@ -37,6 +41,7 @@ export class SentenceChunker {
       if (cut < 0) break;
       out.push(this.buffer.slice(0, cut));
       this.buffer = this.buffer.slice(cut);
+      this.first = false;
     }
     return out.map(cleanForSpeech).filter(Boolean);
   }
@@ -58,6 +63,12 @@ export class SentenceChunker {
       if (m[1] && m[1].endsWith(".") && ABBREVIATIONS.test(b.slice(0, end))) continue;
       if (cleanForSpeech(b.slice(0, end)).length < MIN) continue;
       return end;
+    }
+    if (this.first) {
+      const clause = /[,;:](?=\s)/g;
+      for (let m = clause.exec(b); m; m = clause.exec(b)) {
+        if (cleanForSpeech(b.slice(0, m.index + 1)).length >= FIRST_CLAUSE) return m.index + 1;
+      }
     }
     if (b.length > MAX) {
       const soft = Math.max(b.lastIndexOf(", ", MAX), b.lastIndexOf(" ", MAX));
@@ -185,7 +196,14 @@ export function browserSpeechQueue(onError?: (err: unknown) => void): SpeechQueu
         el.onended = done;
         el.onerror = done;
         el.src = url;
-        el.play().then(() => finished || speaking(true), done); // autoplay refused: skip quietly
+        el.play().then(
+          () => finished || speaking(true),
+          (err) => {
+            // Autoplay refused or the clip wouldn't decode: say so, then skip it.
+            if (!finished && !signal.aborted) onError?.(err);
+            done();
+          },
+        );
       }),
   });
 }
