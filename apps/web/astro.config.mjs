@@ -6,8 +6,9 @@ export default defineConfig({
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
-  // Career Hall became part of the Dev Center (public/_redirects does the same with a real 301).
-  redirects: { "/career": "/dev" },
+  // Career Hall became part of the Dev Center, and the Interests Garden moved into Crate & Closet
+  // (public/_redirects does the same with a real 301).
+  redirects: { "/career": "/dev", "/interests": "/music" },
   prefetch: { prefetchAll: false, defaultStrategy: "hover" },
   fonts: [
     {
@@ -31,6 +32,15 @@ export default defineConfig({
       provider: fontProviders.fontsource(),
       name: "Press Start 2P",
       cssVariable: "--font-retro",
+      weights: ["400"],
+      subsets: ["latin"],
+      fallbacks: ["ui-monospace", "monospace"],
+    },
+    {
+      // Crate & Closet's neon sign and jukebox chrome.
+      provider: fontProviders.fontsource(),
+      name: "Monoton",
+      cssVariable: "--font-neon",
       weights: ["400"],
       subsets: ["latin"],
       fallbacks: ["ui-monospace", "monospace"],

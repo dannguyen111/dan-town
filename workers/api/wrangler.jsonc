@@ -25,13 +25,17 @@
 			"id": "3c756aaf1d8348418d358a9118e1f30f"
 		}
 	],
-	// Refresh live stats once a day (06:17 UTC). The browser never calls those services.
+	// Refresh live stats once a day (06:17 UTC), and rebuild Dan's crate for Crate Match half an hour
+	// later (Spotify top artists and tracks, with Last.fm tags and neighbours). The browser never calls
+	// those services. The second cron must match CRATE_CRON in src/index.ts.
 	"triggers": {
 		"crons": [
-			"17 6 * * *"
+			"17 6 * * *",
+			"47 6 * * *"
 		]
 	},
-	// Per-visitor limits: twin messages, spoken sentences, arcade results reported, and fridge notes.
+	// Per-visitor limits: twin messages, spoken sentences, arcade results reported, fridge notes (and song
+	// requests, keyed apart), and Crate & Closet searches and matches.
 	"ratelimits": [
 		{
 			"name": "TWIN_LIMITER",
@@ -54,6 +58,24 @@
 			"namespace_id": "1003",
 			"simple": {
 				"limit": 3,
+				"period": 60
+			}
+		},
+		{
+			// Crate & Closet's song and artist search, typed a few letters at a time.
+			"name": "SEARCH_LIMITER",
+			"namespace_id": "1005",
+			"simple": {
+				"limit": 40,
+				"period": 60
+			}
+		},
+		{
+			// Crate Match: each score can look up a dozen artists on Last.fm.
+			"name": "MATCH_LIMITER",
+			"namespace_id": "1006",
+			"simple": {
+				"limit": 6,
 				"period": 60
 			}
 		},
@@ -87,6 +109,10 @@
 			{
 				"name": "TRACES",
 				"class_name": "TraceStore"
+			},
+			{
+				"name": "REQUESTS",
+				"class_name": "RequestStore"
 			}
 		]
 	},
@@ -106,6 +132,10 @@
 		{
 			"tag": "v4",
 			"new_sqlite_classes": ["TraceStore"]
+		},
+		{
+			"tag": "v5",
+			"new_sqlite_classes": ["RequestStore"]
 		}
 	],
 	// Emails Dan when someone leaves a note (from fridge@) or asks for a meeting (from twin@), at the
@@ -132,7 +162,7 @@
 	},
 	// Secrets (set with `wrangler secret put`): OPENROUTER_API_KEY, GITHUB_TOKEN,
 	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional),
-	// FRIDGE_SECRET, FRIDGE_NOTIFY_TO, and for meeting requests (scripts/google-auth.mjs):
+	// FRIDGE_SECRET (also signs request-line links), FRIDGE_NOTIFY_TO, LASTFM_API_KEY (Crate Match), and for meeting requests (scripts/google-auth.mjs):
 	// GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, BOOKING_SECRET
 	"observability": {
 		"enabled": true

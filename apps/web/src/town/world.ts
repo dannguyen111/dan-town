@@ -32,7 +32,7 @@ const BUILDING_THEMES: Record<string, { wall: string; roof: string; roofDark: st
   home: { wall: "#fff1d6", roof: "#e76f51", roofDark: "#c0533a", trim: "#f4a261" },
   dev: { wall: "#e8f1ff", roof: "#4a7bd1", roofDark: "#355fa8", trim: "#9dc0ff" },
   lab: { wall: "#f2f7f5", roof: "#3f8f7a", roofDark: "#2d6b5b", trim: "#9fe0cc" },
-  music: { wall: "#ffe3ef", roof: "#d1497a", roofDark: "#a8355f", trim: "#ffa8c8" },
+  music: { wall: "#f6e7c8", roof: "#7a2e2e", roofDark: "#5c2121", trim: "#e0a526" },
   arcade: { wall: "#3a3160", roof: "#ff7a59", roofDark: "#d95a3c", trim: "#59f0d0" },
 };
 
@@ -181,8 +181,12 @@ function building(ctx: Ctx, o: TownObject) {
     const fx = px + W / 2 - 3;
     flask.forEach((row, y) => [...row].forEach((c, x) => c !== "." && rect(ctx, c === "g" ? "#7dffb0" : "#ffffff", fx + x, py + 3 + y, 1, 1)));
   } else if (o.style === "music") {
-    const note = ["..##", "..#.", "..#.", "###.", "##.."];
-    note.forEach((row, y) => [...row].forEach((c, x) => c === "#" && rect(ctx, "#ffffff", px + W / 2 - 2 + x, py + 3 + y, 1, 1)));
+    // Crate & Closet: a striped mustard awning over the shop windows, and a record on the roof sign.
+    for (let x = px + 2; x < px + W - 2; x += 2) rect(ctx, (x / 2) % 2 ? "#e0a526" : "#f6e7c8", x, py + roofH - 1, 2, 3);
+    rect(ctx, INK, px + 2, py + roofH + 2, W - 4, 1);
+    const disc = [".kkkkk.", "kkgkkkk", "kkrrrkk", "kkrwrkk", "kkrrrkk", "kkkkgkk", ".kkkkk."];
+    const pal: Record<string, string> = { k: "#1d1414", g: "#5a4a4a", r: "#e0a526", w: "#ffffff" };
+    disc.forEach((row, y) => [...row].forEach((c, x) => c !== "." && rect(ctx, pal[c]!, px + W / 2 - 3 + x, py + 2 + y, 1, 1)));
   } else if (o.style === "arcade") {
     for (let x = px + 2; x < px + W - 2; x += 4) rect(ctx, (x / 4) % 2 ? "#59f0d0" : "#ffd166", x, py + roofH - 1, 2, 1);
     const star = [".#.", "###", ".#."];

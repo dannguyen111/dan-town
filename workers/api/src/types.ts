@@ -157,3 +157,62 @@ export interface FridgeNoteRequest {
   website?: string;
   turnstileToken?: string;
 }
+
+// ───────────────────────────── Crate & Closet ─────────────────────────────
+
+/** A song from `GET /api/spotify/search?type=track`. */
+export interface SearchTrack {
+  id: string;
+  name: string;
+  /** Comma-separated artist names. */
+  artists: string;
+  image: string | null;
+  url: string;
+}
+
+/** An artist from `GET /api/spotify/search?type=artist`. */
+export interface SearchArtist {
+  id: string;
+  name: string;
+  image: string | null;
+  url: string;
+}
+
+/** Body of `POST /api/match`: a few artist names, or a Last.fm username. */
+export type MatchRequest = { artists: string[] } | { lastfm: string };
+
+/** Crate Match: how a visitor's taste compares with Dan's. */
+export interface MatchResult {
+  /** 1–100. */
+  score: number;
+  verdict: string;
+  /** What the visitor's taste was read from. */
+  by: "artists" | "lastfm";
+  /** Artists in both crates. */
+  shared: string[];
+  /** The visitor's artist and the closest one in Dan's crate, by Last.fm similarity (0–1). */
+  neighbours: { yours: string; mine: string; similarity: number }[];
+  /** Sounds (Last.fm tags) both sides lean on. */
+  sharedTags: string[];
+  /** One of Dan's records for the visitor, and why. */
+  pick: (SearchTrack & { why: string }) | null;
+}
+
+/** A song request on the chalkboard, as `GET /api/requests` shows it. Contact details are never public. */
+export interface SongRequest {
+  id: string;
+  name: string;
+  note: string;
+  track: SearchTrack;
+  /** ISO time it was called in. */
+  at: string;
+}
+
+/** Body of `POST /api/requests`. `website` is a honeypot: people never see it, bots fill it in. */
+export interface SongRequestBody {
+  trackId: string;
+  note?: string;
+  name?: string;
+  website?: string;
+  turnstileToken?: string;
+}

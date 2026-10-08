@@ -8,6 +8,7 @@ import type { Dir } from "./grid.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, bakeHome, drawHomeLive, drawHomeOver } from "./home.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN, bakeLab, drawLabLive } from "./lab.ts";
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
+import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, bakeShop, drawShopLive, drawShopOver } from "./shop.ts";
 import { bakeWorld } from "./world.ts";
 
 export interface Scene {
@@ -80,6 +81,23 @@ export const INTERIORS: Record<string, Scene> = {
     intro: {
       title: "Research Lab",
       text: "Dan's research. Read the poster wall, see what's next on the whiteboard, and look over the methods on the lab bench. Step on the mat to leave.",
+    },
+  },
+  music: {
+    id: "music",
+    ground: SHOP_GROUND,
+    objects: SHOP_OBJECTS,
+    spawn: SHOP_SPAWN,
+    face: "up",
+    backdrop: "#1d1414",
+    bake: bakeShop,
+    // A repaint a second: the jukebox bubbles, the spinning decks and the neon flicker. Furniture
+    // is drawn again over a visitor standing behind it.
+    live: { draw: drawShopLive, drawOver: drawShopOver, everyMs: 1000 },
+    retro: true,
+    intro: {
+      title: "Crate & Closet",
+      text: "Records up front, vintage in the back. Try the jukebox, the crates and the DJ booth. Mat to leave.",
     },
   },
   home: {

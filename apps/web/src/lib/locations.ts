@@ -16,9 +16,8 @@ export const PLACES = [
   { id: "home", name: "Home", href: "/about", emoji: "🏠", blurb: "Who I am" },
   { id: "dev", name: "Dev Center", href: "/dev", emoji: "💻", blurb: "Projects, experience, and credentials" },
   { id: "lab", name: "Research Lab", href: "/lab", emoji: "🔬", blurb: "Research, methods, and what I want to study next" },
-  { id: "music", name: "Music Room", href: "/music", emoji: "🎧", blurb: "What I've been listening to" },
+  { id: "music", name: "Crate & Closet", href: "/music", emoji: "💿", blurb: "Records, top tracks and the vintage closet" },
   { id: "arcade", name: "Arcade", href: "/arcade", emoji: "🕹️", blurb: "Play my Mancala bot" },
-  { id: "garden", name: "Interests Garden", href: "/interests", emoji: "🌻", blurb: "Things I love outside of code" },
   { id: "twin", name: "Digital Twin", href: "/twin", emoji: "💬", blurb: "Ask my AI twin anything" },
   { id: "reception", name: "Front Desk", href: "/reception", emoji: "🎧", blurb: "LeBronette, at the Dev Center, tells you about me", room: "dev" },
 ] as const satisfies readonly Place[];
