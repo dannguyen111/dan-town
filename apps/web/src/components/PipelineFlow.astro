@@ -1,0 +1,165 @@
+---
+/**
+ * A research pipeline as a retro flow chart: a little console screen on the poster, one boxed stage
+ * per step joined by pixel arrows. A stage's `loop` hangs off it as a dashed return note. Pure CSS
+ * so it reflows to a phone without an SVG to scale.
+ */
+interface Stage {
+  label: string;
+  detail: string;
+  loop?: string;
+}
+interface Props {
+  stages: Stage[];
+  /** Accessible name for the chart, e.g. the project's title. */
+  title: string;
+}
+const { stages, title } = Astro.props;
+const pad = (n: number) => String(n).padStart(2, "0");
+---
+
+<figure class="flow" aria-label={`How ${title} runs, step by step`}>
+  <figcaption class="flow__bar">
+    <span class="flow__name">PIPELINE.EXE</span>
+    <span class="flow__lights" aria-hidden="true"><i></i><i></i><i></i></span>
+  </figcaption>
+  <ol class="flow__stages">
+    {
+      stages.map((s, i) => (
+        <li class="flow__step">
+          <div class="flow__stage">
+            <span class="flow__num" aria-hidden="true">
+              {pad(i + 1)}
+            </span>
+            <div class="flow__text">
+              <p class="flow__label">{s.label}</p>
+              <p class="flow__detail">{s.detail}</p>
+            </div>
+          </div>
+          {s.loop && (
+            <p class="flow__loop">
+              <span aria-hidden="true">↺ </span>
+              {s.loop}
+            </p>
+          )}
+          {i < stages.length - 1 && (
+            <span class="flow__arrow" aria-hidden="true">
+              ▼
+            </span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</figure>
+
+<style>
+  .flow {
+    margin: 0.3rem 0 0;
+    color: var(--mc-text);
+    background-color: #0a1714;
+    background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3px);
+    border: 3px solid #1d2a2f;
+    box-shadow: 4px 4px 0 #a9b8bf;
+  }
+  .flow__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.45rem 0.7rem;
+    background: var(--mc-panel);
+    border-bottom: 2px solid var(--mc-line);
+  }
+  .flow__name {
+    font: 400 0.55rem/1.4 var(--font-retro, monospace);
+    color: var(--mc-cyan);
+    letter-spacing: 0.05em;
+  }
+  .flow__lights {
+    display: flex;
+    gap: 4px;
+  }
+  .flow__lights i {
+    width: 8px;
+    height: 8px;
+    background: var(--mc-line);
+  }
+  .flow__lights i:first-child {
+    background: var(--mc-amber);
+  }
+  .flow__lights i:last-child {
+    background: var(--mc-cyan);
+  }
+  .flow__stages {
+    list-style: none;
+    margin: 0;
+    padding: 0.9rem 0.8rem 1rem;
+    display: grid;
+    justify-items: center;
+  }
+  .flow__step {
+    display: grid;
+    justify-items: center;
+    width: min(100%, 520px);
+  }
+  .flow__stage {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    background: var(--mc-panel);
+    border: 2px solid var(--mc-line);
+    border-top: 4px solid var(--mc-cyan);
+    box-shadow: 4px 4px 0 #070a14;
+  }
+  .flow__num {
+    flex: none;
+    padding: 0.3rem 0.35rem;
+    font: 400 0.5rem/1 var(--font-retro, monospace);
+    color: #0a1714;
+    background: var(--mc-cyan);
+  }
+  .flow__text {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+  .flow p {
+    margin: 0;
+  }
+  .flow__label {
+    font: 400 0.55rem/1.5 var(--font-retro, monospace);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .flow__detail {
+    font: 1.15rem/1.15 var(--font-terminal, monospace);
+    color: var(--mc-text);
+  }
+  .flow__loop {
+    justify-self: end;
+    margin-top: 0.45rem !important;
+    padding: 0.25rem 0.5rem;
+    font: 1.1rem/1.1 var(--font-terminal, monospace);
+    color: var(--mc-amber);
+    border: 2px dashed var(--mc-amber);
+  }
+  .flow__arrow {
+    padding: 0.2rem 0;
+    font: 400 0.7rem/1 var(--font-retro, monospace);
+    color: var(--mc-amber);
+  }
+
+  @media (max-width: 480px) {
+    .flow__stages {
+      padding: 0.7rem 0.5rem 0.8rem;
+    }
+    .flow__stage {
+      gap: 0.45rem;
+      padding: 0.5rem;
+    }
+  }
+</style>

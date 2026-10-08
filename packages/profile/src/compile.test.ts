@@ -107,6 +107,28 @@ experience:
     expect(md).toContain("- Implications: Next, test on new data.");
   });
 
+  it("a framing's pipeline is optional and reaches the twin in order", () => {
+    expect(framed.experience[0]!.research_framing!.pipeline).toEqual([]);
+    const piped = loadProfile(`
+version: 1
+identity: { name: T, short_name: T, headline: H, tagline: t }
+about: { intro: Hi. }
+projects:
+  - id: p
+    title: P
+    tagline: t
+    date: 2026-10
+    research: true
+    research_framing:
+      question: Q?
+      pipeline:
+        - { label: Solver, detail: computes }
+        - { label: Referee, detail: checks, loop: reject → back }
+`);
+    expect(piped.projects[0]!.research_framing!.pipeline).toHaveLength(2);
+    expect(renderTwinContext(piped)).toContain("- Pipeline: Solver (computes) → Referee (checks; reject → back)");
+  });
+
   it("flagged entries without a framing add no framing block", () => {
     const md = renderTwinContext(framed);
     expect(md.match(/Research framing:/g)).toHaveLength(1);

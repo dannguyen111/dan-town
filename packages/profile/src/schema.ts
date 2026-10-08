@@ -22,6 +22,8 @@ const ResearchFraming = z.object({
   /** What it implies or what comes next. Only if the profile supports it. */
   implications: z.string().optional(),
   links: z.record(z.string(), Url).prefault({}),
+  /** How the research runs, stage by stage: drawn as a flow chart on the poster. `loop` labels a return arrow. */
+  pipeline: z.array(z.object({ label: z.string(), detail: z.string(), loop: z.string().optional() })).default([]),
 });
 
 const Experience = z.object({

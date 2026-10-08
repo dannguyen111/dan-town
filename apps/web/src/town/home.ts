@@ -112,7 +112,7 @@ export const HOME_OBJECTS: readonly TownObject[] = [
   },
   {
     ...prop("book-chomp", "3xN Chomp (Senior Capstone)", 12, 11, 1, 1, ""),
-    target: paper("/docs/capstone_paper_final.pdf", "Proving infinite families of losing positions in 3-row Chomp."),
+    target: paper("/docs/capstone_paper_final.pdf", "Proving infinite families of losing positions in 3-row Chomp. The research is still going in the Lab."),
   },
   {
     ...prop("book-health", "Healthcare Access Disparities", 13, 11, 1, 1, ""),

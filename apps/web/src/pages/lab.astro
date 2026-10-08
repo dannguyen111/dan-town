@@ -2,6 +2,7 @@
 import TownLayout from "../layouts/TownLayout.astro";
 import PixelPortrait from "../components/PixelPortrait.astro";
 import StackChip from "../components/StackChip.astro";
+import PipelineFlow from "../components/PipelineFlow.astro";
 import { profile, researchEntries } from "../lib/profile";
 import { canonicalTech } from "../lib/stack-meta";
 
@@ -147,6 +148,12 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
               <div>
                 <h4 class="brief__label">Implications</h4>
                 <p>{p.implications}</p>
+              </div>
+            )}
+            {p.pipeline.length > 0 && (
+              <div>
+                <h4 class="brief__label">How it runs</h4>
+                <PipelineFlow stages={p.pipeline} title={p.title} />
               </div>
             )}
             {p.methods.length > 0 && (

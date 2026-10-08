@@ -74,6 +74,7 @@ export const researchEntries = () =>
         findings: e.research_framing ? e.research_framing.findings : e.highlights.slice(1),
         implications: e.research_framing?.implications,
         methods: e.research_framing ? e.research_framing.methods : e.skills,
+        pipeline: e.research_framing?.pipeline ?? [],
         links: framingLinks(e.research_framing?.links),
       })),
     ...profile.projects
@@ -90,6 +91,7 @@ export const researchEntries = () =>
         findings: p.research_framing?.findings ?? ([] as string[]),
         implications: p.research_framing?.implications,
         methods: p.research_framing ? p.research_framing.methods : p.tags,
+        pipeline: p.research_framing?.pipeline ?? [],
         links: [
           { label: "Full debrief →", href: `/projects/${p.id}` },
           ...(p.research_framing ? framingLinks(p.research_framing.links) : projectLinks(p).map((l) => ({ label: l.label, href: l.href }))),

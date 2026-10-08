@@ -64,6 +64,7 @@ function framingLines(f: Framing | undefined): string[] {
     ...(f.methods.length ? [`- Methods: ${f.methods.join(", ")}`] : []),
     ...f.findings.map((x) => `- Finding: ${x}`),
     ...(f.implications ? [`- Implications: ${f.implications}`] : []),
+    ...(f.pipeline.length ? [`- Pipeline: ${f.pipeline.map((s) => `${s.label} (${s.detail}${s.loop ? `; ${s.loop}` : ""})`).join(" → ")}`] : []),
     ...(links.length ? [`- Links: ${links.join(" · ")}`] : []),
   ];
 }
