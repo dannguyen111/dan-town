@@ -38,6 +38,9 @@ const LINK_LABELS: Record<string, string> = { demo: "Demo ↗", code: "Code ↗"
 export const projectLinks = (p: Project) =>
   Object.entries(p.links).map(([kind, href]) => ({ kind, label: LINK_LABELS[kind] ?? `${kind} ↗`, href, external: href.startsWith("http") }));
 
+const framingLinks = (links: Record<string, string> = {}) =>
+  Object.entries(links).map(([kind, href]) => ({ label: LINK_LABELS[kind] ?? `${kind} ↗`, href }));
+
 /** Roles and projects flagged `research: true`, newest first: the Research Lab's poster wall. */
 export const researchEntries = () =>
   [
@@ -50,10 +53,11 @@ export const researchEntries = () =>
         org: e.org,
         sub: `${e.org}${e.location ? ` · ${e.location}` : ""} · ${formatRange(e.start, e.end)}`,
         start: e.start,
-        question: e.highlights[0] ?? "",
-        findings: e.highlights.slice(1),
-        methods: e.skills,
-        links: [] as { label: string; href: string }[],
+        question: e.research_framing?.question ?? e.highlights[0] ?? "",
+        findings: e.research_framing ? e.research_framing.findings : e.highlights.slice(1),
+        implications: e.research_framing?.implications,
+        methods: e.research_framing ? e.research_framing.methods : e.skills,
+        links: framingLinks(e.research_framing?.links),
       })),
     ...profile.projects
       .filter((p) => p.research)
@@ -64,9 +68,13 @@ export const researchEntries = () =>
         org: "",
         sub: projectWhen(p),
         start: p.start ?? p.date,
-        question: p.tagline,
-        findings: [] as string[],
-        methods: p.tags,
-        links: [{ label: "Full debrief →", href: `/projects/${p.id}` }, ...projectLinks(p).map((l) => ({ label: l.label, href: l.href }))],
+        question: p.research_framing?.question ?? p.tagline,
+        findings: p.research_framing?.findings ?? ([] as string[]),
+        implications: p.research_framing?.implications,
+        methods: p.research_framing ? p.research_framing.methods : p.tags,
+        links: [
+          { label: "Full debrief →", href: `/projects/${p.id}` },
+          ...(p.research_framing ? framingLinks(p.research_framing.links) : projectLinks(p).map((l) => ({ label: l.label, href: l.href }))),
+        ],
       })),
   ].sort((a, b) => b.start.localeCompare(a.start));

@@ -25,6 +25,11 @@ experience:
     research: true
     highlights: [Asked a placeholder research question., Found a placeholder result.]
     skills: [Python, R]
+    research_framing:
+      question: A placeholder research question, as a reviewer would read it.
+      methods: [Python, R]
+      findings: [A placeholder finding.]
+      implications: What it implies or what comes next (only if true).
 education:
   - id: example-school
     school: Example University

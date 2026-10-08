@@ -14,6 +14,16 @@ const Link = z.object({
   visibility: Visibility,
 });
 
+/** How a research item reads in the Research Lab; the professional text elsewhere is untouched. */
+const ResearchFraming = z.object({
+  question: z.string(),
+  methods: z.array(z.string()).default([]),
+  findings: z.array(z.string()).default([]),
+  /** What it implies or what comes next. Only if the profile supports it. */
+  implications: z.string().optional(),
+  links: z.record(z.string(), Url).prefault({}),
+});
+
 const Experience = z.object({
   id: z.string(),
   role: z.string(),
@@ -25,6 +35,7 @@ const Experience = z.object({
   skills: z.array(z.string()).default([]),
   /** Research experience: also shown in the Research Lab. */
   research: z.boolean().default(false),
+  research_framing: ResearchFraming.optional(),
   visibility: Visibility,
 });
 
@@ -55,6 +66,7 @@ const Project = z.object({
   body: z.string().default(""),
   /** A research project: also shown in the Research Lab. */
   research: z.boolean().default(false),
+  research_framing: ResearchFraming.optional(),
   visibility: Visibility,
 });
 

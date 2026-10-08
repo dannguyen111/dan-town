@@ -140,6 +140,12 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
                 </div>
               )}
             </div>
+            {p.implications && (
+              <div>
+                <h4 class="brief__label">Implications</h4>
+                <p>{p.implications}</p>
+              </div>
+            )}
             {p.methods.length > 0 && (
               <>
                 <h4 class="brief__label">Methods</h4>

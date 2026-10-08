@@ -76,3 +76,40 @@ describe("profile compiler", () => {
     }
   });
 });
+
+describe("research framing", () => {
+  const framed = loadProfile(`
+version: 1
+identity: { name: T, short_name: T, headline: H, tagline: t }
+about: { intro: Hi. }
+experience:
+  - id: r
+    role: Analyst
+    org: Acme
+    start: 2024-01
+    end: 2024-06
+    research: true
+    highlights: [Professional bullet]
+    research_framing:
+      question: Which clustering fits best?
+      methods: [Clustering]
+      findings: [Validated with auditors]
+      implications: Next, test on new data.
+  - { id: s, role: Plain, org: Acme, start: 2023-01, end: 2023-06, research: true, highlights: [Only professional] }
+`);
+
+  it("twin context labels the research framing next to the professional text", () => {
+    const md = renderTwinContext(framed);
+    expect(md).toContain("- Professional bullet");
+    expect(md).toContain("Research framing:");
+    expect(md).toContain("- Question: Which clustering fits best?");
+    expect(md).toContain("- Finding: Validated with auditors");
+    expect(md).toContain("- Implications: Next, test on new data.");
+  });
+
+  it("flagged entries without a framing add no framing block", () => {
+    const md = renderTwinContext(framed);
+    expect(md.match(/Research framing:/g)).toHaveLength(1);
+    expect(md).toContain("### Plain, Acme (2023-01 – 2023-06) [research]");
+  });
+});
