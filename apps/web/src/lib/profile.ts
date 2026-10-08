@@ -41,6 +41,22 @@ export const projectLinks = (p: Project) =>
 const framingLinks = (links: Record<string, string> = {}) =>
   Object.entries(links).map(([kind, href]) => ({ label: LINK_LABELS[kind] ?? `${kind} ↗`, href }));
 
+/** Pixelated org logos in public/logos/orgs, matched on a role's org or a project's id. */
+const ORG_LOGOS: [RegExp, string][] = [
+  [/johnson & johnson/i, "jnj"],
+  [/re:members/i, "remembers"],
+  [/gettysburg college/i, "gettysburg"],
+  [/kpmg/i, "kpmg"],
+  [/^vendora$/i, "vendora"],
+];
+/** The pixel logo for a role's org (or a project's id), with alt text; undefined when there isn't one. */
+export function orgLogo(orgOrProjectId: string): { src: string; alt: string } | undefined {
+  const hit = ORG_LOGOS.find(([re]) => re.test(orgOrProjectId));
+  if (!hit) return undefined;
+  const name = (orgOrProjectId.split(",").at(-1) ?? orgOrProjectId).trim();
+  return { src: `/logos/orgs/${hit[1]}.png`, alt: `${name.charAt(0).toUpperCase()}${name.slice(1)} logo` };
+}
+
 /** Roles and projects flagged `research: true`, newest first: the Research Lab's poster wall. */
 export const researchEntries = () =>
   [
@@ -51,6 +67,7 @@ export const researchEntries = () =>
         kind: "role" as const,
         title: e.role,
         org: e.org,
+        logo: orgLogo(e.org),
         sub: `${e.org}${e.location ? ` · ${e.location}` : ""} · ${formatRange(e.start, e.end)}`,
         start: e.start,
         question: e.research_framing?.question ?? e.highlights[0] ?? "",
@@ -66,6 +83,7 @@ export const researchEntries = () =>
         kind: "project" as const,
         title: p.title,
         org: "",
+        logo: orgLogo(p.id),
         sub: projectWhen(p),
         start: p.start ?? p.date,
         question: p.research_framing?.question ?? p.tagline,

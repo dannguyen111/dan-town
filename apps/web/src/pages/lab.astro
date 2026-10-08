@@ -119,8 +119,11 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
         posters.map((p, i) => (
           <article class="poster" id={p.id} data-poster-panel={p.id} hidden={i !== 0} aria-label={`Poster: ${p.title}`}>
             <header class="poster__head">
-              <h3 class="poster__title">{p.title}</h3>
-              <p class="poster__sub">{p.sub}</p>
+              <div class="poster__id">
+                <h3 class="poster__title">{p.title}</h3>
+                <p class="poster__sub">{p.sub}</p>
+              </div>
+              {p.logo && <img class="org-logo" src={p.logo.src} alt={p.logo.alt} width="96" height="96" loading="lazy" />}
             </header>
             <div class="poster__cols">
               {p.question && (
@@ -370,16 +373,16 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
     background: #0a1714;
     flex: none;
   }
-  .lab-tab {
-    display: grid;
-    gap: 0.3rem;
   /* Every tab as tall as the tallest, however its title wraps. */
   .lab-tabs > li {
     display: flex;
   }
+  .lab-tab {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
     width: 150px;
     flex: none;
-    align-content: start;
     padding: 0.5rem;
     text-align: left;
     color: var(--mc-text);
@@ -413,6 +416,21 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
   }
   .poster p {
     margin: 0;
+  }
+  .poster__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .poster__id {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .poster .org-logo {
+    border-color: #1d2a2f;
+    box-shadow: 4px 4px 0 #a9b8bf;
   }
   .poster__title {
     margin: 0;

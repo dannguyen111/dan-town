@@ -469,6 +469,22 @@ ol.clean {
   background: var(--mc-amber);
 }
 
+/* A role's org (or Vendora's) pixel logo, on the right of its briefing or poster. */
+.org-logo {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  border: 3px solid #070a14;
+  box-shadow: 4px 4px 0 #070a14;
+}
+@media (max-width: 480px) {
+  .org-logo {
+    width: 64px;
+    height: 64px;
+  }
+}
+
 .brief__label {
   margin: 0.8rem 0 0.3rem;
   font: 400 0.55rem/1.4 var(--font-retro, monospace);

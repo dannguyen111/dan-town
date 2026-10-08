@@ -7,7 +7,7 @@ import StackChip from "../components/StackChip.astro";
 import PixelLogo from "../components/PixelLogo.astro";
 import GitHubStats from "../components/GitHubStats.astro";
 import { existsSync } from "node:fs";
-import { profile, codename, formatMonth, formatRange, projectsByDate } from "../lib/profile";
+import { profile, codename, formatMonth, formatRange, orgLogo, projectsByDate } from "../lib/profile";
 import { logoFor, techUsage } from "../lib/stack";
 
 const first = profile.identity.short_name;
@@ -49,6 +49,8 @@ interface Entry {
   results: string[];
   stack: string[];
   links: { label: string; href: string }[];
+  /** The org's pixel logo, shown beside a role's (or Vendora's) briefing. */
+  logo?: { src: string; alt: string };
 }
 const entries: Entry[] = [
   ...profile.projects.map((p) => ({
@@ -69,6 +71,7 @@ const entries: Entry[] = [
       ...Object.entries(p.links).map(([k, href]) => ({ label: LINK_LABELS[k] ?? `${k} ↗`, href })),
       ...(p.research ? [toLab(`p-${p.id}`)] : []),
     ],
+    logo: orgLogo(p.id),
   })),
   ...profile.experience.map((e) => ({
     id: `r-${e.id}`,
@@ -84,6 +87,7 @@ const entries: Entry[] = [
     results: e.highlights.slice(1),
     stack: e.skills ?? [],
     links: e.research ? [toLab(`r-${e.id}`)] : [],
+    logo: orgLogo(e.org),
   })),
   ...profile.education.map((ed) => ({
     id: `s-${ed.id}`,
@@ -349,14 +353,19 @@ const featured = projectsByDate().filter((p) => p.featured);
       {
         entries.map((e) => (
           <article class="brief" data-brief={e.id} hidden={e !== opening} aria-label={`Briefing: ${e.title}`}>
-            <p class="brief__kicker">
-              <span class={`brief__kind brief__kind--${e.kind}`}>{KIND_LABEL[e.kind]}</span>
-              <span class={`brief__status brief__status--${e.status.toLowerCase()}`}>{e.status}</span>
-              {e.research && <span class="brief__kind brief__kind--research">🔬 Research</span>}
-            </p>
-            <h3 class="brief__code">{e.code}</h3>
-            <p class="brief__title">{e.title}</p>
-            <p class="brief__sub">{e.sub}</p>
+            <header class="brief__head">
+              <div class="brief__id">
+                <p class="brief__kicker">
+                  <span class={`brief__kind brief__kind--${e.kind}`}>{KIND_LABEL[e.kind]}</span>
+                  <span class={`brief__status brief__status--${e.status.toLowerCase()}`}>{e.status}</span>
+                  {e.research && <span class="brief__kind brief__kind--research">🔬 Research</span>}
+                </p>
+                <h3 class="brief__code">{e.code}</h3>
+                <p class="brief__title">{e.title}</p>
+                <p class="brief__sub">{e.sub}</p>
+              </div>
+              {e.logo && <img class="org-logo" src={e.logo.src} alt={e.logo.alt} width="96" height="96" loading="lazy" />}
+            </header>
             {e.objective && (
               <>
                 <h4 class="brief__label">{e.kind === "school" ? "Standing" : e.kind === "honor" ? "Citation" : "Objective"}</h4>
@@ -800,8 +809,13 @@ const featured = projectsByDate().filter((p) => p.featured);
     background: repeating-linear-gradient(90deg, transparent 0 23px, rgba(62, 230, 255, 0.08) 23px 24px), #080d1b;
     flex: none;
   }
+  /* Every tick as tall as the tallest, however its code wraps. */
+  .mc-track > li {
+    display: flex;
+  }
   .mc-tick {
     display: grid;
+    align-content: start;
     gap: 0.3rem;
     min-width: 92px;
     padding: 0.5rem;
@@ -809,13 +823,8 @@ const featured = projectsByDate().filter((p) => p.featured);
     color: var(--mc-text);
     background: var(--mc-panel);
     border: 2px solid var(--mc-line);
-  /* Every tick as tall as the tallest, however its code wraps. */
-  .mc-track > li {
-    display: flex;
-  }
     border-top: 4px solid var(--mc-cyan);
     cursor: pointer;
-    align-content: start;
   }
   .mc-tick--role {
     border-top-color: var(--mc-amber);
@@ -855,6 +864,17 @@ const featured = projectsByDate().filter((p) => p.featured);
   }
   .brief p {
     margin: 0;
+  }
+  .brief__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .brief__id {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
   }
   .brief__kicker {
     display: flex;
