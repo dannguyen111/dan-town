@@ -334,7 +334,9 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
   /* Crate & Closet: the shop is packed with furniture, so its name tags are smaller. */
   .town[data-retro][data-scene="music"] .town-labels :global(.town-label) {
     font-size: 6px;
-    padding: 3px 4px;
+    line-height: 1;
+    padding: 1px 4px;
+    min-height: 0;
     box-shadow:
       0 -2px 0 0 #181820,
       0 2px 0 0 #181820,
