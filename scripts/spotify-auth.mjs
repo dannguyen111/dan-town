@@ -1,4 +1,4 @@
-// One-time helper: get a Spotify refresh token for the Music Room.
+// One-time helper: get a Spotify refresh token for Crate & Closet.
 //
 //   1. Create an app at https://developer.spotify.com/dashboard
 //      and add the redirect URI  http://127.0.0.1:8888/callback

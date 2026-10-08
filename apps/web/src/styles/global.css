@@ -514,3 +514,43 @@ html:has(.mcp--lab) .panel {
     0 0 0 3px #070a14,
     0 0 28px rgba(111, 240, 196, 0.3);
 }
+
+/* Crate & Closet: the same consoles, as a record shop in oxblood, mustard and neon pink. */
+html:has(.mcp--shop) .panel {
+  --mcp-bg: #1d1414;
+  --mcp-card: #2a1b1b;
+  --mcp-line: #5a3030;
+  --mcp-cyan: #e0a526;
+  --mcp-amber: #ff6fae;
+  --mcp-green: #f6e7c8;
+  --mcp-text: #f6e7c8;
+  --mcp-dim: #c9a98a;
+}
+html:has(.mcp--shop) .panel__bar,
+html:has(.mcp--shop) .panel__footer {
+  background: #150e0e;
+}
+.mcp--shop .mcp-card,
+.mcp--shop .mcp-btn,
+.mcp--shop .shop-teaser {
+  box-shadow: 4px 4px 0 #0d0808;
+}
+.mcp--shop .mcp-btn:not(.mcp-btn--primary) {
+  background: #1d1414;
+}
+.mc--shop {
+  --mc-bg: #1d1414;
+  --mc-panel: #2a1b1b;
+  --mc-line: #5a3030;
+  --mc-cyan: #e0a526;
+  --mc-amber: #ff6fae;
+  --mc-text: #f6e7c8;
+  --mc-dim: #c9a98a;
+  border-color: var(--mc-cyan);
+  box-shadow:
+    0 0 0 3px #0d0808,
+    0 0 28px rgba(255, 111, 174, 0.3);
+}
+.mc--shop::backdrop {
+  background: rgba(20, 8, 8, 0.6);
+}

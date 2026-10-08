@@ -5,6 +5,7 @@ import { TownGrid } from "./grid.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN } from "./lab.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, easternTime, formatEastern } from "./home.ts";
 import { COLS, GROUND, OBJECTS, SPAWN } from "./map.ts";
+import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN } from "./shop.ts";
 
 describe("town map", () => {
   const grid = new TownGrid();
@@ -252,6 +253,51 @@ describe("research lab interior", () => {
     const town = new TownGrid();
     const lab = OBJECTS.find((o) => o.target.type === "place" && o.target.id === "lab")!;
     const { at } = town.arrivalTile(lab, SPAWN);
+    expect(town.isWalkable(at.x, at.y)).toBe(true);
+  });
+});
+
+describe("crate & closet interior", () => {
+  const grid = new TownGrid(SHOP_OBJECTS, SHOP_GROUND);
+
+  it("has a rectangular ground layer", () => {
+    for (const row of SHOP_GROUND) expect(row).toHaveLength(SHOP_GROUND[0].length);
+  });
+
+  it("spawns just inside the exit", () => {
+    expect(grid.isWalkable(SHOP_SPAWN.x, SHOP_SPAWN.y)).toBe(true);
+    expect(grid.doorAt(SHOP_SPAWN.x, SHOP_SPAWN.y + 1)?.target).toEqual({ type: "place", id: "town" });
+  });
+
+  it("does not overlap objects", () => {
+    const seen = new Set<string>();
+    for (const o of SHOP_OBJECTS)
+      for (let y = o.y; y < o.y + o.h; y++)
+        for (let x = o.x; x < o.x + o.w; x++) {
+          const k = `${x},${y}`;
+          expect(seen.has(k), `${o.id} overlaps at ${k}`).toBe(false);
+          seen.add(k);
+        }
+  });
+
+  it.each(SHOP_OBJECTS.map((o) => [o.id, o] as const))("%s is reachable from the entrance", (_id, obj) => {
+    expect(grid.approach(obj, SHOP_SPAWN)).not.toBeNull();
+  });
+
+  it("every station opens its console", () => {
+    const opens = { "shop-jukebox": "shop-jukebox", "shop-posters": "shop-posters", "shop-closet": "shop-closet", "shop-polaroids": "shop-closet" };
+    for (const [id, event] of Object.entries(opens)) {
+      const o = SHOP_OBJECTS.find((x) => x.id === id)!;
+      expect(o.hint, id).toBeTruthy();
+      expect(o.target).toEqual({ type: "event", name: event });
+    }
+  });
+
+  it("the town has a matching door to walk back out of", () => {
+    const town = new TownGrid();
+    const shop = OBJECTS.find((o) => o.target.type === "place" && o.target.id === "music")!;
+    expect(shop.label).toBe("Crate & Closet");
+    const { at } = town.arrivalTile(shop, SPAWN);
     expect(town.isWalkable(at.x, at.y)).toBe(true);
   });
 });
