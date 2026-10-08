@@ -285,7 +285,7 @@ describe("crate & closet interior", () => {
   });
 
   it("every station opens its console", () => {
-    const opens = { "shop-jukebox": "shop-jukebox", "shop-posters": "shop-posters", "shop-closet": "shop-closet", "shop-polaroids": "shop-closet" };
+    const opens = { "shop-jukebox": "shop-jukebox", "shop-posters": "shop-posters", "shop-closet": "shop-closet", "shop-polaroids": "shop-closet", crates: "crates", decks: "decks" };
     for (const [id, event] of Object.entries(opens)) {
       const o = SHOP_OBJECTS.find((x) => x.id === id)!;
       expect(o.hint, id).toBeTruthy();

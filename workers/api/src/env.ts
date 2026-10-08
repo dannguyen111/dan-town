@@ -2,6 +2,7 @@ import type { FridgeStore } from "./fridge-store.ts";
 import type { MancalaRecordStore } from "./mancala-store.ts";
 import type { BookingStore } from "./booking-store.ts";
 import type { TraceStore } from "./trace-store.ts";
+import type { RequestStore } from "./request-store.ts";
 
 export interface Env {
   ASSETS: Fetcher;
@@ -19,6 +20,12 @@ export interface Env {
   BOOKING: DurableObjectNamespace<BookingStore>;
   /** The twin's recent run traces, shown on the computer at Home (one SQLite-backed Durable Object). */
   TRACES: DurableObjectNamespace<TraceStore>;
+  /** Song requests from the DJ booth in Crate & Closet (one SQLite-backed Durable Object). */
+  REQUESTS: DurableObjectNamespace<RequestStore>;
+  /** Spotify searches from the request line and Crate Match pickers. */
+  SEARCH_LIMITER: RateLimit;
+  /** Crate Match scores (each can look up a dozen artists on Last.fm). */
+  MATCH_LIMITER: RateLimit;
   /** Emails Dan about new notes. Optional so the site still works before Email Sending is set up. */
   FRIDGE_MAIL?: SendEmail;
 
@@ -42,6 +49,8 @@ export interface Env {
   SPOTIFY_CLIENT_SECRET?: string;
   SPOTIFY_REFRESH_TOKEN?: string;
   TURNSTILE_SECRET?: string;
+  /** Last.fm API key (https://www.last.fm/api/account/create). Turns on Crate Match. */
+  LASTFM_API_KEY?: string;
   /** Signs the approve/reject links in fridge emails. Any long random string. */
   FRIDGE_SECRET?: string;
   /** Where fridge emails go: a verified destination address in Email Routing. Kept out of the repo. */

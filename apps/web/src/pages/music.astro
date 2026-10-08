@@ -16,7 +16,12 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
 });
 ---
 
-<TownLayout place="music" room title="Crate & Closet" description={`${first}'s record shop and vintage closet: top tracks on the jukebox, top artists on the poster wall, and the fashion story.`}>
+<TownLayout
+  place="music"
+  room
+  title="Crate & Closet"
+  description={`${first}'s record shop and vintage closet: top tracks on the jukebox, top artists on the poster wall, a taste match at the crates, song requests at the DJ booth, and the fashion story.`}
+>
   <div class="mcp mcp--shop">
     <header class="shop-id">
       <PixelPortrait class="shop-id__avatar" />
@@ -37,6 +42,8 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       <div class="mcp-fastlane">
         <button type="button" class="mcp-btn mcp-btn--primary" data-open="jukebox">🎵 Jukebox</button>
         <button type="button" class="mcp-btn" data-open="posters">🎸 Gig posters</button>
+        <button type="button" class="mcp-btn" data-open="match">💿 Crate Match</button>
+        <button type="button" class="mcp-btn" data-open="request">📞 Request line</button>
         {fashion && <a class="mcp-btn" href="#closet" data-closet-link>🧥 The Closet</a>}
       </div>
     </section>
@@ -121,6 +128,92 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       <p class="mc__fine">Most-played artists over the last six months on Spotify.</p>
     </div>
   </dialog>
+
+  <!-- ─────────── the record crates: Crate Match ─────────── -->
+  <dialog slot="screen" class="mc mc--shop" data-shop-dialog="match" data-first={first} aria-labelledby="shop-match-title">
+    <div class="mc__bar">
+      <h2 id="shop-match-title" class="mc__title">Crate Match</h2>
+      <button type="button" class="mc__close" data-mc-close aria-label="Close Crate Match">✕</button>
+    </div>
+    <div class="mc__body" data-match>
+      <form class="crate" data-match-form>
+        <p class="crate__lead">Who's in your crate? Pick three to five artists you love, and see how close your taste is to {first}'s.</p>
+        <label class="visually-hidden" for="match-search">Search for an artist</label>
+        <input
+          id="match-search"
+          class="crate__search"
+          type="search"
+          autocomplete="off"
+          data-match-search
+          aria-expanded="false"
+          aria-controls="match-results"
+          placeholder="Search an artist you love…"
+        />
+        <ul id="match-results" class="clean picks" data-match-results aria-label="Artists found"></ul>
+        <ul class="clean crate__picked" data-match-picked aria-label="Your crate"></ul>
+        <details class="crate__lastfm">
+          <summary>Use your Last.fm instead</summary>
+          <label>
+            Last.fm username
+            <input name="lastfm" maxlength="15" autocomplete="off" spellcheck="false" data-match-lastfm placeholder="your username" />
+          </label>
+          <p class="mc__fine">Reads your public top artists from the last six months. Scrobbling Spotify to Last.fm counts.</p>
+        </details>
+        <div class="crate__go">
+          <p class="crate__status" data-match-status role="status" aria-live="polite"></p>
+          <button type="submit" class="mc-btn" data-match-go>💿 Dig</button>
+        </div>
+      </form>
+      <div class="match" data-match-result hidden aria-live="polite"></div>
+      <p class="mc__fine">
+        Compared with {first}'s Spotify top artists: shared artists, close neighbours (Last.fm's similar artists) and the overall sound (Last.fm tags). Nothing
+        you enter is saved.
+      </p>
+    </div>
+  </dialog>
+
+  <!-- ─────────── the DJ booth: the request line ─────────── -->
+  <dialog slot="screen" class="mc mc--shop" data-shop-dialog="request" aria-labelledby="shop-request-title">
+    <div class="mc__bar">
+      <h2 id="shop-request-title" class="mc__title">Request line</h2>
+      <button type="button" class="mc__close" data-mc-close aria-label="Close the request line">✕</button>
+    </div>
+    <div class="mc__body requests" data-request>
+      <form class="request" data-request-form>
+        <p class="crate__lead">Know a song {first} needs to hear? Call it in.</p>
+        <label class="visually-hidden" for="request-search">Search for a song</label>
+        <input
+          id="request-search"
+          class="crate__search"
+          type="search"
+          autocomplete="off"
+          data-request-search
+          aria-expanded="false"
+          aria-controls="request-results"
+          placeholder="Search a song…"
+        />
+        <div class="pick pick--chosen" data-request-chosen hidden></div>
+        <ul id="request-results" class="clean picks" data-request-results aria-label="Songs found"></ul>
+        <label class="request__field">
+          Why this one?
+          <textarea name="note" rows="3" maxlength="280" placeholder="optional: the bridge, the memory, the vibe"></textarea>
+        </label>
+        <label class="request__field">Your name <input name="name" maxlength="40" autocomplete="name" placeholder="optional" /></label>
+        <!-- Honeypot: hidden from people, irresistible to bots. -->
+        <label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off" /></label>
+        <div data-request-turnstile></div>
+        <div class="crate__go">
+          <p class="crate__status" data-request-status role="status" aria-live="polite"></p>
+          <button type="submit" class="mc-btn" data-request-send>📞 Call it in</button>
+        </div>
+      </form>
+      <section class="board" aria-labelledby="board-title">
+        <h3 id="board-title" class="board__title">On the board</h3>
+        <ul class="clean board__list" data-request-board></ul>
+      </section>
+      <p class="mc__fine">Requests are checked for spam by an AI model (Jev, via OpenRouter) and only go up on the board once {first} approves them.</p>
+    </div>
+  </dialog>
 </TownLayout>
 
 <script>
@@ -128,9 +221,11 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
   import type { SpotifyStats } from "@dan-town/api/types";
   import { fmtUpdated, h, loadStats } from "../lib/stats-client";
   import { objectRect, zoomIn } from "../town/zoom";
+  import { fromShareParam, setupMatch } from "../shop/match";
+  import { setupRequests } from "../shop/requests";
 
   /** Which room object each console zooms out of. */
-  const OBJECT: Record<string, string> = { jukebox: "shop-jukebox", posters: "shop-posters" };
+  const OBJECT: Record<string, string> = { jukebox: "shop-jukebox", posters: "shop-posters", match: "crates", request: "decks" };
   /** A console (or the closet) asked for before the Crate & Closet page was shown (it opens once the page loads). */
   let pending: string | null = null;
 
@@ -169,19 +264,24 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
   }
   document.addEventListener("town:shop-closet", showCloset);
 
-  /** Drop the needle: load a track's Spotify player into the jukebox window. */
-  function play(t: Track, strip: HTMLButtonElement) {
-    const id = trackId(t.url);
+  /** Drop the needle: load Spotify's player for a track into `into` (the jukebox window, a match's deck). */
+  function embed(url: string, title: string, into: Element) {
+    const id = trackId(url);
     if (!id) return;
-    for (const s of document.querySelectorAll<HTMLButtonElement>("[data-strip]")) s.setAttribute("aria-pressed", String(s === strip));
     const frame = h("iframe", {
       src: `https://open.spotify.com/embed/track/${id}?utm_source=generator&theme=0`,
-      title: `${t.name} by ${t.artists}, on Spotify`,
+      title: `${title}, on Spotify`,
       allow: "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture",
       loading: "lazy",
       height: "152",
+      class: "spotify-embed",
     });
-    document.querySelector("[data-jukebox-player]")!.replaceChildren(frame);
+    into.replaceChildren(frame);
+  }
+
+  function play(t: Track, strip: HTMLButtonElement) {
+    for (const s of document.querySelectorAll<HTMLButtonElement>("[data-strip]")) s.setAttribute("aria-pressed", String(s === strip));
+    embed(t.url, `${t.name} by ${t.artists}`, document.querySelector("[data-jukebox-player]")!);
   }
 
   function renderJukebox(tracks: Track[]) {
@@ -261,7 +361,17 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       showCloset();
     });
 
-    if (pending) {
+    const matchRoot = document.querySelector<HTMLElement>("[data-match]")!;
+    const first = matchRoot.closest("dialog")!.dataset.first ?? "Dan";
+    const match = setupMatch(matchRoot, { first, site: location.origin, play: embed });
+    setupRequests(document.querySelector<HTMLElement>("[data-request]")!);
+
+    // A shared Crate Match link (/music?crate=…) runs that match; otherwise open whatever was asked for on the way in.
+    const shared = fromShareParam(new URLSearchParams(location.search).get("crate"));
+    if (shared) {
+      open("match");
+      match.run(shared);
+    } else if (pending) {
       const name = pending;
       pending = null;
       if (name === "closet") showCloset();
@@ -633,5 +743,378 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       width: 60px;
       height: 60px;
     }
+  }
+</style>
+
+<style is:global>
+  /* ─────────── Crate Match and the request line (consoles over the room; much of it rendered by script) ─────────── */
+  .mc--shop .crate,
+  .mc--shop .request {
+    display: grid;
+    gap: 0.7rem;
+  }
+  .mc--shop .crate[hidden] {
+    display: none;
+  }
+  .mc--shop .crate__lead {
+    margin: 0;
+    color: var(--mc-text);
+  }
+  .mc--shop .crate__search,
+  .mc--shop .request__field input,
+  .mc--shop .request__field textarea,
+  .mc--shop .crate__lastfm input,
+  .mc--shop .match__link {
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    font: 1.25rem/1.2 var(--font-terminal, monospace);
+    color: var(--mc-text);
+    background: #140d0d;
+    border: 2px solid var(--mc-line);
+    box-shadow: inset 2px 2px 0 #0d0808;
+  }
+  .mc--shop .crate__search:focus,
+  .mc--shop .request__field :is(input, textarea):focus,
+  .mc--shop .crate__lastfm input:focus {
+    outline: none;
+    border-color: var(--mc-cyan);
+  }
+  .mc--shop .crate__search[disabled] {
+    opacity: 0.5;
+  }
+  .mc--shop .crate__search[hidden] {
+    display: none;
+  }
+  .mc--shop .request__field {
+    display: grid;
+    gap: 0.3rem;
+    color: var(--mc-dim);
+  }
+  .mc--shop .request__field textarea {
+    resize: vertical;
+  }
+  .mc--shop .hp {
+    position: absolute;
+    left: -9999px;
+  }
+
+  /* Search results: sleeves in a record bin. */
+  .mc--shop .picks {
+    display: grid;
+    gap: 0.25rem;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .mc--shop .picks:empty {
+    display: none;
+  }
+  .mc--shop .pick {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+    font: 1.15rem/1.05 var(--font-terminal, monospace);
+    color: var(--mc-text);
+    background: var(--mc-panel);
+    border: 2px solid var(--mc-line);
+    cursor: pointer;
+  }
+  .mc--shop button.pick:hover,
+  .mc--shop button.pick:focus-visible {
+    outline: none;
+    border-color: var(--mc-cyan);
+    background: #3a2420;
+  }
+  .mc--shop .pick--chosen {
+    cursor: default;
+    border-color: var(--mc-cyan);
+  }
+  .mc--shop .pick--chosen[hidden] {
+    display: none;
+  }
+  .mc--shop .pick__art {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    object-fit: cover;
+    background: #0d0808;
+  }
+  .mc--shop .pick__text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+  }
+  .mc--shop .pick__name,
+  .mc--shop .pick__sub {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .mc--shop .pick__sub {
+    font-size: 1rem;
+    color: var(--mc-dim);
+  }
+  .mc--shop .chip-x {
+    flex: none;
+    min-width: 28px;
+    min-height: 28px;
+    font: 400 0.55rem/1 var(--font-retro, monospace);
+    color: var(--mc-text);
+    background: none;
+    border: 2px solid var(--mc-line);
+    cursor: pointer;
+  }
+  .mc--shop .chip-x:hover,
+  .mc--shop .chip-x:focus-visible {
+    color: var(--mc-amber);
+    border-color: var(--mc-amber);
+  }
+
+  /* Your crate: the artists picked so far, as record-bin dividers. */
+  .mc--shop .crate__picked {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .mc--shop .crate-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0.3rem 0.25rem 0.25rem;
+    font: 1.15rem/1 var(--font-terminal, monospace);
+    color: #2b1a10;
+    background: var(--mc-cyan);
+    border-radius: 6px 6px 0 0;
+    box-shadow: 0 3px 0 #7a4f2a;
+  }
+  .mc--shop .crate-chip .chip-x {
+    min-width: 22px;
+    min-height: 22px;
+    color: #2b1a10;
+    border-color: #7a4f2a;
+  }
+  .mc--shop .crate-chip__art {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    object-fit: cover;
+    background: #0d0808;
+    color: var(--mc-text);
+  }
+  .mc--shop .crate__lastfm summary {
+    cursor: pointer;
+    color: var(--mc-dim);
+  }
+  .mc--shop .crate__lastfm label {
+    display: grid;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+  }
+  .mc--shop .crate__go {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .mc--shop .crate__go .mc-btn {
+    flex: none;
+    border: 0;
+    cursor: pointer;
+  }
+  .mc--shop .crate__go .mc-btn:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+  .mc--shop .crate__status {
+    margin: 0;
+    color: var(--mc-dim);
+  }
+
+  /* The result: a big neon score, an LED meter, the why, and a record picked for them. */
+  .mc--shop .match {
+    display: grid;
+    gap: 1rem;
+  }
+  .mc--shop .match[hidden] {
+    display: none;
+  }
+  .mc--shop .match__score {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    padding: 1rem;
+    text-align: center;
+    background: #140d0d;
+    border: 3px solid var(--mc-cyan);
+  }
+  .mc--shop .match__score p {
+    margin: 0;
+  }
+  .mc--shop .match__pct {
+    font: 400 clamp(3rem, 12vw, 4.6rem) / 1 var(--font-neon, var(--font-retro, monospace));
+    color: #ffd6ea;
+    text-shadow:
+      0 0 6px #ff6fae,
+      0 0 18px #ff6fae;
+    outline: none;
+  }
+  .mc--shop .match__verdict {
+    font: 400 0.75rem/1.4 var(--font-retro, monospace);
+    color: var(--mc-cyan);
+    text-transform: uppercase;
+  }
+  .mc--shop .meter {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 3px;
+    width: min(100%, 340px);
+  }
+  .mc--shop .led {
+    height: 10px;
+    background: var(--mc-line);
+  }
+  .mc--shop .led--on {
+    background: var(--mc-cyan);
+  }
+  .mc--shop .led--hot {
+    background: var(--mc-amber);
+    box-shadow: 0 0 6px var(--mc-amber);
+  }
+  .mc--shop .match__by {
+    font-size: 1rem;
+    color: var(--mc-dim);
+  }
+  .mc--shop .match__rows {
+    display: grid;
+    gap: 0.4rem;
+  }
+  .mc--shop .match__rows li {
+    display: grid;
+    grid-template-columns: minmax(0, 9rem) 1fr;
+    gap: 0.75rem;
+  }
+  .mc--shop .match__label {
+    margin: 0;
+    font: 400 0.5rem/1.9 var(--font-retro, monospace);
+    color: var(--mc-dim);
+    text-transform: uppercase;
+  }
+  .mc--shop .match__pick {
+    display: grid;
+    gap: 0.6rem;
+    padding: 0.9rem;
+    background: var(--mc-panel);
+    border: 2px solid var(--mc-line);
+    border-top: 4px solid var(--mc-amber);
+  }
+  .mc--shop .match__record {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .mc--shop .match__sleeve {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    display: grid;
+    place-items: center;
+    object-fit: cover;
+    background: #0d0808;
+    box-shadow: 3px 3px 0 #0d0808;
+  }
+  .mc--shop .match__song {
+    display: grid;
+    gap: 0.1rem;
+    margin: 0;
+    min-width: 0;
+  }
+  .mc--shop .match__song strong {
+    font-weight: 400;
+    color: #fff;
+  }
+  .mc--shop .match__song span {
+    color: var(--mc-dim);
+  }
+  .mc--shop .match__song em {
+    color: var(--mc-amber);
+    font-style: normal;
+  }
+  .mc--shop .spotify-embed {
+    display: block;
+    width: 100%;
+    height: 152px;
+    border: 0;
+    border-radius: 12px;
+  }
+  .mc--shop .match__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+  }
+  .mc--shop .match__actions .mcp-btn {
+    color: var(--mc-text);
+    background: #1d1414;
+    border-color: var(--mc-line);
+  }
+  .mc--shop .match__actions .mcp-btn:hover,
+  .mc--shop .match__actions .mcp-btn:focus-visible,
+  .mc--shop .match__deck .mcp-btn {
+    color: #0d0808;
+    background: var(--mc-cyan);
+    border-color: var(--mc-cyan);
+  }
+
+  /* The request line: the form, then the chalkboard of approved requests. */
+  .mc--shop .requests {
+    display: grid;
+    gap: 1.2rem;
+  }
+  .mc--shop .board {
+    padding: 0.9rem 1rem 1rem;
+    color: #f2efe6;
+    background: #26302b;
+    border: 8px solid #7a4f2a;
+    box-shadow:
+      inset 0 0 24px rgba(0, 0, 0, 0.45),
+      4px 4px 0 #0d0808;
+  }
+  .mc--shop .board__title {
+    margin: 0 0 0.6rem;
+    font: 400 0.6rem/1.4 var(--font-retro, monospace);
+    text-transform: uppercase;
+    color: #f2efe6;
+  }
+  .mc--shop .board__list {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .mc--shop .chalk {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed rgba(242, 239, 230, 0.3);
+  }
+  .mc--shop .chalk:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  .mc--shop .chalk__song {
+    color: #fff6c8 !important;
+    text-decoration: none;
+  }
+  .mc--shop .chalk__song:hover {
+    text-decoration: underline;
+  }
+  .mc--shop .chalk__note {
+    margin: 0.15rem 0 0;
+    font-size: 1.1rem;
+    color: rgba(242, 239, 230, 0.8);
+  }
+  .mc--shop .chalk--empty {
+    color: rgba(242, 239, 230, 0.7);
   }
 </style>
