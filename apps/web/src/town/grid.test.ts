@@ -4,8 +4,8 @@ import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, streakOf, timelineIndex } from "./d
 import { TownGrid } from "./grid.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN } from "./lab.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, easternTime, formatEastern } from "./home.ts";
-import { COLS, GROUND, OBJECTS, SPAWN } from "./map.ts";
-import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN } from "./shop.ts";
+import { COLS, GROUND, OBJECTS, SPAWN, TILE } from "./map.ts";
+import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, behind } from "./shop.ts";
 
 describe("town map", () => {
   const grid = new TownGrid();
@@ -291,6 +291,14 @@ describe("crate & closet interior", () => {
       expect(o.hint, id).toBeTruthy();
       expect(o.target).toEqual({ type: "event", name: event });
     }
+  });
+
+  it("draws furniture over a visitor standing behind it, not in front or beside", () => {
+    const jukebox = SHOP_OBJECTS.find((o) => o.id === "shop-jukebox")!;
+    expect(behind({ x: jukebox.x * TILE, y: (jukebox.y - 1) * TILE }, jukebox)).toBe(true);
+    expect(behind({ x: jukebox.x * TILE, y: (jukebox.y + jukebox.h) * TILE }, jukebox)).toBe(false);
+    expect(behind({ x: (jukebox.x + jukebox.w) * TILE, y: (jukebox.y - 1) * TILE }, jukebox)).toBe(false);
+    expect(behind({ x: jukebox.x * TILE, y: (jukebox.y - 2) * TILE }, jukebox)).toBe(false);
   });
 
   it("the town has a matching door to walk back out of", () => {

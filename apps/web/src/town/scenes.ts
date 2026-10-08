@@ -8,7 +8,7 @@ import type { Dir } from "./grid.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, bakeHome, drawHomeLive, drawHomeOver } from "./home.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN, bakeLab, drawLabLive } from "./lab.ts";
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
-import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, bakeShop, drawShopLive } from "./shop.ts";
+import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, bakeShop, drawShopLive, drawShopOver } from "./shop.ts";
 import { bakeWorld } from "./world.ts";
 
 export interface Scene {
@@ -91,8 +91,9 @@ export const INTERIORS: Record<string, Scene> = {
     face: "up",
     backdrop: "#1d1414",
     bake: bakeShop,
-    // A repaint a second: the jukebox bubbles, the spinning decks and the neon flicker.
-    live: { draw: drawShopLive, everyMs: 1000 },
+    // A repaint a second: the jukebox bubbles, the spinning decks and the neon flicker. Furniture
+    // is drawn again over a visitor standing behind it.
+    live: { draw: drawShopLive, drawOver: drawShopOver, everyMs: 1000 },
     retro: true,
     intro: {
       title: "Crate & Closet",

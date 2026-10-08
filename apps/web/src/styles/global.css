@@ -531,8 +531,7 @@ html:has(.mcp--shop) .panel__footer {
   background: #150e0e;
 }
 .mcp--shop .mcp-card,
-.mcp--shop .mcp-btn,
-.mcp--shop .shop-teaser {
+.mcp--shop .mcp-btn {
   box-shadow: 4px 4px 0 #0d0808;
 }
 .mcp--shop .mcp-btn:not(.mcp-btn--primary) {

@@ -98,6 +98,12 @@ const CHROME_DARK = "#9a9aa8";
 const WHITE = "#ffffff";
 const VINYL = "#141010";
 
+/** True while baking the front layer (see bakeShop): shadows stay on the floor, not over the visitor. */
+let bakingFront = false;
+const shadow = (ctx: Ctx, color: string, x: number, y: number, w: number, h: number) => {
+  if (!bakingFront) rect(ctx, color, x, y, w, h);
+};
+
 function floorTile(ctx: Ctx, tx: number, ty: number) {
   const px = tx * TILE;
   const py = ty * TILE;
@@ -173,7 +179,7 @@ function posterWall(ctx: Ctx, o: TownObject) {
     const px = x + i * each + 1;
     const py = 3 + (i % 2) * 2;
     const pw = each - 2;
-    rect(ctx, "rgba(0,0,0,0.3)", px + 1, py + 1, pw, 20);
+    shadow(ctx, "rgba(0,0,0,0.3)", px + 1, py + 1, pw, 20);
     rect(ctx, l.bg, px, py, pw, 20);
     // A big sun or record, the band name, and the date strip along the bottom.
     rect(ctx, l.art, px + 3, py + 3, pw - 6, 7);
@@ -194,7 +200,7 @@ function polaroids(ctx: Ctx, o: TownObject) {
   photos.forEach((c, i) => {
     const px = x + 2 + i * 15;
     const py = 6 + (i % 2);
-    rect(ctx, "rgba(0,0,0,0.3)", px + 1, py + 1, 12, 15);
+    shadow(ctx, "rgba(0,0,0,0.3)", px + 1, py + 1, 12, 15);
     rect(ctx, WHITE, px, py, 12, 15);
     rect(ctx, c, px + 1, py + 1, 10, 9);
     // A figure in each photo.
@@ -210,7 +216,7 @@ function jukebox(ctx: Ctx, o: TownObject) {
   const top = o.y * TILE - 10;
   const w = o.w * TILE;
   const h = o.h * TILE + 10;
-  rect(ctx, "rgba(0,0,0,0.25)", x + 3, top + h, w - 2, 3);
+  shadow(ctx, "rgba(0,0,0,0.25)", x + 3, top + h, w - 2, 3);
   // The arch.
   rect(ctx, INK, x + 5, top, w - 10, 2);
   rect(ctx, INK, x + 2, top + 2, w - 4, 2);
@@ -236,7 +242,7 @@ function crates(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE;
   const y = o.y * TILE;
   const w = o.w * TILE;
-  rect(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w, 3);
+  shadow(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w, 3);
   const sleeves = [MUSTARD, TEAL, PINK, CREAM, BLUE, ORANGE, "#8a6fbf", WHITE];
   for (let c = 0; c < 3; c++) {
     const cx = x + 1 + c * 21;
@@ -259,7 +265,7 @@ function rack(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE;
   const y = o.y * TILE;
   const w = o.w * TILE;
-  rect(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w - 2, 3);
+  shadow(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w - 2, 3);
   // Rail and legs.
   rect(ctx, INK, x + 1, y - 12, w - 2, 3);
   rect(ctx, CHROME, x + 2, y - 11, w - 4, 1);
@@ -282,7 +288,7 @@ function rack(ctx: Ctx, o: TownObject) {
     rect(ctx, CHROME_DARK, gx + 2, y - 10, 1, 2);
     rect(ctx, INK, gx - 1, y - 8, 7, len + 1);
     rect(ctx, g.c, gx, y - 7, 5, len - 1);
-    rect(ctx, "rgba(0,0,0,0.2)", gx + 2, y - 7, 1, len - 1);
+    shadow(ctx, "rgba(0,0,0,0.2)", gx + 2, y - 7, 1, len - 1);
   });
   // A price tag on the end.
   rect(ctx, CREAM, x + w - 9, y - 6, 4, 5);
@@ -294,7 +300,7 @@ function decks(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE;
   const y = o.y * TILE;
   const w = o.w * TILE;
-  rect(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w, 3);
+  shadow(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w, 3);
   rect(ctx, INK, x, y - 4, w, 20);
   rect(ctx, "#2b2228", x + 1, y - 3, w - 2, 9);
   // The front drape, with "DJ" on it.
@@ -313,7 +319,7 @@ function decks(ctx: Ctx, o: TownObject) {
 function mirror(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE + 2;
   const top = o.y * TILE - 8;
-  rect(ctx, "rgba(0,0,0,0.2)", x + 2, top + 40, 12, 3);
+  shadow(ctx, "rgba(0,0,0,0.2)", x + 2, top + 40, 12, 3);
   rect(ctx, INK, x, top, 12, 40);
   rect(ctx, MUSTARD, x + 1, top + 1, 10, 38);
   rect(ctx, "#bcd8e0", x + 2, top + 3, 8, 34);
@@ -326,7 +332,7 @@ function counter(ctx: Ctx, o: TownObject) {
   const x = o.x * TILE;
   const y = o.y * TILE;
   const w = o.w * TILE;
-  rect(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w, 3);
+  shadow(ctx, "rgba(0,0,0,0.2)", x + 2, y + 15, w, 3);
   rect(ctx, INK, x, y - 2, w, 18);
   rect(ctx, "#7a4f2a", x + 1, y - 1, w - 2, 4);
   rect(ctx, "#5c3a1e", x + 1, y + 3, w - 2, 12);
@@ -375,17 +381,43 @@ export function bakeShop(): HTMLCanvasElement {
   for (const o of SHOP_OBJECTS) {
     if (o.style === "shop-posters") posterWall(ctx, o);
     else if (o.style === "shop-polaroids") polaroids(ctx, o);
-    else if (o.style === "shop-jukebox") jukebox(ctx, o);
-    else if (o.style === "shop-closet") rack(ctx, o);
-    else if (o.style === "crates") crates(ctx, o);
-    else if (o.style === "decks") decks(ctx, o);
-    else if (o.style === "mirror") mirror(ctx, o);
-    else if (o.style === "counter") counter(ctx, o);
-    else if (o.style === "plant") plant(ctx, o);
     else if (o.style === "exit") exitMat(ctx, o);
+    else FURNITURE[o.style]?.(ctx, o);
   }
+  front = bakeFront();
   return canvas;
 }
+
+/** Floor furniture, drawn taller than its tiles: it has to cover a visitor standing behind it. */
+const FURNITURE: Record<string, (ctx: Ctx, o: TownObject) => void> = {
+  "shop-jukebox": jukebox,
+  "shop-closet": rack,
+  crates,
+  decks,
+  mirror,
+  counter,
+  plant,
+};
+
+/** The furniture again, alone on a clear canvas (no shadows), for drawShopOver to lay over the visitor. */
+let front: HTMLCanvasElement | null = null;
+function bakeFront(): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = COLS * TILE;
+  canvas.height = ROWS * TILE;
+  const ctx = canvas.getContext("2d")!;
+  bakingFront = true;
+  for (const o of SHOP_OBJECTS) FURNITURE[o.style]?.(ctx, o);
+  bakingFront = false;
+  return canvas;
+}
+
+/** How far furniture art reaches above its own tiles, in pixels (the jukebox's arch, the rack's rail). */
+const RISE = 14;
+
+/** Whether the visitor (at `p`, world pixels) stands behind `o`, close enough for its art to overlap them. */
+export const behind = (p: Point, o: TownObject) =>
+  p.y < o.y * TILE && p.y + TILE > o.y * TILE - RISE && p.x + TILE > o.x * TILE && p.x < (o.x + o.w) * TILE;
 
 // ───────────────────────────── live layer ─────────────────────────────
 
@@ -404,17 +436,14 @@ const SPIN: readonly Point[] = [
   { x: -2, y: -2 },
 ];
 
-/** The jukebox's bubble tubes and arch glow cycle, the turntables spin, and the neon flickers. */
-export function drawShopLive(ctx: Ctx, _player: Point) {
-  const tick = Math.floor(Date.now() / 1000);
-
-  // Jukebox: the arch window glows in a colour that moves on each second, with bubbles rising up the side tubes.
+/** The jukebox's arch window glows in a colour that moves on each second, with bubbles rising up the side tubes. */
+function jukeboxLive(ctx: Ctx, tick: number) {
   const jx = JUKEBOX.x * TILE;
   const jtop = JUKEBOX.y * TILE - 10;
   const jw = JUKEBOX.w * TILE;
   const glow = BUBBLES[tick % BUBBLES.length]!;
   rect(ctx, glow, jx + 7, jtop + 6, jw - 14, 6);
-  rect(ctx, "rgba(255,255,255,0.45)", jx + 8, jtop + 7, 4, 1);
+  rect(ctx, "#ffffff", jx + 8, jtop + 7, 4, 1);
   for (const tx of [jx + 3, jx + jw - 5]) {
     rect(ctx, "#2a1a10", tx, jtop + 6, 2, 30);
     for (let b = 0; b < 4; b++) {
@@ -422,8 +451,10 @@ export function drawShopLive(ctx: Ctx, _player: Point) {
       rect(ctx, BUBBLES[(b + tick) % BUBBLES.length]!, tx, by, 2, 2);
     }
   }
+}
 
-  // Turntables: a record on each, its label marker going round.
+/** The turntables: a record on each, its label marker going round. */
+function decksLive(ctx: Ctx, tick: number) {
   const dx = DECKS.x * TILE;
   const dy = DECKS.y * TILE;
   const dw = DECKS.w * TILE;
@@ -435,9 +466,32 @@ export function drawShopLive(ctx: Ctx, _player: Point) {
     const m = SPIN[(tick + i * 3) % SPIN.length]!;
     rect(ctx, "#6a6070", cx + m.x, cy + m.y, 1, 1);
   }
+}
 
+const LIVE: Record<string, (ctx: Ctx, tick: number) => void> = { "shop-jukebox": jukeboxLive, decks: decksLive };
+
+/** The jukebox and turntables move, and the neon sign flickers. */
+export function drawShopLive(ctx: Ctx, _player: Point) {
+  const tick = Math.floor(Date.now() / 1000);
+  jukeboxLive(ctx, tick);
+  decksLive(ctx, tick);
   // The neon sign: every so often, one line stutters off for a second.
   rect(ctx, "#1a1020", SIGN_X, SIGN_Y, SIGN_W, 20);
   const r = rand(tick, 7, 3);
   neonText(ctx, r < 0.12 ? 1 : r < 0.18 ? 0 : -1);
+}
+
+/** Drawn over the visitor: any furniture they stand behind, so they walk behind it rather than over it. */
+export function drawShopOver(ctx: Ctx, player: Point) {
+  if (!front) return;
+  const tick = Math.floor(Date.now() / 1000);
+  for (const o of SHOP_OBJECTS) {
+    if (!FURNITURE[o.style] || !behind(player, o)) continue;
+    const x = o.x * TILE - 2;
+    const y = o.y * TILE - RISE;
+    const w = o.w * TILE + 4;
+    const h = (o.y + o.h) * TILE - y;
+    ctx.drawImage(front, x, y, w, h, x, y, w, h);
+    LIVE[o.style]?.(ctx, tick);
+  }
 }

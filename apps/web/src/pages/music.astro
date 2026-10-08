@@ -28,7 +28,7 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
 
     <p class="mcp-hint">
       Records up front, vintage in the back. {djing?.blurb}
-      {fashion && " The closet at the back holds the fashion side."}
+      {fashion && " The closet, below, holds the fashion side."}
     </p>
 
     <section class="mcp-card" aria-labelledby="spin-title" data-spotify aria-busy="true" aria-live="polite">
@@ -37,20 +37,46 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       <div class="mcp-fastlane">
         <button type="button" class="mcp-btn mcp-btn--primary" data-open="jukebox">🎵 Jukebox</button>
         <button type="button" class="mcp-btn" data-open="posters">🎸 Gig posters</button>
-        <button type="button" class="mcp-btn" data-open="closet">🧥 The Closet</button>
+        {fashion && <a class="mcp-btn" href="#closet" data-closet-link>🧥 The Closet</a>}
       </div>
     </section>
 
     {
       fashion && (
-        <section class="mcp-card" aria-labelledby="closet-title">
-          <h2 id="closet-title" class="mcp-h">In the back</h2>
+        <section class="mcp-card closet" id="closet" aria-labelledby="closet-title" tabindex="-1">
+          <h2 id="closet-title" class="mcp-h">The Closet</h2>
+          <h3 class="closet__title">{fashion.title}</h3>
           <p>{fashion.blurb}</p>
-          {photos[0] && <Image class="shop-teaser" src={photos[0].src} alt={photos[0].alt} width={480} height={360} loading="lazy" />}
-          <p>
-            <button type="button" class="mcp-btn" data-open="closet">
-              Browse the closet 🧥
-            </button>
+          {fashion.details.length > 0 && (
+            <ul class="closet__tags">
+              {fashion.details.map((d) => (
+                <li>{d}</li>
+              ))}
+            </ul>
+          )}
+          {photos.length > 0 && (
+            <ul class="clean polaroids">
+              {photos.map((p) => (
+                <li class="polaroid">
+                  <Image src={p.src} alt={p.alt} width={480} height={360} loading="lazy" />
+                  <span class="polaroid__caption" aria-hidden="true">
+                    {p.alt}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p class="closet__links">
+            {fashion.links.map((l) => (
+              <a class="mcp-btn" href={l.url} target="_blank" rel="noopener noreferrer">
+                {l.label} ↗
+              </a>
+            ))}
+            {depop?.url && (
+              <a class="mcp-btn" href={depop.url} target="_blank" rel="noopener noreferrer">
+                Shop my Depop ↗
+              </a>
+            )}
           </p>
         </section>
       )
@@ -95,57 +121,6 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       <p class="mc__fine">Most-played artists over the last six months on Spotify.</p>
     </div>
   </dialog>
-
-  <!-- ─────────── the closet: the fashion story, in polaroids ─────────── -->
-  <dialog slot="screen" class="mc mc--shop" data-shop-dialog="closet" aria-labelledby="shop-closet-title">
-    <div class="mc__bar">
-      <h2 id="shop-closet-title" class="mc__title">The Closet</h2>
-      <button type="button" class="mc__close" data-mc-close aria-label="Close the closet">✕</button>
-    </div>
-    <div class="mc__body">
-      {
-        fashion ? (
-          <article class="closet">
-            <h3 class="closet__title">{fashion.title}</h3>
-            <p>{fashion.blurb}</p>
-            {fashion.details.length > 0 && (
-              <ul class="closet__tags">
-                {fashion.details.map((d) => (
-                  <li>{d}</li>
-                ))}
-              </ul>
-            )}
-            {photos.length > 0 && (
-              <ul class="clean polaroids">
-                {photos.map((p) => (
-                  <li class="polaroid">
-                    <Image src={p.src} alt={p.alt} width={480} height={360} loading="lazy" />
-                    <span class="polaroid__caption" aria-hidden="true">
-                      {p.alt}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p class="closet__links">
-              {fashion.links.map((l) => (
-                <a class="mc-btn" href={l.url} target="_blank" rel="noopener noreferrer">
-                  {l.label} ↗
-                </a>
-              ))}
-              {depop?.url && (
-                <a class="mc-btn" href={depop.url} target="_blank" rel="noopener noreferrer">
-                  Shop my Depop ↗
-                </a>
-              )}
-            </p>
-          </article>
-        ) : (
-          <p>The closet is being restocked.</p>
-        )
-      }
-    </div>
-  </dialog>
 </TownLayout>
 
 <script>
@@ -155,8 +130,8 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
   import { objectRect, zoomIn } from "../town/zoom";
 
   /** Which room object each console zooms out of. */
-  const OBJECT: Record<string, string> = { jukebox: "shop-jukebox", posters: "shop-posters", closet: "shop-closet" };
-  /** A console asked for before the Crate & Closet page was shown (it opens once the page loads). */
+  const OBJECT: Record<string, string> = { jukebox: "shop-jukebox", posters: "shop-posters" };
+  /** A console (or the closet) asked for before the Crate & Closet page was shown (it opens once the page loads). */
   let pending: string | null = null;
 
   type Track = SpotifyStats["topTracks"][number];
@@ -178,6 +153,21 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
   }
 
   for (const [name, id] of Object.entries(OBJECT)) document.addEventListener(`town:${id}`, () => open(name));
+
+  /** The rack and the polaroids: no console, just bring the closet in the panel into view. */
+  function showCloset() {
+    const closet = document.querySelector<HTMLElement>("#closet");
+    if (!closet) {
+      pending = "closet";
+      void navigate("/music");
+      return;
+    }
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    closet.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+    closet.focus({ preventScroll: true });
+    if (!still) closet.animate([{ boxShadow: "0 0 0 3px #ff6fae, 0 0 24px #ff6fae" }, { boxShadow: "4px 4px 0 #0d0808" }], { duration: 1200, easing: "ease-out" });
+  }
+  document.addEventListener("town:shop-closet", showCloset);
 
   /** Drop the needle: load a track's Spotify player into the jukebox window. */
   function play(t: Track, strip: HTMLButtonElement) {
@@ -266,11 +256,16 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
       dialog.addEventListener("click", (e) => e.target === dialog && dialog.close());
     }
     for (const b of document.querySelectorAll<HTMLButtonElement>("[data-open]")) b.addEventListener("click", () => open(b.dataset.open!));
+    document.querySelector("[data-closet-link]")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      showCloset();
+    });
 
     if (pending) {
       const name = pending;
       pending = null;
-      open(name);
+      if (name === "closet") showCloset();
+      else open(name);
     }
 
     const stats = await loadStats();
@@ -366,16 +361,6 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
   }
   :global(.spin__updated) {
     font-size: 1rem;
-  }
-  .shop-teaser {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border: 6px solid #fdf8ec;
-    border-bottom-width: 22px;
-    box-shadow: 4px 4px 0 #0d0808;
-    transform: rotate(-1.2deg);
   }
 
   /* ─────────── the jukebox: wood cabinet, chrome arch, glowing window, title strips ─────────── */
@@ -580,10 +565,12 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
     line-height: 1.1;
   }
 
-  /* ─────────── the closet: the story on a hang tag, photos as polaroids ─────────── */
+  /* ─────────── the closet: the fashion story, photos as polaroids, right in the panel ─────────── */
   .closet {
-    display: grid;
-    gap: 0.75rem;
+    scroll-margin-top: 1rem;
+  }
+  .closet:focus {
+    outline: none;
   }
   .closet p {
     margin: 0;
@@ -602,11 +589,11 @@ const photos = (fashion?.images ?? []).flatMap((img) => {
     list-style-type: "✂  ";
   }
   .closet__tags li::marker {
-    color: var(--mc-cyan);
+    color: var(--mcp-cyan);
   }
   .polaroids {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
     gap: 1.2rem;
     padding: 0.5rem 0.3rem;
   }
