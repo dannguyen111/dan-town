@@ -1,6 +1,6 @@
 /**
  * The inside of the Dev Center: a mission-control room. The big viewscreen on the back wall runs
- * the timeline of Dan's projects and roles, the radar console sweeps his tech stack, and the
+ * the timeline of Dan's projects, roles, school and honors, the radar console sweeps his tech stack, and the
  * telemetry wall shows his live GitHub and LeetCode numbers. LeBronette, the flight controller at
  * the front desk, talks visitors through all of it (and books meetings with Dan).
  *
@@ -139,10 +139,19 @@ export const DEV_SPAWN: Point = { x: 7, y: 17 };
 
 // ───────────────────────────── the feed ─────────────────────────────
 
+export type TimelineKind = "project" | "role" | "school" | "honor";
+/** Each kind of timeline entry in its colour on the viewscreen, and dimmed for its tick on the axis. */
+const KIND_COLOUR: Record<TimelineKind, [string, string]> = {
+  project: ["#3ee6ff", "#1d6f86"],
+  role: ["#ffc857", "#8a6a2a"],
+  school: ["#7dffb0", "#2f8a5a"],
+  honor: ["#fdb927", "#8a6a1a"],
+};
+
 /** What the room's screens show. Filled in by the Dev Center page (pages/dev.astro). */
 export interface DevFeed {
-  /** Projects and roles, oldest first. `label` is short and upper case, e.g. "VENDORA" or "KPMG". */
-  timeline: { label: string; kind: "project" | "role"; year: string; t: number }[];
+  /** Projects, roles, school and honors, oldest first. `label` is short and upper case, e.g. "VENDORA" or "KPMG". */
+  timeline: { label: string; kind: TimelineKind; year: string; t: number }[];
   /** Radar blips: r is 0 (centre, used most) to 1 (edge); a is the angle in radians. */
   blips: { hex: string; r: number; a: number }[];
   /** Contribution levels (0–4), one per day, oldest first. */
@@ -193,12 +202,12 @@ const PURPLE = "#552583";
 const GOLD = "#fdb927";
 
 /** 3×5 pixel text, 4px per character. Unknown characters (spaces) just advance. */
-function text(ctx: Ctx, s: string, x: number, y: number, color: string) {
+export function text(ctx: Ctx, s: string, x: number, y: number, color: string) {
   [...s.toUpperCase()].forEach((ch, i) =>
     PIXEL_FONT[ch]?.forEach((row, ry) => [...row].forEach((c, rx) => c === "#" && rect(ctx, color, x + i * 4 + rx, y + ry, 1, 1))),
   );
 }
-const textWidth = (s: string) => s.length * 4 - 1;
+export const textWidth = (s: string) => s.length * 4 - 1;
 
 function disc(ctx: Ctx, color: string, cx: number, cy: number, r: number) {
   for (let dy = -r; dy <= r; dy++) {
@@ -498,7 +507,7 @@ function drawTimeline(ctx: Ctx, now: number) {
   const item = items[i]!;
   const count = `${String(i + 1).padStart(2, "0")}/${String(items.length).padStart(2, "0")}`;
   text(ctx, count, x + w - textWidth(count) - 3, y + 3, CYAN_DIM);
-  text(ctx, item.label.slice(0, 18), x + 3, y + 10, item.kind === "role" ? AMBER : CYAN);
+  text(ctx, item.label.slice(0, 18), x + 3, y + 10, KIND_COLOUR[item.kind][0]);
   text(ctx, item.year, x + w - textWidth(item.year) - 3, y + 10, WHITE);
   // The axis, with a tick per entry placed by date.
   const ax = x + 4;
@@ -510,7 +519,7 @@ function drawTimeline(ctx: Ctx, now: number) {
   items.forEach((it, k) => {
     const tx = ax + Math.round(((it.t - t0) / span) * (aw - 1));
     const on = k === i;
-    rect(ctx, on ? WHITE : it.kind === "role" ? "#8a6a2a" : CYAN_DIM, tx, ay - (on ? 3 : 1), 1, on ? 4 : 2);
+    rect(ctx, on ? WHITE : KIND_COLOUR[it.kind][1], tx, ay - (on ? 3 : 1), 1, on ? 4 : 2);
   });
 }
 

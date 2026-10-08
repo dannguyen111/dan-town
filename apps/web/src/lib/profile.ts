@@ -37,3 +37,62 @@ const LINK_LABELS: Record<string, string> = { demo: "Demo ↗", code: "Code ↗"
 /** A project's links with short console labels. */
 export const projectLinks = (p: Project) =>
   Object.entries(p.links).map(([kind, href]) => ({ kind, label: LINK_LABELS[kind] ?? `${kind} ↗`, href, external: href.startsWith("http") }));
+
+const framingLinks = (links: Record<string, string> = {}) =>
+  Object.entries(links).map(([kind, href]) => ({ label: LINK_LABELS[kind] ?? `${kind} ↗`, href }));
+
+/** Pixelated org logos in public/logos/orgs, matched on a role's org or a project's id. */
+const ORG_LOGOS: [RegExp, string][] = [
+  [/johnson & johnson/i, "jnj"],
+  [/re:members/i, "remembers"],
+  [/gettysburg college/i, "gettysburg"],
+  [/kpmg/i, "kpmg"],
+  [/^vendora$/i, "vendora"],
+];
+/** The pixel logo for a role's org (or a project's id), with alt text; undefined when there isn't one. */
+export function orgLogo(orgOrProjectId: string): { src: string; alt: string } | undefined {
+  const hit = ORG_LOGOS.find(([re]) => re.test(orgOrProjectId));
+  if (!hit) return undefined;
+  const name = (orgOrProjectId.split(",").at(-1) ?? orgOrProjectId).trim();
+  return { src: `/logos/orgs/${hit[1]}.png`, alt: `${name.charAt(0).toUpperCase()}${name.slice(1)} logo` };
+}
+
+/** Roles and projects flagged `research: true`, newest first: the Research Lab's poster wall. */
+export const researchEntries = () =>
+  [
+    ...profile.experience
+      .filter((e) => e.research)
+      .map((e) => ({
+        id: `r-${e.id}`,
+        kind: "role" as const,
+        title: e.role,
+        org: e.org,
+        logo: orgLogo(e.org),
+        sub: `${e.org}${e.location ? ` · ${e.location}` : ""} · ${formatRange(e.start, e.end)}`,
+        start: e.start,
+        question: e.research_framing?.question ?? e.highlights[0] ?? "",
+        findings: e.research_framing ? e.research_framing.findings : e.highlights.slice(1),
+        implications: e.research_framing?.implications,
+        methods: e.research_framing ? e.research_framing.methods : e.skills,
+        links: framingLinks(e.research_framing?.links),
+      })),
+    ...profile.projects
+      .filter((p) => p.research)
+      .map((p) => ({
+        id: `p-${p.id}`,
+        kind: "project" as const,
+        title: p.title,
+        org: "",
+        logo: orgLogo(p.id),
+        sub: projectWhen(p),
+        start: p.start ?? p.date,
+        question: p.research_framing?.question ?? p.tagline,
+        findings: p.research_framing?.findings ?? ([] as string[]),
+        implications: p.research_framing?.implications,
+        methods: p.research_framing ? p.research_framing.methods : p.tags,
+        links: [
+          { label: "Full debrief →", href: `/projects/${p.id}` },
+          ...(p.research_framing ? framingLinks(p.research_framing.links) : projectLinks(p).map((l) => ({ label: l.label, href: l.href }))),
+        ],
+      })),
+  ].sort((a, b) => b.start.localeCompare(a.start));

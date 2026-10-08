@@ -1,0 +1,519 @@
+---
+import TownLayout from "../layouts/TownLayout.astro";
+import PixelPortrait from "../components/PixelPortrait.astro";
+import StackChip from "../components/StackChip.astro";
+import { profile, researchEntries } from "../lib/profile";
+import { canonicalTech } from "../lib/stack-meta";
+
+const first = profile.identity.short_name;
+const posters = researchEntries();
+const { statement, interests } = profile.research;
+
+// ───── the lab bench: every method and tool across the research, most used first ─────
+const methodMap = new Map<string, { name: string; usedIn: { id: string; title: string }[] }>();
+for (const p of posters)
+  for (const raw of p.methods) {
+    const name = canonicalTech(raw);
+    const m = methodMap.get(name) ?? { name, usedIn: [] };
+    if (!m.usedIn.some((u) => u.id === p.id)) m.usedIn.push({ id: p.id, title: p.title });
+    methodMap.set(name, m);
+  }
+const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedIn.length || a.name.localeCompare(b.name));
+---
+
+<TownLayout place="lab" room title="Research Lab" description={`${first}'s research: posters, methods, and the questions he wants to study next.`}>
+  <div class="mcp mcp--lab">
+    <header class="mcp-id">
+      <PixelPortrait class="mcp-id__avatar" />
+      <div class="mcp-id__text">
+        <p class="mcp-kicker">🔬 Research Lab</p>
+        <h1 id="panel-title" class="mcp-id__name" tabindex="-1">{profile.identity.name}</h1>
+        <p class="mcp-id__role">{profile.identity.headline}</p>
+      </div>
+    </header>
+
+    <p class="mcp-hint">
+      Where {first}'s research lives. The poster wall has a poster per project, the whiteboard has what he wants to study next, and the bench lays out
+      his methods. For the rest of his story (roles, school, honors), head to the <a href="/dev">Dev Center</a>.
+    </p>
+
+    <section class="mcp-card" aria-labelledby="next-title">
+      <h2 id="next-title" class="mcp-h">Research interests</h2>
+      {statement ? <p class="mcp-lead">{statement}</p> : <p class="mcp-dim">The whiteboard is still being written.</p>}
+      {
+        interests.length > 0 && (
+          <ul class="lab-interests">
+            {interests.map((i) => (
+              <li>{i.text}</li>
+            ))}
+          </ul>
+        )
+      }
+      <div class="mcp-fastlane">
+        <button type="button" class="mcp-btn mcp-btn--primary" data-open="posters">📜 Posters</button>
+        <button type="button" class="mcp-btn" data-open="whiteboard">✏️ Whiteboard</button>
+        <button type="button" class="mcp-btn" data-open="bench">🧪 Methods</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="work-title">
+      <h2 id="work-title" class="mcp-h">Research</h2>
+      {
+        posters.length > 0 ? (
+          <ul class="clean lab-list">
+            {posters.map((p) => (
+              <li class="mcp-card lab-item">
+                <h3 class="lab-item__title">{p.title}</h3>
+                <p class="mcp-dim">{p.sub}</p>
+                {p.question && <p>{p.question}</p>}
+                <p>
+                  <button type="button" class="mcp-btn" data-open="posters" data-poster={p.id}>
+                    Read the poster 📜
+                  </button>
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="mcp-dim">Posters are going up soon.</p>
+        )
+      }
+    </section>
+
+    {
+      methods.length > 0 && (
+        <section aria-labelledby="methods-title">
+          <h2 id="methods-title" class="mcp-h">Methods</h2>
+          <ul class="stack-chips">
+            {methods.map((m) => (
+              <StackChip name={m.name} />
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+
+  <!-- ─────────── the poster wall: a poster per research role or project ─────────── -->
+  <dialog slot="screen" class="mc mc--lab" data-lab-dialog="posters" aria-labelledby="lab-posters-title">
+    <div class="mc__bar">
+      <h2 id="lab-posters-title" class="mc__title">Poster wall</h2>
+      <button type="button" class="mc__close" data-mc-close aria-label="Close the poster wall">✕</button>
+    </div>
+    {
+      posters.length > 1 && (
+        <ol class="clean lab-tabs" aria-label="Research posters, newest first">
+          {posters.map((p, i) => (
+            <li>
+              <button type="button" class="lab-tab" data-poster-for={p.id} aria-pressed={i === 0 ? "true" : "false"}>
+                <span class="lab-tab__year">{p.start.slice(0, 4)}</span>
+                <span class="lab-tab__title">{p.title}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )
+    }
+    <div class="mc__body">
+      {
+        posters.map((p, i) => (
+          <article class="poster" id={p.id} data-poster-panel={p.id} hidden={i !== 0} aria-label={`Poster: ${p.title}`}>
+            <header class="poster__head">
+              <div class="poster__id">
+                <h3 class="poster__title">{p.title}</h3>
+                <p class="poster__sub">{p.sub}</p>
+              </div>
+              {p.logo && <img class="org-logo" src={p.logo.src} alt={p.logo.alt} width="96" height="96" loading="lazy" />}
+            </header>
+            <div class="poster__cols">
+              {p.question && (
+                <div>
+                  <h4 class="brief__label">{p.kind === "project" ? "Abstract" : "Question"}</h4>
+                  <p>{p.question}</p>
+                </div>
+              )}
+              {p.findings.length > 0 && (
+                <div>
+                  <h4 class="brief__label">Findings</h4>
+                  <ul class="poster__list">
+                    {p.findings.map((f) => (
+                      <li>{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {p.implications && (
+              <div>
+                <h4 class="brief__label">Implications</h4>
+                <p>{p.implications}</p>
+              </div>
+            )}
+            {p.methods.length > 0 && (
+              <>
+                <h4 class="brief__label">Methods</h4>
+                <ul class="stack-chips">
+                  {p.methods.map((m) => (
+                    <StackChip name={m} />
+                  ))}
+                </ul>
+              </>
+            )}
+            {p.links.length > 0 && (
+              <p class="poster__links">
+                {p.links.map((l) => (
+                  <a class="mc-btn" href={l.href} {...(l.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+                    {l.label}
+                  </a>
+                ))}
+              </p>
+            )}
+          </article>
+        ))
+      }
+      {posters.length === 0 && <p>The posters are still at the printer. Check back soon.</p>}
+    </div>
+  </dialog>
+
+  <!-- ─────────── the whiteboard: what Dan wants to study next ─────────── -->
+  <dialog slot="screen" class="mc mc--lab" data-lab-dialog="whiteboard" aria-labelledby="lab-whiteboard-title">
+    <div class="mc__bar">
+      <h2 id="lab-whiteboard-title" class="mc__title">Whiteboard</h2>
+      <button type="button" class="mc__close" data-mc-close aria-label="Close the whiteboard">✕</button>
+    </div>
+    <div class="mc__body">
+      <div class="board">
+        <p class="board__heading">Next:</p>
+        {statement ? <p class="board__statement">{statement}</p> : <p class="board__statement">Still thinking. Ask {first}'s twin in the meantime.</p>}
+        {
+          interests.length > 0 && (
+            <ul class="board__list">
+              {interests.map((i) => (
+                <li>{i.text}</li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ─────────── the lab bench: methods and tools ─────────── -->
+  <dialog slot="screen" class="mc mc--lab" data-lab-dialog="bench" aria-labelledby="lab-bench-title">
+    <div class="mc__bar">
+      <h2 id="lab-bench-title" class="mc__title">Lab bench</h2>
+      <button type="button" class="mc__close" data-mc-close aria-label="Close the lab bench">✕</button>
+    </div>
+    <div class="mc__body">
+      {
+        methods.length > 0 ? (
+          <ul class="clean bench-list">
+            {methods.map((m) => (
+              <li>
+                <ul class="stack-chips">
+                  <StackChip name={m.name} />
+                </ul>
+                <p class="bench-list__uses">
+                  Used in{" "}
+                  {m.usedIn.map((u, k) => (
+                    <>
+                      {k > 0 && " · "}
+                      <a href={`#${u.id}`} data-poster-link={u.id}>
+                        {u.title}
+                      </a>
+                    </>
+                  ))}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>The bench is being set up.</p>
+        )
+      }
+    </div>
+  </dialog>
+</TownLayout>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import { objectRect, zoomIn } from "../town/zoom";
+
+  /** Which room object each console zooms out of. */
+  const OBJECT: Record<string, string> = { posters: "lab-posters", whiteboard: "lab-whiteboard", bench: "lab-bench" };
+  /** A console asked for before the Research Lab page was shown (it opens once the page loads). */
+  let pending: string | null = null;
+
+  function showPoster(id: string) {
+    for (const t of document.querySelectorAll<HTMLElement>("[data-poster-for]")) t.setAttribute("aria-pressed", String(t.dataset.posterFor === id));
+    for (const p of document.querySelectorAll<HTMLElement>("[data-poster-panel]")) p.hidden = p.dataset.posterPanel !== id;
+  }
+
+  function open(name: string) {
+    const dialog = document.querySelector<HTMLDialogElement>(`[data-lab-dialog="${name}"]`);
+    if (!dialog) {
+      pending = name;
+      void navigate("/lab");
+      return;
+    }
+    if (dialog.open) return;
+    const from = objectRect(OBJECT[name]!);
+    dialog.showModal();
+    zoomIn(dialog, from);
+    if (name === "posters") dialog.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  }
+
+  for (const [name, id] of Object.entries(OBJECT)) document.addEventListener(`town:${id}`, () => open(name));
+
+  document.addEventListener("astro:page-load", () => {
+    if (!document.querySelector("[data-lab-dialog]")) return;
+
+    for (const dialog of document.querySelectorAll<HTMLDialogElement>("[data-lab-dialog]")) {
+      dialog.querySelector("[data-mc-close]")!.addEventListener("click", () => dialog.close());
+      dialog.addEventListener("close", () => document.dispatchEvent(new CustomEvent("town:focus")));
+      dialog.addEventListener("click", (e) => e.target === dialog && dialog.close());
+    }
+    for (const b of document.querySelectorAll<HTMLButtonElement>("[data-open]"))
+      b.addEventListener("click", () => {
+        if (b.dataset.poster) showPoster(b.dataset.poster);
+        open(b.dataset.open!);
+      });
+    for (const t of document.querySelectorAll<HTMLElement>("[data-poster-for]")) t.addEventListener("click", () => showPoster(t.dataset.posterFor!));
+    // A method's uses jump from the bench to that poster.
+    for (const a of document.querySelectorAll<HTMLAnchorElement>("[data-poster-link]"))
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        document.querySelector<HTMLDialogElement>('[data-lab-dialog="bench"]')!.close();
+        showPoster(a.dataset.posterLink!);
+        open("posters");
+      });
+
+    // /lab#r-some-role, from a timeline briefing in the Dev Center: open that poster.
+    const hash = decodeURIComponent(location.hash.slice(1));
+    if (hash && document.querySelector(`[data-poster-panel="${CSS.escape(hash)}"]`)) {
+      showPoster(hash);
+      pending = "posters";
+    }
+    if (pending) {
+      const name = pending;
+      pending = null;
+      open(name);
+    }
+  });
+</script>
+
+<style>
+  /* The panel and its header match the Dev Center (global.css .mcp), in the lab's mint. */
+  .mcp-id {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .mcp-id :global(.mcp-id__avatar) {
+    flex: none;
+    width: 88px;
+    height: 88px;
+    border: 3px solid var(--mcp-cyan);
+    box-shadow: 4px 4px 0 #070a14;
+    image-rendering: pixelated;
+  }
+  .mcp-id__text {
+    display: grid;
+    gap: 0.45rem;
+    min-width: 0;
+  }
+  .mcp-id__name {
+    font: 400 clamp(1rem, 2.2vw, 1.35rem) / 1.35 var(--font-retro, monospace);
+    color: #fff;
+    text-shadow: 3px 3px 0 #1f5a4a;
+  }
+  .mcp-id__name:focus {
+    outline: none;
+  }
+  .mcp-id__role {
+    color: var(--mcp-green);
+  }
+  .mcp-hint,
+  .mcp-dim {
+    color: var(--mcp-dim);
+  }
+  .mcp-lead {
+    color: #fff;
+  }
+  .mcp-fastlane {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .lab-interests {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .lab-list {
+    display: grid;
+    gap: 0.9rem;
+  }
+  .lab-item {
+    gap: 0.45rem;
+  }
+  .lab-item__title {
+    font: 400 0.65rem/1.5 var(--font-retro, monospace);
+    color: #fff;
+  }
+
+  /* The poster wall: a tab per poster, then the poster itself, white on the console. */
+  .lab-tabs {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    border-bottom: 2px solid var(--mc-line);
+    background: #0a1714;
+    flex: none;
+  }
+  /* Every tab as tall as the tallest, however its title wraps. */
+  .lab-tabs > li {
+    display: flex;
+  }
+  .lab-tab {
+    display: grid;
+    align-content: start;
+    gap: 0.3rem;
+    width: 150px;
+    flex: none;
+    padding: 0.5rem;
+    text-align: left;
+    color: var(--mc-text);
+    background: var(--mc-panel);
+    border: 2px solid var(--mc-line);
+    border-top: 4px solid var(--mc-cyan);
+    cursor: pointer;
+  }
+  .lab-tab[aria-pressed="true"] {
+    background: #17332b;
+    border-color: var(--mc-cyan);
+  }
+  .lab-tab__year {
+    font: 1.1rem/1 var(--font-terminal, monospace);
+    color: var(--mc-dim);
+  }
+  .lab-tab__title {
+    font: 1.15rem/1.1 var(--font-terminal, monospace);
+  }
+  .poster {
+    display: grid;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: #1d2a2f;
+    background: #fbfcfb;
+    border-top: 6px solid var(--mc-cyan);
+    box-shadow: 4px 4px 0 #070a14;
+  }
+  .poster[hidden] {
+    display: none;
+  }
+  .poster p {
+    margin: 0;
+  }
+  .poster__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .poster__id {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .poster .org-logo {
+    border-color: #1d2a2f;
+    box-shadow: 4px 4px 0 #a9b8bf;
+  }
+  .poster__title {
+    margin: 0;
+    font: 400 0.85rem/1.5 var(--font-retro, monospace);
+    color: #10201b;
+  }
+  .poster__sub {
+    color: #55666d;
+    font-size: 1.15rem;
+  }
+  .poster__cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.5rem 1.25rem;
+  }
+  .poster .brief__label {
+    color: #2d6b5b;
+  }
+  .poster__list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .poster__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.5rem !important;
+  }
+  .poster .stack-chips :global(.stack-chip) {
+    color: #1d2a2f;
+  }
+
+  /* The whiteboard: marker on white. */
+  .board {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.1rem 1.25rem;
+    color: #1d3557;
+    background: #fdfefe;
+    border: 6px solid #a9b8bf;
+    box-shadow: 4px 4px 0 #070a14;
+    font: 1.45rem/1.25 var(--font-terminal, monospace);
+  }
+  .board p {
+    margin: 0;
+  }
+  .board__heading {
+    font: 400 0.8rem/1.4 var(--font-retro, monospace);
+    color: #2f6fb5;
+    text-transform: uppercase;
+  }
+  .board__list {
+    margin: 0;
+    padding-left: 1.25rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+  .board__list li::marker {
+    color: #e2574c;
+  }
+
+  /* The bench: each method, and the posters that used it. */
+  .bench-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .bench-list li {
+    display: grid;
+    gap: 0.3rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px dashed var(--mc-line);
+  }
+  .bench-list__uses {
+    margin: 0;
+    color: var(--mc-dim);
+  }
+
+  @media (max-width: 480px) {
+    .mcp-id :global(.mcp-id__avatar) {
+      width: 64px;
+      height: 64px;
+    }
+  }
+</style>

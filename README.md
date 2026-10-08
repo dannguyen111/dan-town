@@ -105,6 +105,9 @@ npm run check        # astro check, worker tsc, clippy
 ```
 
 The profile is found at `$PROFILE_PATH`, else `../dan-profile/profile.yaml`, else the example.
+Mark research roles and projects with `research: true` (and fill `research.statement` / `research.interests`)
+to put them in the Research Lab. The Dev Center's "Download résumé" button appears once
+`apps/web/public/resume.pdf` exists.
 For the twin and stats locally, copy `.dev.vars.example` to `workers/api/.dev.vars` and fill it in.
 To refresh stats locally: `npx wrangler dev --test-scheduled`, then open `/__scheduled`.
 

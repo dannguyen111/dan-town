@@ -79,7 +79,7 @@ export const OBJECTS: readonly TownObject[] = [
   { id: "home", kind: "building", x: 2, y: 2, w: 5, h: 4, door: { x: 4, y: 5 }, target: { type: "place", id: "home" }, label: "Home", style: "home" },
   { id: "lebron", kind: "statue", x: 7, y: 4, w: 1, h: 2, target: { type: "note", text: "The King. 4× NBA champion and the league's all-time leading scorer." }, label: "LeBron James", style: "lebron" },
   { id: "dev", kind: "building", x: 10, y: 2, w: 6, h: 4, door: { x: 12, y: 5 }, target: { type: "place", id: "dev" }, label: "Dev Center", style: "dev" },
-  { id: "career", kind: "building", x: 2, y: 8, w: 5, h: 4, door: { x: 4, y: 11 }, target: { type: "place", id: "career" }, label: "Career Hall", style: "career" },
+  { id: "lab", kind: "building", x: 2, y: 8, w: 5, h: 4, door: { x: 4, y: 11 }, target: { type: "place", id: "lab" }, label: "Research Lab", style: "lab", labelLift: 10 },
   { id: "arcade", kind: "building", x: 11, y: 9, w: 5, h: 3, door: { x: 13, y: 11 }, target: { type: "place", id: "arcade" }, label: "Arcade", style: "arcade" },
   { id: "music", kind: "building", x: 2, y: 13, w: 4, h: 3, door: { x: 3, y: 15 }, target: { type: "place", id: "music" }, label: "Music Room", style: "music" },
   { id: "twin", kind: "npc", x: 7, y: 9, w: 1, h: 1, target: { type: "place", id: "twin" }, label: "Digital Twin", style: "twin" },

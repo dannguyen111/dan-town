@@ -6,6 +6,8 @@ export default defineConfig({
   output: "static",
   trailingSlash: "never",
   build: { format: "file" },
+  // Career Hall became part of the Dev Center (public/_redirects does the same with a real 301).
+  redirects: { "/career": "/dev" },
   prefetch: { prefetchAll: false, defaultStrategy: "hover" },
   fonts: [
     {

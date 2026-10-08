@@ -17,6 +17,27 @@ experience:
     start: 2024-01
     end: null
     highlights: [Placeholder highlight.]
+  - id: example-lab
+    role: Research Assistant
+    org: Example University
+    start: 2023-06
+    end: 2023-12
+    research: true
+    highlights: [Asked a placeholder research question., Found a placeholder result.]
+    skills: [Python, R]
+    research_framing:
+      question: A placeholder research question, as a reviewer would read it.
+      methods: [Python, R]
+      findings: [A placeholder finding.]
+      implications: What it implies or what comes next (only if true).
+education:
+  - id: example-school
+    school: Example University
+    degree: B.S. Computer Science
+    start: 2021-08
+    end: 2025-05
+    gpa: "4.0"
+    honors: [Placeholder Honor]
 projects:
   - id: example-project
     title: Example Project
@@ -24,3 +45,9 @@ projects:
     date: 2024-01
     featured: true
     body: Placeholder.
+honors:
+  - { title: Example Award, date: 2024-05, org: Example University }
+research:
+  statement: What I want to study next, in a sentence or two.
+  interests:
+    - { text: A placeholder research interest }

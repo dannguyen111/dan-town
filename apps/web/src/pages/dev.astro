@@ -6,7 +6,8 @@ import LinkRow from "../components/LinkRow.astro";
 import StackChip from "../components/StackChip.astro";
 import PixelLogo from "../components/PixelLogo.astro";
 import GitHubStats from "../components/GitHubStats.astro";
-import { profile, codename, formatMonth, formatRange, projectsByDate } from "../lib/profile";
+import { existsSync } from "node:fs";
+import { profile, codename, formatMonth, formatRange, orgLogo, projectsByDate } from "../lib/profile";
 import { logoFor, techUsage } from "../lib/stack";
 
 const first = profile.identity.short_name;
@@ -24,20 +25,32 @@ const orgCode = (org: string) => {
   return (org.split(",").at(-1) ?? org).trim().toUpperCase();
 };
 const LINK_LABELS: Record<string, string> = { demo: "Launch the demo ↗", code: "Source code ↗", paper: "Read the paper ↗", play: "Play it in the Arcade" };
+/** "Dean's List: Fall 2024" → "DEAN'S LIST", cut to fit a timeline tick. */
+const shortCode = (title: string) => {
+  const head = title.split(/\s*[:—(]\s*/)[0]!.trim().toUpperCase();
+  return head.length <= 18 ? head : `${head.slice(0, 17).trimEnd()}…`;
+};
+const toLab = (id: string) => ({ label: "See it in the Research Lab 🔬", href: `/lab#${id}` });
+
+type Kind = "project" | "role" | "school" | "honor";
+const KIND_LABEL: Record<Kind, string> = { project: "Launch", role: "Crew assignment", school: "Training", honor: "Commendation" };
 
 interface Entry {
   id: string;
-  kind: "project" | "role";
+  kind: Kind;
   code: string;
   title: string;
   sub: string;
   start: string;
   end: string | null;
-  status: "ACTIVE" | "COMPLETE";
+  status: "ACTIVE" | "COMPLETE" | "AWARDED";
+  research: boolean;
   objective: string;
   results: string[];
   stack: string[];
   links: { label: string; href: string }[];
+  /** The org's pixel logo, shown beside a role's (or Vendora's) briefing. */
+  logo?: { src: string; alt: string };
 }
 const entries: Entry[] = [
   ...profile.projects.map((p) => ({
@@ -49,13 +62,16 @@ const entries: Entry[] = [
     start: p.start ?? p.date,
     end: p.end ?? null,
     status: p.end === null ? ("ACTIVE" as const) : ("COMPLETE" as const),
+    research: p.research,
     objective: p.tagline,
     results: [],
     stack: p.tags,
     links: [
       { label: "Full debrief →", href: `/projects/${p.id}` },
       ...Object.entries(p.links).map(([k, href]) => ({ label: LINK_LABELS[k] ?? `${k} ↗`, href })),
+      ...(p.research ? [toLab(`p-${p.id}`)] : []),
     ],
+    logo: orgLogo(p.id),
   })),
   ...profile.experience.map((e) => ({
     id: `r-${e.id}`,
@@ -66,14 +82,51 @@ const entries: Entry[] = [
     start: e.start,
     end: e.end,
     status: e.end === null ? ("ACTIVE" as const) : ("COMPLETE" as const),
+    research: e.research,
     objective: e.highlights[0] ?? "",
     results: e.highlights.slice(1),
     stack: e.skills ?? [],
+    links: e.research ? [toLab(`r-${e.id}`)] : [],
+    logo: orgLogo(e.org),
+  })),
+  ...profile.education.map((ed) => ({
+    id: `s-${ed.id}`,
+    kind: "school" as const,
+    code: orgCode(ed.school),
+    title: ed.degree,
+    sub: `${ed.school} · ${formatRange(ed.start, ed.end)}`,
+    start: ed.start,
+    end: ed.end,
+    status: ed.end === null || ed.end > new Date().toISOString().slice(0, 7) ? ("ACTIVE" as const) : ("COMPLETE" as const),
+    research: false,
+    objective: [ed.gpa && `GPA ${ed.gpa}`, ed.rank && `Rank ${ed.rank}`].filter(Boolean).join(" · "),
+    results: ed.honors,
+    stack: [],
+    links: [],
+  })),
+  ...profile.honors.map((h, i) => ({
+    id: `h-${i}`,
+    kind: "honor" as const,
+    code: shortCode(h.title),
+    title: h.title,
+    sub: `${h.org} · ${formatMonth(h.date)}`,
+    start: h.date,
+    end: h.date,
+    status: "AWARDED" as const,
+    research: false,
+    objective: h.description ?? "",
+    results: [],
+    stack: [],
     links: [],
   })),
 ].sort((a, b) => a.start.localeCompare(b.start) || a.kind.localeCompare(b.kind));
-// Open on what Dan is doing now: the newest active entry, else the newest.
-const opening = [...entries].reverse().find((e) => e.status === "ACTIVE") ?? entries.at(-1)!;
+// The newest first, for the Service record.
+const honors = [...profile.honors].sort((a, b) => b.date.localeCompare(a.date));
+// Dan drops his résumé in apps/web/public; the button only shows once it's there.
+// (Astro runs from apps/web, in dev and in builds.)
+const hasResume = existsSync("public/resume.pdf");
+// Open on what Dan is doing now: the newest active project or role, else the newest entry.
+const opening = [...entries].reverse().find((e) => e.status === "ACTIVE" && (e.kind === "project" || e.kind === "role")) ?? entries.at(-1)!;
 
 // ───── the stack radar: the more a tech was used, the nearer the centre ─────
 const usage = techUsage();
@@ -108,7 +161,7 @@ const featured = projectsByDate().filter((p) => p.featured);
 
 ---
 
-<TownLayout place="dev" room title="Dev Center" description={`Mission control for ${first}'s projects, stack, and live GitHub and LeetCode activity.`}>
+<TownLayout place="dev" room title="Dev Center" description={`Mission control for ${first}'s projects, experience, education, honors, stack, and live GitHub and LeetCode activity.`}>
   <div class="mcp">
     <header class="mcp-id">
       <PixelPortrait class="mcp-id__avatar" />
@@ -120,8 +173,8 @@ const featured = projectsByDate().filter((p) => p.featured);
     </header>
 
     <p class="mcp-hint">
-      Welcome aboard. LeBronette at the front desk knows everything about {first}. The viewscreen runs his mission timeline, the radar scans his stack,
-      and the telemetry wall is live.
+      Welcome aboard. LeBronette at the front desk knows everything about {first}. The viewscreen runs his mission timeline (projects, roles,
+      school and honors), the radar scans his stack, and the telemetry wall is live. His research lives next door, in the <a href="/lab">Research Lab</a>.
     </p>
 
     <section class="mcp-card" aria-labelledby="tldr-title" data-mc data-feed={JSON.stringify(feed)}>
@@ -144,14 +197,26 @@ const featured = projectsByDate().filter((p) => p.featured);
               <dt>Trained</dt>
               <dd>
                 {edu.degree}, {edu.school}
+                {edu.gpa && <> · GPA {edu.gpa}</>}
                 {edu.rank && <> · rank {edu.rank}</>}
               </dd>
             </div>
           )
         }
+        {
+          honors.length > 0 && (
+            <div>
+              <dt>Honors</dt>
+              <dd>{honors.slice(0, 3).map((h) => h.title).join(" · ")}</dd>
+            </div>
+          )
+        }
         <div>
           <dt>Record</dt>
-          <dd>{featured.length} featured launches · {profile.experience.length} crew assignments</dd>
+          <dd>
+            {featured.length} featured {featured.length === 1 ? "launch" : "launches"} · {profile.experience.length} crew{" "}
+            {profile.experience.length === 1 ? "assignment" : "assignments"}
+          </dd>
         </div>
         {
           profile.identity.open_to && (
@@ -164,6 +229,13 @@ const featured = projectsByDate().filter((p) => p.featured);
       </dl>
       <div class="mcp-fastlane">
         <a class="mcp-btn mcp-btn--primary" href="/reception">🎧 Ask LeBronette</a>
+        {
+          hasResume && (
+            <a class="mcp-btn mcp-btn--primary" href="/resume.pdf" download={`${profile.identity.name} Résumé.pdf`}>
+              📄 Download résumé
+            </a>
+          )
+        }
         <button type="button" class="mcp-btn" data-open="timeline">🛰️ Timeline</button>
         <button type="button" class="mcp-btn" data-open="radar">◎ Radar</button>
         <button type="button" class="mcp-btn" data-open="telemetry">📈 Telemetry</button>
@@ -184,6 +256,47 @@ const featured = projectsByDate().filter((p) => p.featured);
           </div>
         ))
       }
+    </section>
+
+    <section aria-labelledby="record-title">
+      <h2 id="record-title" class="mcp-h">Service record</h2>
+      <div class="mcp-record">
+        {
+          profile.education.map((ed) => (
+            <article class="mcp-card mcp-school">
+              <p class="mcp-sub">{formatRange(ed.start, ed.end)}</p>
+              <h3 class="mcp-school__name">{ed.school}</h3>
+              <p>{ed.degree}</p>
+              {(ed.gpa || ed.rank) && (
+                <p class="mcp-badges">
+                  {ed.gpa && <span class="mcp-badge">GPA {ed.gpa}</span>}
+                  {ed.rank && <span class="mcp-badge">Rank {ed.rank}</span>}
+                </p>
+              )}
+              {ed.honors.length > 0 && <p class="mcp-dim">Honors: {ed.honors.join(" · ")}</p>}
+            </article>
+          ))
+        }
+        {
+          honors.length > 0 && (
+            <ul class="clean mcp-honors" aria-label="Honors and awards">
+              {honors.map((h) => (
+                <li>
+                  <span class="mcp-honors__icon" aria-hidden="true">🏆</span>
+                  <div>
+                    <strong>{h.title}</strong>
+                    <span class="mcp-dim">
+                      {" "}
+                      · {h.org} · {formatMonth(h.date)}
+                    </span>
+                    {h.description && <p class="mcp-dim">{h.description}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
     </section>
 
     <section aria-labelledby="launches-title">
@@ -224,7 +337,7 @@ const featured = projectsByDate().filter((p) => p.featured);
       <h2 id="mc-timeline-title" class="mc__title">Mission timeline</h2>
       <button type="button" class="mc__close" data-mc-close aria-label="Close the timeline">✕</button>
     </div>
-    <ol class="clean mc-track" aria-label="Projects and roles, oldest first">
+    <ol class="clean mc-track" aria-label="Projects, roles, school and honors, oldest first">
       {
         entries.map((e) => (
           <li>
@@ -240,22 +353,28 @@ const featured = projectsByDate().filter((p) => p.featured);
       {
         entries.map((e) => (
           <article class="brief" data-brief={e.id} hidden={e !== opening} aria-label={`Briefing: ${e.title}`}>
-            <p class="brief__kicker">
-              <span class={`brief__kind brief__kind--${e.kind}`}>{e.kind === "role" ? "Crew assignment" : "Launch"}</span>
-              <span class={`brief__status brief__status--${e.status.toLowerCase()}`}>{e.status}</span>
-            </p>
-            <h3 class="brief__code">{e.code}</h3>
-            <p class="brief__title">{e.title}</p>
-            <p class="brief__sub">{e.sub}</p>
+            <header class="brief__head">
+              <div class="brief__id">
+                <p class="brief__kicker">
+                  <span class={`brief__kind brief__kind--${e.kind}`}>{KIND_LABEL[e.kind]}</span>
+                  <span class={`brief__status brief__status--${e.status.toLowerCase()}`}>{e.status}</span>
+                  {e.research && <span class="brief__kind brief__kind--research">🔬 Research</span>}
+                </p>
+                <h3 class="brief__code">{e.code}</h3>
+                <p class="brief__title">{e.title}</p>
+                <p class="brief__sub">{e.sub}</p>
+              </div>
+              {e.logo && <img class="org-logo" src={e.logo.src} alt={e.logo.alt} width="96" height="96" loading="lazy" />}
+            </header>
             {e.objective && (
               <>
-                <h4 class="brief__label">Objective</h4>
+                <h4 class="brief__label">{e.kind === "school" ? "Standing" : e.kind === "honor" ? "Citation" : "Objective"}</h4>
                 <p>{e.objective}</p>
               </>
             )}
             {e.results.length > 0 && (
               <>
-                <h4 class="brief__label">Results</h4>
+                <h4 class="brief__label">{e.kind === "school" ? "Honors" : "Results"}</h4>
                 <ul class="brief__results">
                   {e.results.map((r) => (
                     <li>{r}</li>
@@ -582,6 +701,49 @@ const featured = projectsByDate().filter((p) => p.featured);
     margin-top: 0.9rem;
   }
 
+  /* Service record: school cards, then the honors roll. */
+  .mcp-record {
+    display: grid;
+    gap: 0.9rem;
+  }
+  .mcp-school {
+    gap: 0.35rem;
+    border-top-color: var(--mcp-green);
+  }
+  .mcp-school .mcp-sub {
+    margin: 0 !important;
+  }
+  .mcp-school__name {
+    font: 400 0.65rem/1.5 var(--font-retro, monospace);
+    color: #fff;
+  }
+  .mcp-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .mcp-badge {
+    padding: 0.15rem 0.45rem;
+    color: var(--mcp-green);
+    border: 2px solid currentColor;
+  }
+  .mcp-dim {
+    color: var(--mcp-dim);
+  }
+  .mcp-honors {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .mcp-honors li {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+  }
+  .mcp-honors strong {
+    font-weight: 400;
+    color: #fdb927;
+  }
+
   /* Launches: a grid of project cards (components/ProjectCard.astro). */
   .mcp-launches {
     display: grid;
@@ -637,100 +799,6 @@ const featured = projectsByDate().filter((p) => p.featured);
     }
   }
 
-  /* ─────────────── the room's screens: mission-control consoles over the map ─────────────── */
-  .mc {
-    --mc-bg: #0b1020;
-    --mc-panel: #111a33;
-    --mc-line: #26325c;
-    --mc-cyan: #3ee6ff;
-    --mc-amber: #ffc857;
-    --mc-green: #7dffb0;
-    --mc-text: #dfe7ff;
-    --mc-dim: #8b9ac4;
-    position: fixed;
-    inset: var(--header-h) var(--panel-w) 0 0;
-    margin: auto;
-    width: min(calc((100vw - var(--panel-w)) * 0.94), 760px);
-    max-height: calc(100dvh - var(--header-h) - 24px);
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    color: var(--mc-text);
-    background: var(--mc-bg);
-    border: 3px solid var(--mc-cyan);
-    box-shadow:
-      0 0 0 3px #070a14,
-      0 0 28px rgba(62, 230, 255, 0.35);
-  }
-  .mc:not([open]) {
-    display: none;
-  }
-  .mc::backdrop {
-    background: rgba(4, 7, 16, 0.6);
-  }
-  .mc__bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.6rem 0.8rem;
-    background: var(--mc-panel);
-    border-bottom: 2px solid var(--mc-line);
-  }
-  .mc__title {
-    margin: 0;
-    font: 400 0.75rem/1.4 var(--font-retro, monospace);
-    color: var(--mc-cyan);
-    text-transform: uppercase;
-  }
-  .mc__title::before {
-    content: "● ";
-    color: #ff5a6a;
-  }
-  .mc__close {
-    min-width: 36px;
-    min-height: 36px;
-    font: 400 0.8rem/1 var(--font-retro, monospace);
-    color: var(--mc-text);
-    background: none;
-    border: 2px solid var(--mc-line);
-    cursor: pointer;
-  }
-  .mc__close:hover,
-  .mc__close:focus-visible {
-    border-color: var(--mc-cyan);
-    color: var(--mc-cyan);
-  }
-  .mc__body {
-    padding: 1rem;
-    overflow: auto;
-  }
-  .mc__fine {
-    margin: 0.75rem 0 0;
-    font-size: 0.78rem;
-    color: var(--mc-dim);
-  }
-  .mc a {
-    color: var(--mc-cyan);
-  }
-  .mc :global(.stack-chip) {
-    --ink: #070a14;
-  }
-  .mc-btn {
-    display: inline-block;
-    padding: 0.45rem 0.7rem;
-    font: 400 0.55rem/1.4 var(--font-retro, monospace);
-    color: #070a14 !important;
-    background: var(--mc-cyan);
-    text-decoration: none;
-    box-shadow: 3px 3px 0 #070a14;
-  }
-  .mc-btn:hover,
-  .mc-btn:focus-visible {
-    background: var(--mc-amber);
-  }
-
   /* The timeline: a scrolling track of ticks, then the selected briefing. */
   .mc-track {
     display: flex;
@@ -741,8 +809,13 @@ const featured = projectsByDate().filter((p) => p.featured);
     background: repeating-linear-gradient(90deg, transparent 0 23px, rgba(62, 230, 255, 0.08) 23px 24px), #080d1b;
     flex: none;
   }
+  /* Every tick as tall as the tallest, however its code wraps. */
+  .mc-track > li {
+    display: flex;
+  }
   .mc-tick {
     display: grid;
+    align-content: start;
     gap: 0.3rem;
     min-width: 92px;
     padding: 0.5rem;
@@ -756,12 +829,24 @@ const featured = projectsByDate().filter((p) => p.featured);
   .mc-tick--role {
     border-top-color: var(--mc-amber);
   }
+  .mc-tick--school {
+    border-top-color: var(--mc-green);
+  }
+  .mc-tick--honor {
+    border-top-color: #fdb927;
+  }
   .mc-tick[aria-pressed="true"] {
     background: #1b2a52;
     border-color: var(--mc-cyan);
   }
   .mc-tick--role[aria-pressed="true"] {
     border-color: var(--mc-amber);
+  }
+  .mc-tick--school[aria-pressed="true"] {
+    border-color: var(--mc-green);
+  }
+  .mc-tick--honor[aria-pressed="true"] {
+    border-color: #fdb927;
   }
   .mc-tick__year {
     font: 1.1rem/1 var(--font-terminal, monospace);
@@ -780,6 +865,17 @@ const featured = projectsByDate().filter((p) => p.featured);
   .brief p {
     margin: 0;
   }
+  .brief__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .brief__id {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+  }
   .brief__kicker {
     display: flex;
     gap: 0.5rem;
@@ -797,6 +893,16 @@ const featured = projectsByDate().filter((p) => p.featured);
   .brief__kind--role {
     color: var(--mc-amber);
   }
+  .brief__kind--school {
+    color: var(--mc-green);
+  }
+  .brief__kind--honor,
+  .brief__status--awarded {
+    color: #fdb927;
+  }
+  .brief__kind--research {
+    color: #c9a7ff;
+  }
   .brief__status--active {
     color: var(--mc-green);
   }
@@ -812,18 +918,12 @@ const featured = projectsByDate().filter((p) => p.featured);
     color: #fff;
   }
   .brief__title {
-    font-weight: 800;
+    font-size: 1.5rem;
+    color: #fff;
   }
   .brief__sub {
     color: var(--mc-dim);
-    font-size: 0.9rem;
-  }
-  .brief__label {
-    margin: 0.8rem 0 0.3rem;
-    font: 400 0.55rem/1.4 var(--font-retro, monospace);
-    color: var(--mc-cyan);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 1.15rem;
   }
   .brief__results {
     margin: 0;
@@ -954,7 +1054,7 @@ const featured = projectsByDate().filter((p) => p.featured);
     text-shadow: 0 0 8px rgba(125, 255, 176, 0.5);
   }
   .readout__unit {
-    font-size: 0.8rem;
+    font-size: 1.05rem;
     color: var(--mc-dim);
   }
   .dials {
@@ -1014,10 +1114,6 @@ const featured = projectsByDate().filter((p) => p.featured);
 
 
   @media (max-width: 899px) {
-    .mc {
-      inset: var(--header-h) 0 0 0;
-      width: min(calc(100vw - 24px), 760px);
-    }
     .radar-layout {
       grid-template-columns: 1fr;
     }
