@@ -70,7 +70,7 @@ export const SHOP_OBJECTS: readonly TownObject[] = [
   station("crates", "Record crates", 4, 6, 4, 1, "Dig through the crates: Crate Match 💿", 8),
   prop("mirror", "Mirror", 11, 8, 1, 2, "A full-length mirror in a gold frame. The fit checks out."),
   station("decks", "DJ booth", 4, 9, 3, 1, "Call in a request 📞", 8),
-  prop("counter", "Counter", 1, 11, 2, 1, "The register. Nothing in here is for sale, but the Depop stall across the plaza has the real racks."),
+  prop("counter", "Counter", 1, 11, 2, 1, "The register. For the real racks, try the Depop stall across the plaza."),
   prop("plant", "Plant", 11, 12, 1, 1, "A shop plant, thriving on a steady diet of vinyl crackle."),
   { id: "exit", kind: "exit", x: 6, y: 14, w: 1, h: 1, door: { x: 6, y: 14 }, target: { type: "place", id: "town" }, label: "Exit", style: "exit", hideLabel: true },
 ];

@@ -331,6 +331,18 @@ const links = Object.fromEntries(EXTERNAL_LINKS.map((l) => [l.id, { label: l.lab
     font: 14px var(--font-retro, monospace);
     color: #4a4a56;
   }
+  /* Crate & Closet: a compact text box, so it doesn't cover the shop floor. */
+  .town[data-retro][data-scene="music"] .town-bubble {
+    width: min(380px, calc(100% - 32px));
+    padding: 0.8em 2.6em 0.8em 1.1em;
+    font-size: 9px;
+    line-height: 1.8;
+  }
+  .town[data-retro][data-scene="music"] .town-bubble :global(.town-bubble__close) {
+    right: 6px;
+    top: 6px;
+    font-size: 11px;
+  }
   .town[data-retro] .town-labels :global(.town-label) {
     font: 9px/1 var(--font-retro, monospace);
     padding: 6px 8px;
