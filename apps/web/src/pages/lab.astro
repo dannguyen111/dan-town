@@ -373,8 +373,13 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
   .lab-tab {
     display: grid;
     gap: 0.3rem;
+  /* Every tab as tall as the tallest, however its title wraps. */
+  .lab-tabs > li {
+    display: flex;
+  }
     width: 150px;
     flex: none;
+    align-content: start;
     padding: 0.5rem;
     text-align: left;
     color: var(--mc-text);
@@ -392,8 +397,7 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
     color: var(--mc-dim);
   }
   .lab-tab__title {
-    font-size: 0.8rem;
-    line-height: 1.25;
+    font: 1.15rem/1.1 var(--font-terminal, monospace);
   }
   .poster {
     display: grid;
@@ -417,7 +421,7 @@ const methods = [...methodMap.values()].sort((a, b) => b.usedIn.length - a.usedI
   }
   .poster__sub {
     color: #55666d;
-    font-size: 0.9rem;
+    font-size: 1.15rem;
   }
   .poster__cols {
     display: grid;

@@ -392,6 +392,8 @@ ol.clean {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Body copy in terminal type, like the side panel (.mcp). */
+  font: 1.3rem/1.25 var(--font-terminal, monospace);
   color: var(--mc-text);
   background: var(--mc-bg);
   border: 3px solid var(--mc-cyan);
@@ -444,7 +446,7 @@ ol.clean {
 }
 .mc__fine {
   margin: 0.75rem 0 0;
-  font-size: 0.78rem;
+  font-size: 1.05rem;
   color: var(--mc-dim);
 }
 .mc a {

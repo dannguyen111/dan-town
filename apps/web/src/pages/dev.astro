@@ -809,8 +809,13 @@ const featured = projectsByDate().filter((p) => p.featured);
     color: var(--mc-text);
     background: var(--mc-panel);
     border: 2px solid var(--mc-line);
+  /* Every tick as tall as the tallest, however its code wraps. */
+  .mc-track > li {
+    display: flex;
+  }
     border-top: 4px solid var(--mc-cyan);
     cursor: pointer;
+    align-content: start;
   }
   .mc-tick--role {
     border-top-color: var(--mc-amber);
@@ -893,11 +898,12 @@ const featured = projectsByDate().filter((p) => p.featured);
     color: #fff;
   }
   .brief__title {
-    font-weight: 800;
+    font-size: 1.5rem;
+    color: #fff;
   }
   .brief__sub {
     color: var(--mc-dim);
-    font-size: 0.9rem;
+    font-size: 1.15rem;
   }
   .brief__results {
     margin: 0;
@@ -1028,7 +1034,7 @@ const featured = projectsByDate().filter((p) => p.featured);
     text-shadow: 0 0 8px rgba(125, 255, 176, 0.5);
   }
   .readout__unit {
-    font-size: 0.8rem;
+    font-size: 1.05rem;
     color: var(--mc-dim);
   }
   .dials {
