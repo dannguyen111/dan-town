@@ -97,7 +97,7 @@ export const INTERIORS: Record<string, Scene> = {
     retro: true,
     intro: {
       title: "Crate & Closet",
-      text: "Records up front, vintage in the back. Try the jukebox, the crates and the DJ booth. Mat to leave.",
+      text: "Records up front, vintage in the back. Pick a song on the jukebox, dig the crates for a Crate Match, call in a request at the DJ booth, and browse the closet for the fashion story. Step on the mat to leave.",
     },
   },
   home: {
