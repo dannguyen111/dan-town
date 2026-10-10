@@ -116,9 +116,9 @@ const credits = [degree, edu?.rank && `Rank ${edu.rank}`, edu?.gpa && `GPA ${edu
     margin: 0;
     font: 400 0.75rem/1 var(--font-retro, monospace);
     color: var(--sun);
-    animation: blink 1.1s steps(1) infinite;
+    animation: press-start-blink 1.1s steps(1) infinite;
   }
-  @keyframes blink {
+  @keyframes press-start-blink {
     50% {
       opacity: 0;
     }
