@@ -1,7 +1,8 @@
 ---
 /**
  * Dan's pixel character as a profile picture: head and shoulders of the twin's in-town sprite
- * (with headphones), cropped like the favicon, on a screen-dark tile.
+ * (with headphones), cropped like the favicon, on a screen-dark tile. With `animate`, it idles:
+ * a slow breathing bob and a blink every few seconds (both off under reduced motion).
  */
 import { TWIN_PALETTE, cellColour, compose } from "../town/sprites";
 
@@ -9,20 +10,57 @@ interface Props {
   class?: string;
   /** Tile colour behind the sprite. */
   bg?: string;
+  /** Idle animation: breathe and blink. */
+  animate?: boolean;
 }
-const { class: className, bg = "#0f1a33" } = Astro.props;
+const { class: className, bg = "#0f1a33", animate = false } = Astro.props;
 const SIZE = 16;
 const rows = compose("down", 0, true).slice(0, 13);
-const cells: { x: number; y: number; c: string }[] = [];
+const cells: { x: number; y: number; c: string; eye: boolean }[] = [];
 rows.forEach((row, y) =>
   [...row].forEach((ch, x) => {
     const c = cellColour(TWIN_PALETTE, ch, y);
-    if (c && y + 3 < SIZE) cells.push({ x: x + 2, y: y + 3, c });
+    if (c && y + 3 < SIZE) cells.push({ x: x + 2, y: y + 3, c, eye: ch === "e" });
   }),
 );
 ---
 
-<svg class={className} viewBox={`0 0 ${SIZE} ${SIZE}`} shape-rendering="crispEdges" role="img" aria-label="Dan's pixel character">
+<svg
+  class:list={[className, "portrait", { "portrait--idle": animate }]}
+  viewBox={`0 0 ${SIZE} ${SIZE}`}
+  shape-rendering="crispEdges"
+  role="img"
+  aria-label="Dan's pixel character"
+  style={`--skin: ${TWIN_PALETTE.s}`}
+>
   <rect width={SIZE} height={SIZE} fill={bg} />
-  {cells.map((p) => <rect x={p.x} y={p.y} width="1" height="1" fill={p.c} />)}
+  <g class="sprite">
+    {cells.map((p) => <rect x={p.x} y={p.y} width="1" height="1" fill={p.c} class={p.eye ? "eye" : undefined} />)}
+  </g>
 </svg>
+
+<style>
+  .portrait--idle .sprite {
+    animation: breathe 1.6s steps(1) infinite;
+  }
+  .portrait--idle .eye {
+    animation: blink 4.2s steps(1) infinite;
+  }
+  /* Down a pixel, not up: the crop keeps the tile filled. */
+  @keyframes breathe {
+    50% {
+      transform: translateY(1px);
+    }
+  }
+  @keyframes blink {
+    96% {
+      fill: var(--skin);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .portrait--idle .sprite,
+    .portrait--idle .eye {
+      animation: none;
+    }
+  }
+</style>

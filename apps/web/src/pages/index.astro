@@ -1,57 +1,198 @@
 ---
 import TownLayout from "../layouts/TownLayout.astro";
-import PageHeader from "../components/PageHeader.astro";
+import PixelPortrait from "../components/PixelPortrait.astro";
 import { PLACES } from "../lib/locations";
 import { profile } from "../lib/profile";
 
 const destinations = PLACES.filter((p) => p.id !== "town");
+const [firstName, ...rest] = profile.identity.name.split(" ");
+const edu = profile.education[0];
+// "B.S. in Computer Science and Mathematics" → "B.S. CS + Math"
+const degree = edu?.degree.replace(" in ", " ").replace("Computer Science", "CS").replace(" and ", " + ").replace("Mathematics", "Math");
+const credits = [degree, edu?.rank && `Rank ${edu.rank}`, edu?.gpa && `GPA ${edu.gpa}`].filter(Boolean);
 ---
 
 <TownLayout place="town">
-  <PageHeader kicker="Town Square" title={`Hi, I'm ${profile.identity.short_name} 👋`}>
-    <p class="lead">{profile.identity.headline}. {profile.identity.tagline}</p>
-  </PageHeader>
+  <section class="title-screen">
+    <div class="title-screen__top">
+      <PixelPortrait class="title-screen__avatar" animate />
+      <h1 id="panel-title" class="title-screen__name" tabindex="-1">
+        <span>{firstName}</span>
+        <span>{rest.join(" ")}</span>
+      </h1>
+    </div>
+    <p class="title-screen__class">{profile.identity.headline}</p>
+    <p class="title-screen__tagline">“{profile.identity.tagline}”</p>
+    {credits.length > 0 && <p class="title-screen__credits">{credits.join(" · ")}</p>}
+    <p class="title-screen__start" aria-hidden="true">▸ PRESS START ◂</p>
+  </section>
 
-  <p class="hint muted">
-    <span class="only-wide">Walk around with <kbd>WASD</kbd> or the arrow keys, or click anywhere.</span>
-    <span class="only-narrow">Tap the town to walk, or tap a place below.</span>
+  <nav class="menu" aria-labelledby="menu-title">
+    <h2 id="menu-title" class="menu__title">Where to?</h2>
+    <ul class="clean menu__list">
+      {
+        destinations.map((p) => (
+          <li>
+            <a href={p.href} class="menu__item">
+              <span class="menu__emoji" aria-hidden="true">{p.emoji}</span>
+              <span class="menu__name">{p.name}</span>
+              <span class="menu__blurb">{p.blurb}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <p class="credits-line">
+    <span>© {new Date().getFullYear()} {profile.identity.short_name}</span>
+    <span class="only-wide">WASD or arrows to walk · click to move</span>
+    <span class="only-narrow">Tap the town to walk</span>
   </p>
-
-  <h2 class="pixel">Where to?</h2>
-  <ul class="clean places">
-    {
-      destinations.map((p) => (
-        <li>
-          <a href={p.href} class="place card">
-            <span class="place__emoji" aria-hidden="true">{p.emoji}</span>
-            <span>
-              <strong>{p.name}</strong>
-              <span class="muted place__blurb">{p.blurb}</span>
-            </span>
-          </a>
-        </li>
-      ))
-    }
-  </ul>
 </TownLayout>
 
 <style>
-  .lead {
-    font-size: 1.05rem;
+  .title-screen,
+  .menu {
+    background: #0f1a33;
+    color: #e8f1ff;
+    border: 3px solid var(--ink);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 0 var(--ink);
   }
-  .hint {
-    font-size: 0.9rem;
+
+  /* ─────────────── the title screen ─────────────── */
+  .title-screen {
+    padding: 1.25rem 1.25rem 1rem;
+    text-align: center;
+    background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
   }
-  kbd {
-    font: 700 0.8rem var(--font-pixel);
-    border: 2px solid var(--ink);
+  .title-screen__top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.1rem;
+    margin-bottom: 1rem;
+  }
+  .title-screen :global(.title-screen__avatar) {
+    width: 128px;
+    height: 128px;
+    flex: none;
+    border: 3px solid #e8f1ff;
+    image-rendering: pixelated;
+  }
+  .title-screen__name {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+    margin: 0;
+    text-align: left;
+    font: 400 clamp(1.3rem, 2.6vw, 2rem) / 1.1 var(--font-retro, monospace);
+    color: var(--sun);
+    text-shadow: 3px 3px 0 var(--coral-ink);
+    text-transform: uppercase;
+  }
+  .title-screen__name:focus {
+    outline: none;
+  }
+  .title-screen__class {
+    margin: 0 0 0.5rem;
+    font: 400 0.7rem/1.5 var(--font-retro, monospace);
+    color: var(--teal);
+    text-transform: uppercase;
+  }
+  .title-screen__tagline {
+    margin: 0 auto 0.6rem;
+    max-width: 34ch;
+    font: 1.3rem/1.2 var(--font-terminal, monospace);
+  }
+  .title-screen__credits {
+    margin: 0 0 0.9rem;
+    font: 400 0.55rem/1.6 var(--font-retro, monospace);
+    color: #9fb3d9;
+    text-transform: uppercase;
+  }
+  .title-screen__start {
+    margin: 0;
+    font: 400 0.75rem/1 var(--font-retro, monospace);
+    color: var(--sun);
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* ─────────────── the menu ─────────────── */
+  .menu {
+    margin-top: 1.25rem;
+    padding: 0.9rem 0.75rem 0.6rem;
+  }
+  .menu__title {
+    margin: 0 0 0.6rem 0.5rem;
+    font: 400 0.7rem/1 var(--font-retro, monospace);
+    color: var(--sun);
+    text-transform: uppercase;
+  }
+  .menu__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.6rem auto 1fr;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.5rem 0.5rem 0.5rem 1.6rem;
+    min-height: 44px;
+    color: #e8f1ff;
+    text-decoration: none;
     border-radius: 6px;
-    padding: 0 0.3em;
-    background: var(--paper);
+  }
+  .menu__item::before {
+    content: "▶";
+    position: absolute;
+    left: 0.4rem;
+    top: 50%;
+    translate: 0 -50%;
+    font-size: 0.7rem;
+    color: var(--sun);
+    visibility: hidden;
+  }
+  .menu__item:hover,
+  .menu__item:focus-visible {
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .menu__item:hover::before,
+  .menu__item:focus-visible::before {
+    visibility: visible;
+  }
+  .menu__emoji {
+    font-size: 1.1rem;
+    align-self: center;
+  }
+  .menu__name {
+    font: 400 0.62rem/1.4 var(--font-retro, monospace);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .menu__blurb {
+    font: 1.1rem/1.15 var(--font-terminal, monospace);
+    color: #9fb3d9;
+  }
+
+  .credits-line {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 1rem 0 0;
+    font: 400 0.5rem/1.6 var(--font-retro, monospace);
+    color: var(--ink-soft);
+    text-transform: uppercase;
   }
   .only-narrow {
     display: none;
   }
+
   @media (max-width: 899px), (pointer: coarse) {
     .only-wide {
       display: none;
@@ -60,31 +201,33 @@ const destinations = PLACES.filter((p) => p.id !== "town");
       display: inline;
     }
   }
-  .places {
-    display: grid;
-    gap: 0.6rem;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+
+  /* The panel is a small peek card over the town here: keep the menu in reach. */
+  @media (max-width: 899px) {
+    .title-screen {
+      padding: 0.8rem;
+    }
+    .title-screen__top {
+      margin-bottom: 0.6rem;
+    }
+    .title-screen :global(.title-screen__avatar) {
+      width: 64px;
+      height: 64px;
+    }
+    .title-screen__start {
+      display: none;
+    }
+    .menu__item {
+      grid-template-columns: 1.6rem 1fr;
+    }
+    .menu__blurb {
+      grid-column: 2;
+    }
   }
-  .place {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    padding: 0.75rem 0.9rem;
-    color: var(--ink);
-    text-decoration: none;
-    min-height: 60px;
-    transition: transform 0.1s ease, border-color 0.1s ease;
-  }
-  .place:hover {
-    transform: translateY(-2px);
-    border-color: var(--ink);
-  }
-  .place__emoji {
-    font-size: 1.6rem;
-  }
-  .place__blurb {
-    display: block;
-    font-size: 0.85rem;
-    line-height: 1.3;
+
+  @media (prefers-reduced-motion: reduce) {
+    .title-screen__start {
+      animation: none;
+    }
   }
 </style>
