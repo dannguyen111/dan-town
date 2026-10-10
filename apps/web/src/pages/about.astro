@@ -1,61 +1,152 @@
 ---
-import { Image } from "astro:assets";
 import TownLayout from "../layouts/TownLayout.astro";
-import PageHeader from "../components/PageHeader.astro";
 import LinkRow from "../components/LinkRow.astro";
-import { profile, formatMonth } from "../lib/profile";
-import { resolveImage } from "../lib/images";
+import PixelPortrait from "../components/PixelPortrait.astro";
+import StackChip from "../components/StackChip.astro";
+import { profile } from "../lib/profile";
 
-const photo = resolveImage(profile.identity.photo);
 const edu = profile.education[0];
 const current = profile.experience.find((e) => e.end === null);
 /** On the living-room TV. */
 const TV_VIDEO = "GWshHUF05DM";
 const first = profile.identity.short_name;
+
+// "B.S. in Computer Science and Mathematics" → "CS + Math"
+const major = edu?.degree.replace(/^.*? in /, "").replace("Computer Science", "CS").replace(" and ", " + ").replace("Mathematics", "Math");
+const stats = [
+  edu?.rank && { k: "Rank", v: edu.rank },
+  edu?.gpa && { k: "GPA", v: edu.gpa },
+  major && { k: "Major", v: major },
+  { k: "Projects", v: String(profile.projects.length) },
+  { k: "Roles", v: String(profile.experience.length) },
+].filter((s): s is { k: string; v: string } => Boolean(s));
+
+// School honors first (Summa, Phi Beta Kappa…), then awards.
+const achievements = [...(edu?.honors ?? []), ...profile.honors.map((h) => h.title)];
+const SHOWN = 5;
+
+// A short loadout; the full stack lives in the Dev Center.
+const LOADOUT = ["Python", "TypeScript", "Java", "Go", "LangChain", "LangGraph", "LlamaIndex", "PostgreSQL", "Docker", "AWS"];
+const allSkills = new Set(profile.skills.flatMap((g) => g.items));
+const equipped = LOADOUT.filter((s) => allSkills.has(s));
 ---
 
 <TownLayout place="home" room title="About" description={profile.about.intro}>
-  <PageHeader kicker="🏠 Home" title={`Hi, I'm ${profile.identity.short_name}.`} />
+  <div class="sheet">
+    <header class="sheet-id">
+      <PixelPortrait class="sheet-id__avatar" animate />
+      <div>
+        <p class="sheet-label">🏠 Home · Player profile</p>
+        <h1 id="panel-title" class="sheet-id__name" tabindex="-1">{profile.identity.name}</h1>
+        <dl class="sheet-id__meta">
+          <div><dt>Class</dt><dd>{profile.identity.headline}</dd></div>
+          {edu && <div><dt>Guild</dt><dd>{edu.school}</dd></div>}
+        </dl>
+      </div>
+    </header>
 
-  <p class="muted room-hint">
-    You're in my living room. Look around: the flags, the bookshelf and the desk all have stories, the TV works, and you can leave me a note on the
-    fridge.
-  </p>
+    <p class="muted room-hint">
+      You're in my living room. Look around: the flags, the bookshelf and the desk all have stories, the TV works, and you can leave me a note on the
+      fridge.
+    </p>
 
-  <div class="intro">
-    {photo && <Image src={photo} alt={profile.identity.name} width={240} height={240} class="avatar" loading="eager" />}
-    <p class="lead">{profile.about.intro}</p>
+    <section class="sheet-box" aria-labelledby="bio-title">
+      <h2 id="bio-title" class="sheet-label">Bio</h2>
+      <p class="lead">{profile.about.intro}</p>
+      {profile.about.paragraphs[0] && <p>{profile.about.paragraphs[0]}</p>}
+    </section>
+
+    <section class="sheet-box sheet-box--dark" aria-labelledby="stats-title">
+      <h2 id="stats-title" class="sheet-label">Stats</h2>
+      <dl class="stats">
+        {
+          stats.map((s) => (
+            <div>
+              <dt>{s.k}</dt>
+              <dd>{s.v}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </section>
+
+    {
+      (current || profile.identity.open_to) && (
+        <section class="sheet-box" aria-labelledby="quest-title">
+          <h2 id="quest-title" class="sheet-label">Current quest</h2>
+          {current && (
+            <p class="quest">
+              ▶ <strong>{current.role}</strong> @ {current.org}
+            </p>
+          )}
+          {profile.identity.open_to && <p class="muted quest__open">📬 Open to: {profile.identity.open_to}</p>}
+        </section>
+      )
+    }
+
+    {
+      achievements.length > 0 && (
+        <section class="sheet-box" aria-labelledby="ach-title">
+          <h2 id="ach-title" class="sheet-label">Achievements</h2>
+          <ul class="clean achievements">
+            {achievements.slice(0, SHOWN).map((a) => (
+              <li>{a}</li>
+            ))}
+          </ul>
+          {achievements.length > SHOWN && (
+            <details class="achievements__more">
+              <summary>Show all {achievements.length}</summary>
+              <ul class="clean achievements">
+                {achievements.slice(SHOWN).map((a) => (
+                  <li>{a}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )
+    }
+
+    {
+      equipped.length > 0 && (
+        <section class="sheet-box" aria-labelledby="eq-title">
+          <h2 id="eq-title" class="sheet-label">Equipped</h2>
+          <ul class="stack-chips">
+            {equipped.map((s) => (
+              <StackChip name={s} />
+            ))}
+          </ul>
+          <p class="sheet-more">
+            <a href="/dev">Full stack in the Dev Center →</a>
+          </p>
+        </section>
+      )
+    }
+
+    {
+      profile.interests.length > 0 && (
+        <section class="sheet-box" aria-labelledby="side-title">
+          <h2 id="side-title" class="sheet-label">Side quests</h2>
+          <ul class="clean side-quests">
+            {profile.interests.map((i) => (
+              <li>
+                <span aria-hidden="true">{i.emoji}</span> <a href="/music">{i.title}</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <section class="sheet-box" aria-labelledby="hi-title">
+      <h2 id="hi-title" class="sheet-label">Say hi</h2>
+      <LinkRow />
+    </section>
+
+    <p class="muted next">
+      Next stop: the <a href="/dev">Dev Center</a> for my projects, experience and education, or the <a href="/lab">Research Lab</a> for my research.
+    </p>
   </div>
-
-  {profile.about.paragraphs.map((p) => <p>{p}</p>)}
-
-  <h2>Quick facts</h2>
-  <ul class="facts card">
-    {current && (
-      <li>
-        <span aria-hidden="true">🛠️</span> Currently: <strong>{current.role}</strong> at {current.org}
-      </li>
-    )}
-    {edu && (
-      <li>
-        <span aria-hidden="true">🎓</span> {edu.degree}, {edu.school} ({formatMonth(edu.end)})
-        {edu.rank && <> · rank {edu.rank}</>}
-        {edu.gpa && <> · GPA {edu.gpa}</>}
-      </li>
-    )}
-    {profile.identity.open_to && (
-      <li>
-        <span aria-hidden="true">📬</span> Open to: {profile.identity.open_to}
-      </li>
-    )}
-  </ul>
-
-  <h2>Say hi</h2>
-  <LinkRow />
-
-  <p class="muted next">
-    Next stop: the <a href="/dev">Dev Center</a> for my projects, experience and education, or the <a href="/lab">Research Lab</a> for my research.
-  </p>
 
   <!-- The TV, seen from the couch: the room around it, the video inside the set (town/pov.ts). -->
   <dialog slot="screen" class="pov-dialog" data-tv aria-labelledby="tv-title">
@@ -348,36 +439,149 @@ const first = profile.identity.short_name;
 </script>
 
 <style>
-  .intro {
-    display: flex;
-    gap: 1.25rem;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-  .intro :global(.avatar) {
-    width: 120px;
-    height: 120px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 3px solid var(--ink);
-    box-shadow: 0 4px 0 var(--ink);
-    flex: none;
-  }
-  .lead {
-    font-size: 1.08rem;
-    font-weight: 600;
-    margin: 0;
-  }
-  .facts {
-    list-style: none;
+  /* ─────────────── the panel: a player profile, RPG character-sheet style ─────────────── */
+  .sheet {
     display: grid;
+    gap: 1rem;
+  }
+  .sheet-label {
+    margin: 0 0 0.6rem;
+    font: 400 0.6rem/1.5 var(--font-retro, monospace);
+    color: var(--teal-ink);
+    text-transform: uppercase;
+  }
+  .sheet-id {
+    display: flex;
+    gap: 1.1rem;
+    align-items: center;
+  }
+  .sheet-id :global(.sheet-id__avatar) {
+    width: 112px;
+    height: 112px;
+    flex: none;
+    border: 3px solid var(--ink);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 0 var(--ink);
+  }
+  .sheet-id__name {
+    margin: 0 0 0.5rem;
+    font: 400 clamp(1.05rem, 2.2vw, 1.4rem) / 1.3 var(--font-retro, monospace);
+  }
+  .sheet-id__name:focus {
+    outline: none;
+  }
+  .sheet-id__meta {
+    margin: 0;
+    font: 1.2rem/1.2 var(--font-terminal, monospace);
+  }
+  .sheet-id__meta div {
+    display: flex;
     gap: 0.5rem;
   }
+  .sheet-id__meta dt {
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .sheet-id__meta dt::after {
+    content: ":";
+  }
+  .sheet-id__meta dd {
+    margin: 0;
+  }
+
+  .sheet-box {
+    padding: 0.9rem 1rem;
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 0 var(--ink);
+  }
+  .sheet-box > :last-child {
+    margin-bottom: 0;
+  }
+  .sheet-box h2 {
+    margin-top: 0;
+  }
+  .sheet-box--dark {
+    background: #0f1a33;
+    color: #e8f1ff;
+  }
+  .sheet-box--dark .sheet-label {
+    color: var(--sun);
+  }
+  .lead {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.75rem 1rem;
+    margin: 0;
+  }
+  .stats dt {
+    font: 400 0.5rem/1.4 var(--font-retro, monospace);
+    color: #9fb3d9;
+    text-transform: uppercase;
+  }
+  .stats dd {
+    margin: 0;
+    font: 1.8rem/1 var(--font-terminal, monospace);
+    color: var(--grass);
+  }
+
+  .quest {
+    margin-bottom: 0.4rem;
+  }
+  .quest__open {
+    font-size: 0.9rem;
+  }
+
+  .achievements {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .achievements li {
+    position: relative;
+    padding-left: 1.4rem;
+  }
+  .achievements li::before {
+    content: "★";
+    position: absolute;
+    left: 0;
+    color: var(--sun);
+    text-shadow: 1px 1px 0 var(--ink);
+  }
+  .achievements__more {
+    margin-top: 0.5rem;
+  }
+  .achievements__more summary {
+    cursor: pointer;
+    font: 400 0.5rem/2 var(--font-retro, monospace);
+    text-transform: uppercase;
+    color: var(--coral-ink);
+  }
+  .achievements__more[open] summary {
+    margin-bottom: 0.35rem;
+  }
+
+  .sheet-more {
+    margin: 0.6rem 0 0;
+    font-size: 0.9rem;
+  }
+  .side-quests {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+  }
+
   .next {
-    margin-top: 2rem;
+    margin: 0.5rem 0 0;
   }
   .room-hint {
     font-size: 0.9rem;
+    margin: 0;
   }
 
   /* ─────────────── close-ups (the TV, the desk): the room fills the space where the map was ─────────────── */
@@ -863,7 +1067,7 @@ const first = profile.identity.short_name;
     }
   }
   @media (max-width: 480px) {
-    .intro {
+    .sheet-id {
       flex-direction: column;
       align-items: flex-start;
     }
