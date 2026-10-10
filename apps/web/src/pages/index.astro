@@ -3,7 +3,7 @@ import TownLayout from "../layouts/TownLayout.astro";
 import PixelPortrait from "../components/PixelPortrait.astro";
 import StackChip from "../components/StackChip.astro";
 import { PLACES } from "../lib/locations";
-import { profile, projectsByDate } from "../lib/profile";
+import { profile } from "../lib/profile";
 
 const destinations = PLACES.filter((p) => p.id !== "town");
 const edu = profile.education[0];
@@ -11,11 +11,10 @@ const current = profile.experience.find((e) => e.end === null);
 // "B.S. in Computer Science and Mathematics" → "B.S. CS + Math"
 const degree = edu?.degree.replace(" in ", " ").replace("Computer Science", "CS").replace(" and ", " + ").replace("Mathematics", "Math");
 const credits = [degree, edu?.rank && `Rank ${edu.rank}`, edu?.end && `Class of ${edu.end.slice(0, 4)}`].filter(Boolean);
+// The three builds pinned on the board, in this order.
+const PINNED = ["vendora", "appc-chatbot", "st-petersburg"];
 // "Vendora: Vendor-First Marketplace Platform" → "Vendora"
-const builds = projectsByDate()
-  .filter((p) => p.featured)
-  .slice(0, 3)
-  .map((p) => ({ ...p, short: p.title.split(":")[0]! }));
+const builds = PINNED.flatMap((id) => profile.projects.filter((p) => p.id === id)).map((p) => ({ ...p, short: p.title.split(":")[0]! }));
 const LOADOUT = ["Python", "TypeScript", "Go", "LangGraph", "LlamaIndex", "AWS Bedrock", "PostgreSQL", "Docker"];
 const allSkills = new Set(profile.skills.flatMap((g) => g.items));
 const toolbelt = LOADOUT.filter((s) => allSkills.has(s));
