@@ -15,7 +15,7 @@ const first = profile.identity.short_name;
 const major = edu?.degree.replace(/^.*? in /, "").replace("Computer Science", "CS").replace(" and ", " + ").replace("Mathematics", "Math");
 const stats = [
   edu?.rank && { k: "Rank", v: edu.rank },
-  edu?.gpa && { k: "GPA", v: edu.gpa },
+  edu?.end && { k: "Class of", v: edu.end.slice(0, 4) },
   major && { k: "Major", v: major },
   { k: "Projects", v: String(profile.projects.length) },
   { k: "Roles", v: String(profile.experience.length) },

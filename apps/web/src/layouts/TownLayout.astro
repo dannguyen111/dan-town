@@ -49,8 +49,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <Font cssVariable="--font-body" preload />
-    <Font cssVariable="--font-pixel" />
+    <Font cssVariable="--font-pixel" preload />
     {/* Always defined: a room's text boxes stay up while pages beside it change (the twin's chat at Home). */}
     <Font cssVariable="--font-retro" preload={interior || room} />
     <Font cssVariable="--font-terminal" preload={room} />
@@ -189,7 +188,7 @@ const canonical = new URL(Astro.url.pathname.replace(/(index)?\.html$/, ""), Ast
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.6rem 1.5rem;
-    font-size: 0.8rem;
+    font: 400 0.5rem/1.8 var(--font-retro, monospace);
     border-top: 2px solid var(--line);
   }
 
