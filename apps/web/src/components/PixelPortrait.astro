@@ -41,18 +41,19 @@ rows.forEach((row, y) =>
 
 <style>
   .portrait--idle .sprite {
-    animation: breathe 1.6s steps(1) infinite;
+    animation: portrait-breathe 1.6s steps(1) infinite;
   }
   .portrait--idle .eye {
-    animation: blink 4.2s steps(1) infinite;
+    animation: portrait-blink 4.2s steps(1) infinite;
   }
+  /* Keyframe names are global, so these are prefixed (TwinChat and the title screen have their own "blink"). */
   /* Down a pixel, not up: the crop keeps the tile filled. */
-  @keyframes breathe {
+  @keyframes portrait-breathe {
     50% {
       transform: translateY(1px);
     }
   }
-  @keyframes blink {
+  @keyframes portrait-blink {
     96% {
       fill: var(--skin);
     }
