@@ -125,7 +125,7 @@ export const HOME_OBJECTS: readonly TownObject[] = [
     13,
     1,
     2,
-    "7th of 547 in the class, GPA 4.08. Summa Cum Laude, Phi Beta Kappa, and the Earl E. Ziegler Mathematics Award.",
+    "7th of 547 in the class of 2026. Summa Cum Laude, Phi Beta Kappa, and the Earl E. Ziegler Mathematics Award.",
   ),
   prop("tea", "Tea table", 9, 14, 2, 1, "A low tea table with tiny plastic stools. The best conversations in Hanoi happen a foot off the ground."),
   prop("motorbike", "Motorbike", 1, 15, 2, 1, "A motorbike, parked in the house overnight like in every Hanoi tube house."),
