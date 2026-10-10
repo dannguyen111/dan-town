@@ -12,18 +12,11 @@ export default defineConfig({
   prefetch: { prefetchAll: false, defaultStrategy: "hover" },
   fonts: [
     {
-      provider: fontProviders.fontsource(),
-      name: "Nunito",
-      cssVariable: "--font-body",
-      weights: ["400 800"],
-      subsets: ["latin"],
-      fallbacks: ["ui-rounded", "system-ui", "sans-serif"],
-    },
-    {
+      // Every word on the site is retro: this pixel face is the body text too.
       provider: fontProviders.fontsource(),
       name: "Pixelify Sans",
       cssVariable: "--font-pixel",
-      weights: ["500 700"],
+      weights: ["400 700"],
       subsets: ["latin"],
       fallbacks: ["ui-monospace", "monospace"],
     },

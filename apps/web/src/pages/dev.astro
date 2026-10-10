@@ -99,7 +99,7 @@ const entries: Entry[] = [
     end: ed.end,
     status: ed.end === null || ed.end > new Date().toISOString().slice(0, 7) ? ("ACTIVE" as const) : ("COMPLETE" as const),
     research: false,
-    objective: [ed.gpa && `GPA ${ed.gpa}`, ed.rank && `Rank ${ed.rank}`].filter(Boolean).join(" · "),
+    objective: [ed.rank && `Rank ${ed.rank}`, ed.end && `Class of ${ed.end.slice(0, 4)}`].filter(Boolean).join(" · "),
     results: ed.honors,
     stack: [],
     links: [],
@@ -197,7 +197,6 @@ const featured = projectsByDate().filter((p) => p.featured);
               <dt>Trained</dt>
               <dd>
                 {edu.degree}, {edu.school}
-                {edu.gpa && <> · GPA {edu.gpa}</>}
                 {edu.rank && <> · rank {edu.rank}</>}
               </dd>
             </div>
@@ -267,9 +266,8 @@ const featured = projectsByDate().filter((p) => p.featured);
               <p class="mcp-sub">{formatRange(ed.start, ed.end)}</p>
               <h3 class="mcp-school__name">{ed.school}</h3>
               <p>{ed.degree}</p>
-              {(ed.gpa || ed.rank) && (
+              {ed.rank && (
                 <p class="mcp-badges">
-                  {ed.gpa && <span class="mcp-badge">GPA {ed.gpa}</span>}
                   {ed.rank && <span class="mcp-badge">Rank {ed.rank}</span>}
                 </p>
               )}
