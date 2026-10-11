@@ -66,7 +66,7 @@ export const HOME_OBJECTS: readonly TownObject[] = [
     labelLift: 10,
     hint: "Leave Dan a note 📌",
   },
-  prop("vn-flag", "Vietnamese flag", 2, 1, 2, 1, "The red flag with the golden star. Dan is from Hanoi, Vietnam."),
+  prop("vn-flag", "Vietnamese flag", 2, 1, 2, 1, "Dan is from Hanoi, Vietnam."),
   { id: "clock", kind: "prop", x: 4, y: 1, w: 1, h: 1, target: { type: "event", name: "clock" }, label: "Clock", style: "clock", hideLabel: true },
   {
     id: "tv",
@@ -81,15 +81,15 @@ export const HOME_OBJECTS: readonly TownObject[] = [
     labelLift: 30,
     hint: "Turn on the TV ▶",
   },
-  prop("sigma-chi", "Sigma Chi flag", 10, 1, 2, 1, "Sigma Chi, Theta Chapter at Gettysburg College. Dan was a brother and served as chapter president. In hoc signo vinces."),
+  prop("sigma-chi", "Sigma Chi flag", 10, 1, 2, 1, "Dan was a Sigma Chi and served as chapter president."),
   prop("window", "Window", 12, 1, 2, 1, "Rooftops of Hanoi's Old Quarter. The sky outside follows Dan's clock (Eastern Time)."),
   prop("couch-l", "Couch", 5, 6, 2, 1, "A comfy couch. The twin has claimed the middle seat."),
   // Drawn sitting on the couch by this file's live layer, not as the town's standing twin.
   { id: "twin", kind: "npc", x: 7, y: 6, w: 1, h: 1, target: { type: "place", id: "twin" }, label: "Digital Twin", style: "twin-couch", labelLift: 16 },
   prop("couch-r", "Couch", 8, 6, 2, 1, "A comfy couch. The twin has claimed the middle seat."),
-  prop("phin", "Coffee", 10, 6, 1, 1, "Vietnamese iced coffee, dripping through a phin filter. Slow brew, strong result."),
+  prop("phin", "Coffee", 10, 6, 1, 1, "Dan loves his Vietnamese iced coffee."),
   prop("palm", "Plant", 1, 8, 1, 1, "An areca palm. It has watched a lot of basketball."),
-  prop("bamboo", "Plant", 13, 8, 1, 1, "Lucky bamboo. Good for the house, and for passing exams."),
+  prop("bamboo", "Plant", 13, 8, 1, 1, "Lucky bamboo."),
 
   // ── Front room ──
   // Sitting down shows the twin's live agent traces on the monitor (pages/about.astro).
@@ -128,8 +128,8 @@ export const HOME_OBJECTS: readonly TownObject[] = [
     2,
     "7th of 547 in the class of 2026. Summa Cum Laude, Phi Beta Kappa, and the Earl E. Ziegler Mathematics Award.",
   ),
-  prop("tea", "Tea table", 9, 14, 2, 1, "A low tea table with tiny plastic stools. The best conversations in Hanoi happen a foot off the ground."),
-  prop("motorbike", "Motorbike", 1, 15, 2, 1, "A motorbike, parked in the house overnight like in every Hanoi tube house."),
+  prop("tea", "Tea table", 9, 14, 2, 1, "A low table with tiny plastic stools..."),
+  prop("motorbike", "Motorbike", 1, 15, 2, 1, "He seems to love his motorbike..."),
   prop("plant-door", "Plant", 13, 17, 1, 1, "A potted plant by the door. Shoes off, please."),
   { id: "exit", kind: "exit", x: 7, y: 18, w: 1, h: 1, door: { x: 7, y: 18 }, target: { type: "place", id: "town" }, label: "Exit", style: "exit", hideLabel: true },
 ];
