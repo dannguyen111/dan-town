@@ -3,7 +3,7 @@ import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN } from "./arcade.ts";
 import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, streakOf, timelineIndex } from "./dev.ts";
 import { TownGrid } from "./grid.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN } from "./lab.ts";
-import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, easternTime, formatEastern } from "./home.ts";
+import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN } from "./home.ts";
 import { COLS, GROUND, OBJECTS, SPAWN, TILE } from "./map.ts";
 import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, behind } from "./shop.ts";
 
@@ -192,14 +192,6 @@ describe("dev center interior", () => {
     expect(streakOf(days([1, 2, 3, 0]))).toBe(3);
     expect(streakOf(days([1, 0, 0]))).toBe(0);
     expect(streakOf([])).toBe(0);
-  });
-});
-
-describe("eastern time", () => {
-  it("reads the clock in New York, not the visitor's zone", () => {
-    expect(easternTime(new Date("2026-07-01T16:05:00Z"))).toEqual({ h: 12, m: 5 }); // EDT
-    expect(easternTime(new Date("2026-01-15T03:30:00Z"))).toEqual({ h: 22, m: 30 }); // EST
-    expect(formatEastern(new Date("2026-01-15T05:07:00Z"))).toBe("12:07 AM");
   });
 });
 

@@ -9,6 +9,7 @@
  */
 import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
+import { easternTime, skyAt, type Sky } from "./sky.ts";
 import { TWIN_PALETTE, cellColour, compose } from "./sprites.ts";
 
 export const HOME_GROUND = [
@@ -135,26 +136,6 @@ export const HOME_OBJECTS: readonly TownObject[] = [
 ];
 
 export const HOME_SPAWN: Point = { x: 7, y: 17 };
-
-// ───────────────────────────── Eastern Time ─────────────────────────────
-
-const ET = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hourCycle: "h23" });
-
-/** Hours (0–23) and minutes in Dan's time zone, whatever the visitor's own clock says. */
-export function easternTime(now = new Date()) {
-  const parts = ET.formatToParts(now);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-  return { h: get("hour") % 24, m: get("minute") };
-}
-
-/** e.g. "7:42 PM". */
-export function formatEastern(now = new Date()) {
-  const { h, m } = easternTime(now);
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-}
-
-export type Sky = "night" | "dawn" | "day" | "dusk";
-export const skyAt = (t: number): Sky => (t < 5 || t >= 20 ? "night" : t < 7 ? "dawn" : t < 17 ? "day" : "dusk");
 
 // ───────────────────────────── art ─────────────────────────────
 
