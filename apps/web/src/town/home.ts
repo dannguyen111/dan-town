@@ -7,6 +7,7 @@
  *
  * Ground legend:  # wall (solid) · . floor
  */
+import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
 import { TWIN_PALETTE, cellColour, compose } from "./sprites.ts";
 
@@ -879,7 +880,7 @@ export function bakeHome(): HTMLCanvasElement {
   lanterns(ctx);
   photos(ctx);
   const books: TownObject[] = [];
-  for (const o of HOME_OBJECTS) {
+  drawObjects(ctx, HOME_OBJECTS, (ctx, o) => {
     if (o.id.startsWith("book-")) books.push(o);
     else if (o.style === "vn-flag") vnFlag(ctx, o);
     else if (o.style === "sigma-chi") sigmaChiFlag(ctx, o);
@@ -896,7 +897,7 @@ export function bakeHome(): HTMLCanvasElement {
     else if (o.style === "motorbike") motorbike(ctx, o);
     else if (o.style === "plant-door") doorPlant(ctx, o);
     else if (o.style === "exit") exitMat(ctx, o);
-  }
+  });
   bookshelf(ctx, books);
   return canvas;
 }

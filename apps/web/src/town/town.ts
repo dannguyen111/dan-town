@@ -4,6 +4,7 @@
  * Performance contract: nothing runs while the visitor is idle. The rAF loop starts on input
  * and stops as soon as the player is standing still with no queued path or held key.
  */
+import { frontsOf, isBehind } from "./front.ts";
 import { DELTA, TownGrid, dirBetween, type Dir } from "./grid.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
 import { PovView, type PovId } from "./pov.ts";
@@ -724,12 +725,28 @@ export class Town {
 
     // Scenes can draw the twin their own way (sitting on the couch at Home) in their live layer.
     const twin = this.scene.objects.find((o) => o.id === "twin" && o.style === "twin");
-    if (twin) this.drawTwin(twin);
-
     const p = this.playerPx(now);
+    // A visitor standing behind the twin goes under them.
+    const twinInFront = twin !== undefined && p.y < twin.y * TILE;
+    if (twin && !twinInFront) this.drawTwin(twin);
+
     this.scene.live?.draw(ctx, p);
     const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
     this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
+    // Furniture the visitor stands behind goes back on top, with whatever the live layer animates on it.
+    for (const f of frontsOf(this.world)) {
+      if (!isBehind(p, f)) continue;
+      ctx.drawImage(f.img, f.x, f.y);
+      if (this.scene.live) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(f.x, f.y, f.img.width, f.img.height);
+        ctx.clip();
+        this.scene.live.draw(ctx, p);
+        ctx.restore();
+      }
+    }
+    if (twin && twinInFront) this.drawTwin(twin);
     this.scene.live?.drawOver?.(ctx, p);
 
     this.positionLabels();

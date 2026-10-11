@@ -8,6 +8,7 @@
  */
 import { text } from "./dev.ts";
 import { bitmap, rand, rect, type Ctx } from "./home.ts";
+import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
 
 export const LAB_GROUND = [
@@ -278,7 +279,7 @@ export function bakeLab(): HTMLCanvasElement {
   const ctx = canvas.getContext("2d")!;
   for (let ty = 2; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) floorTile(ctx, tx, ty);
   walls(ctx);
-  for (const o of LAB_OBJECTS) {
+  drawObjects(ctx, LAB_OBJECTS, (ctx, o) => {
     if (o.style === "lab-posters") posterWall(ctx, o);
     else if (o.style === "lab-whiteboard") whiteboard(ctx, o);
     else if (o.style === "lab-bench") bench(ctx, o);
@@ -287,7 +288,7 @@ export function bakeLab(): HTMLCanvasElement {
     else if (o.style === "shelf") shelf(ctx, o);
     else if (o.style === "plant") plant(ctx, o);
     else if (o.style === "exit") exitMat(ctx, o);
-  }
+  });
   return canvas;
 }
 
