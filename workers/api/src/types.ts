@@ -216,3 +216,13 @@ export interface SongRequestBody {
   website?: string;
   turnstileToken?: string;
 }
+
+/** The town's weather, coarse enough to draw. */
+export type Weather = "clear" | "clouds" | "fog" | "rain" | "storm" | "snow";
+
+/** Shape of `GET /api/weather`: the current weather in Dan's city, or nulls when it isn't configured. */
+export interface WeatherReport {
+  weather: Weather | null;
+  isDay: boolean | null;
+  updatedAt: string | null;
+}
