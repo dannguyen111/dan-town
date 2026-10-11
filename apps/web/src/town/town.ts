@@ -708,7 +708,11 @@ export class Town {
     const { live, tint } = this.scene;
     this.tint = tint?.() ?? null;
     if (live) {
-      this.liveTimer = window.setInterval(() => document.hidden || this.draw(performance.now()), live.everyMs);
+      this.liveTimer = window.setInterval(() => {
+        if (document.hidden) return;
+        this.tint = tint?.() ?? null;
+        this.draw(performance.now());
+      }, live.everyMs);
     } else if (tint) {
       this.liveTimer = window.setInterval(() => {
         if (document.hidden || tint() === this.tint) return;
