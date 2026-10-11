@@ -6,6 +6,8 @@ const ATTEMPT_KEY = "weather:attempt";
 const UA = "dan-town-weather (+https://github.com/dannguyen111)";
 /** How long a reading counts as current. Refreshes only happen when someone visits. */
 const FRESH_MS = 30 * 60_000;
+/** Past this, a reading that couldn't be refreshed is treated as unknown rather than shown. */
+const MAX_AGE_MS = 6 * 60 * 60_000;
 
 export const EMPTY_WEATHER: WeatherReport = { weather: null, isDay: null, updatedAt: null };
 
@@ -40,19 +42,20 @@ async function refreshWeather(env: Env, lat: string, lon: string): Promise<Weath
 }
 
 /**
- * The weather in Dan's city. A stale reading is served straight away while one background refresh (at
- * most one per two minutes) replaces it; only an empty cache makes the visitor wait for Open-Meteo.
+ * The weather in Dan's city. A stale reading is served straight away while a background refresh replaces
+ * it; only an empty cache makes the visitor wait for Open-Meteo. Calls to Open-Meteo are throttled to one
+ * per ten minutes, so an outage can't run up KV writes, and a reading too old to trust is dropped.
  */
 export async function readWeather(env: Env, ctx: ExecutionContext): Promise<WeatherReport> {
   const { WEATHER_LAT: lat, WEATHER_LON: lon } = env;
   if (!lat || !lon) return EMPTY_WEATHER;
   const cached = await env.STATS.get<WeatherReport>(KEY, "json");
+  const age = cached ? Date.now() - Date.parse(cached.updatedAt ?? "") : Infinity;
+  if (cached && age < FRESH_MS) return cached;
+  const usable = cached && age < MAX_AGE_MS ? cached : EMPTY_WEATHER;
+  if (await env.STATS.get(ATTEMPT_KEY)) return usable;
+  await env.STATS.put(ATTEMPT_KEY, "1", { expirationTtl: 600 });
   if (!cached) return (await refreshWeather(env, lat, lon)) ?? EMPTY_WEATHER;
-  const age = Date.now() - Date.parse(cached.updatedAt ?? "");
-  if (age < FRESH_MS) return cached;
-  if (!(await env.STATS.get(ATTEMPT_KEY))) {
-    await env.STATS.put(ATTEMPT_KEY, "1", { expirationTtl: 120 });
-    ctx.waitUntil(refreshWeather(env, lat, lon));
-  }
-  return cached;
+  ctx.waitUntil(refreshWeather(env, lat, lon));
+  return usable;
 }

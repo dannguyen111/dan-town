@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WEATHER_FRAME_MS, WEATHER_WASH, animated, flashOn, mixWashes, parseWeatherParam, particleAt } from "./weather.ts";
+import { WEATHER_FRAME_MS, WEATHER_WASH, animated, drawWeather, flashOn, mixWashes, parseWeatherParam, particleAt } from "./weather.ts";
 
 describe("?weather= override", () => {
   it.each(["clear", "clouds", "fog", "rain", "storm", "snow"] as const)("reads %s", (w) => {
@@ -56,6 +56,44 @@ describe("particles", () => {
     const a = particleAt(0, 0, "rain", 300, 200, { x: 0, y: 0 });
     const b = particleAt(0, WEATHER_FRAME_MS, "rain", 300, 200, { x: 0, y: 0 });
     expect(b).not.toEqual(a);
+  });
+});
+
+describe("drawWeather", () => {
+  const record = () => {
+    const calls: string[] = [];
+    const ctx = {
+      set fillStyle(v: string) {
+        calls.push(v);
+      },
+      fillRect: (...r: number[]) => void calls.push(r.join(",")),
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, calls };
+  };
+  const view = { x: 10, y: 20, w: 300, h: 200 };
+
+  it.each(["rain", "storm", "snow", "fog"] as const)("with reduced motion, %s is the same frame at any moment, with no flash", (w) => {
+    const a = record();
+    const b = record();
+    drawWeather(a.ctx, w, 0, view, true);
+    drawWeather(b.ctx, w, 123_456, view, true);
+    expect(a.calls).toEqual(b.calls);
+    expect(a.calls).not.toContain("rgba(255, 255, 255, 0.35)");
+  });
+
+  it("flashes in a storm only on a lightning frame", () => {
+    const lit = record();
+    const dark = record();
+    drawWeather(lit.ctx, "storm", 0, view, false);
+    drawWeather(dark.ctx, "storm", WEATHER_FRAME_MS, view, false);
+    expect(lit.calls).toContain("rgba(255, 255, 255, 0.35)");
+    expect(dark.calls).not.toContain("rgba(255, 255, 255, 0.35)");
+  });
+
+  it.each([null, "clear", "clouds"] as const)("draws nothing over the town for %s", (w) => {
+    const r = record();
+    drawWeather(r.ctx, w, 1000, view, false);
+    expect(r.calls).toEqual([]);
   });
 });
 

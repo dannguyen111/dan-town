@@ -106,6 +106,20 @@ describe("readWeather", () => {
     expect(JSON.parse(store.store.get("weather:v1")!)).toEqual(stale);
   });
 
+  it("drops a reading too old to trust while it refreshes", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(openMeteo(0)));
+    const c = ctx();
+    expect(await readWeather(env(kv({ "weather:v1": reading("storm", 7 * 60) })), c)).toEqual(EMPTY_WEATHER);
+    expect(c.waitUntil).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't call Open-Meteo for an empty cache while a recent attempt is pending", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await readWeather(env(kv({ "weather:attempt": "1" })), ctx())).toEqual(EMPTY_WEATHER);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to no weather when the first fetch fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     vi.spyOn(console, "warn").mockImplementation(() => {});
