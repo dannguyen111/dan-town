@@ -75,6 +75,16 @@ export interface TownObject {
   hint?: string;
 }
 
+/** Street lamps, on the grass beside the paths. Listed after the other objects so they bake on top. */
+export const LAMPS: readonly Point[] = [
+  { x: 3, y: 6 },
+  { x: 13, y: 6 },
+  { x: 10, y: 8 },
+  { x: 6, y: 13 },
+  { x: 11, y: 16 },
+  { x: 8, y: 18 },
+];
+
 export const OBJECTS: readonly TownObject[] = [
   { id: "home", kind: "building", x: 2, y: 2, w: 5, h: 4, door: { x: 4, y: 5 }, target: { type: "place", id: "home" }, label: "Home", style: "home" },
   { id: "lebron", kind: "statue", x: 7, y: 4, w: 1, h: 2, target: { type: "note", text: "The King. 4× NBA champion and the league's all-time leading scorer." }, label: "LeBron James", style: "lebron" },
@@ -88,6 +98,20 @@ export const OBJECTS: readonly TownObject[] = [
   { id: "linkedin", kind: "board", x: 9, y: 19, w: 2, h: 1, target: { type: "link", id: "linkedin" }, label: "LinkedIn", style: "linkedin" },
   { id: "github", kind: "signpost", x: 12, y: 19, w: 1, h: 1, target: { type: "link", id: "github" }, label: "GitHub", style: "github" },
   { id: "email", kind: "mailbox", x: 14, y: 19, w: 1, h: 1, target: { type: "link", id: "email" }, label: "Email", style: "email" },
+  ...LAMPS.map(
+    ({ x, y }): TownObject => ({
+      id: `lamp-${x}-${y}`,
+      kind: "prop",
+      x,
+      y,
+      w: 1,
+      h: 1,
+      target: { type: "note", text: "A street lamp. It comes on at dusk, Dan's time." },
+      label: "Street lamp",
+      style: "lamp",
+      hideLabel: true,
+    }),
+  ),
 ];
 
 export const SPAWN: Point = { x: 11, y: 7 };

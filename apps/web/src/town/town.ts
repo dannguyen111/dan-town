@@ -21,8 +21,6 @@ export interface TownConfig {
 }
 
 const STEP_MS = 150;
-/** How often a tinted scene with no live art checks whether the time of day has moved on. */
-const TINT_CHECK_MS = 60_000;
 const KEY_DIRS: Record<string, Dir> = {
   ArrowUp: "up", KeyW: "up",
   ArrowDown: "down", KeyS: "down",
@@ -60,7 +58,7 @@ export class Town {
   private quietObj: string | null = null;
   /** The object whose "press Enter" hint was just shown by walking into it (same idea as quietObj). */
   private hinted: string | null = null;
-  /** Repaints scenes with live art (e.g. the clock at Home) or a time-of-day tint while they are shown. */
+  /** Repaints scenes with live art (e.g. the clock at Home) while they are shown, refreshing their tint. */
   private liveTimer = 0;
   /** The shown scene's tint, as of the last check. */
   private tint: string | null = null;
@@ -713,12 +711,6 @@ export class Town {
         this.tint = tint?.() ?? null;
         this.draw(performance.now());
       }, live.everyMs);
-    } else if (tint) {
-      this.liveTimer = window.setInterval(() => {
-        if (document.hidden || tint() === this.tint) return;
-        this.tint = tint();
-        this.draw(performance.now());
-      }, TINT_CHECK_MS);
     }
   }
 
@@ -776,19 +768,20 @@ export class Town {
     const twinInFront = twin !== undefined && p.y < twin.y * TILE;
     if (twin && !twinInFront) this.drawTwin(twin);
 
-    this.scene.live?.draw(ctx, p);
+    this.scene.live?.draw?.(ctx, p);
     const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
     this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
     // Furniture the visitor stands behind goes back on top, with whatever the live layer animates on it.
     for (const f of frontsOf(this.world)) {
       if (!isBehind(p, f)) continue;
       ctx.drawImage(this.tinted(f.img), f.x, f.y);
-      if (this.scene.live) {
+      const liveDraw = this.scene.live?.draw;
+      if (liveDraw) {
         ctx.save();
         ctx.beginPath();
         ctx.rect(f.x, f.y, f.img.width, f.img.height);
         ctx.clip();
-        this.scene.live.draw(ctx, p);
+        liveDraw(ctx, p);
         ctx.restore();
       }
     }

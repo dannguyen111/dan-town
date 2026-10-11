@@ -10,7 +10,7 @@ import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN, bakeLab, drawLabLive } from "./lab.
 import { GROUND, OBJECTS, SPAWN, type Point, type TownObject } from "./map.ts";
 import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, bakeShop, drawShopLive, drawShopOver } from "./shop.ts";
 import { TOWN_TINT, skyNow } from "./sky.ts";
-import { bakeWorld } from "./world.ts";
+import { bakeWorld, drawTownLights } from "./world.ts";
 
 export interface Scene {
   id: string;
@@ -29,13 +29,13 @@ export interface Scene {
    * `everyMs` while it is shown.
    */
   live?: {
-    draw: (ctx: CanvasRenderingContext2D, player: Point) => void;
+    draw?: (ctx: CanvasRenderingContext2D, player: Point) => void;
     drawOver?: (ctx: CanvasRenderingContext2D, player: Point) => void;
     everyMs: number;
   };
   /**
    * A colour washed over the map (and the backdrop) for the time of day, beneath every character, or
-   * null for none. Checked once a minute while the scene is shown; the scene repaints only when it changes.
+   * null for none. Read on entering the scene and on each `live` repaint.
    */
   tint?: () => string | null;
   /** Pixel font and old-RPG text boxes for this scene's name tags and messages. */
@@ -53,6 +53,8 @@ export const TOWN: Scene = {
   backdrop: "#4f9d4a",
   bake: bakeWorld,
   tint: () => TOWN_TINT[skyNow()],
+  // Lamp light goes over everything, so it isn't dimmed by the tint. A repaint a minute keeps it on time.
+  live: { drawOver: drawTownLights, everyMs: 60_000 },
 };
 
 export const INTERIORS: Record<string, Scene> = {

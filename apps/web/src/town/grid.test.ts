@@ -4,7 +4,7 @@ import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, streakOf, timelineIndex } from "./d
 import { TownGrid } from "./grid.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN } from "./lab.ts";
 import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN } from "./home.ts";
-import { COLS, GROUND, OBJECTS, SPAWN, TILE } from "./map.ts";
+import { COLS, GROUND, LAMPS, OBJECTS, ROWS, SPAWN, TILE } from "./map.ts";
 import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, behind } from "./shop.ts";
 
 describe("town map", () => {
@@ -192,6 +192,28 @@ describe("dev center interior", () => {
     expect(streakOf(days([1, 2, 3, 0]))).toBe(3);
     expect(streakOf(days([1, 0, 0]))).toBe(0);
     expect(streakOf([])).toBe(0);
+  });
+});
+
+describe("street lamps", () => {
+  const grid = new TownGrid();
+  const others = OBJECTS.filter((o) => o.style !== "lamp");
+  const isPath = (x: number, y: number) => GROUND[y]?.[x] === "=";
+
+  it.each(LAMPS.map((l) => [`${l.x},${l.y}`, l] as const))("%s stands on grass beside a path", (_k, l) => {
+    expect(GROUND[l.y]![l.x]).toMatch(/[.,]/);
+    expect(isPath(l.x - 1, l.y) || isPath(l.x + 1, l.y) || isPath(l.x, l.y - 1) || isPath(l.x, l.y + 1)).toBe(true);
+    for (const o of others) {
+      const inside = l.x >= o.x && l.x < o.x + o.w && l.y >= o.y && l.y < o.y + o.h;
+      expect(inside, `inside ${o.id}`).toBe(false);
+      expect(o.door?.x === l.x && o.door?.y === l.y, `on ${o.id}'s door`).toBe(false);
+    }
+    expect(grid.isWalkable(l.x, l.y)).toBe(false);
+  });
+
+  it("leaves every path tile reachable from spawn", () => {
+    for (let y = 0; y < ROWS; y++)
+      for (let x = 0; x < COLS; x++) if (isPath(x, y) && !(x === SPAWN.x && y === SPAWN.y)) expect(grid.findPath(SPAWN, { x, y }), `${x},${y}`).not.toBeNull();
   });
 });
 

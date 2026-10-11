@@ -9,7 +9,7 @@
  */
 import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
-import { easternTime, skyAt, type Sky } from "./sky.ts";
+import { easternTime, lampsLit, skyAt, type Sky } from "./sky.ts";
 import { TWIN_PALETTE, cellColour, compose } from "./sprites.ts";
 
 export const HOME_GROUND = [
@@ -956,7 +956,7 @@ export function drawHomeLive(ctx: Ctx, player: Point) {
   hand(ctx, (((h % 12) + m / 60) / 12) * Math.PI * 2 - Math.PI / 2, 3, INK);
   hand(ctx, (m / 60) * Math.PI * 2 - Math.PI / 2, 5, RED);
   rect(ctx, INK, CLOCK.x, CLOCK.y, 1, 1);
-  if (sky === "night" || sky === "dusk") {
+  if (lampsLit(sky)) {
     // Lanterns glow after dark.
     for (const cx of LANTERNS) {
       rect(ctx, "rgba(255, 190, 90, 0.16)", cx - 9, 4, 19, 20);

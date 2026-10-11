@@ -43,6 +43,9 @@ export function skyNow(now?: Date): Sky {
   return skyAt(h + m / 60);
 }
 
+/** Street lamps and Home's lanterns are lit from dusk until dawn. */
+export const lampsLit = (sky: Sky) => sky === "night" || sky === "dusk";
+
 /**
  * The wash laid over the town's art for each sky, beneath the characters so they stay readable. Name
  * tags and speech bubbles are HTML above the canvas, so their contrast never changes.

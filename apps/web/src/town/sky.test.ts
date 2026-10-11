@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TOWN_TINT, easternTime, formatEastern, parseTimeParam, skyAt, skyNow } from "./sky.ts";
+import { TOWN_TINT, easternTime, formatEastern, lampsLit, parseTimeParam, skyAt, skyNow } from "./sky.ts";
 
 const at = (iso: string) => new Date(iso);
 
@@ -49,6 +49,15 @@ describe("sky buckets", () => {
     expect(skyNow(at("2026-11-01T09:30:00Z"))).toBe("night"); // 4:30 EST
     expect(skyNow(at("2026-11-02T00:59:00Z"))).toBe("dusk"); // 7:59 PM EST
     expect(skyNow(at("2026-11-02T01:00:00Z"))).toBe("night"); // 8:00 PM EST
+  });
+
+  it.each([
+    ["night", true],
+    ["dawn", false],
+    ["day", false],
+    ["dusk", true],
+  ] as const)("lamps at %s: lit is %s", (sky, lit) => {
+    expect(lampsLit(sky)).toBe(lit);
   });
 
   it("leaves the town untinted by day and tints every other sky", () => {
