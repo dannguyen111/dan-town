@@ -135,3 +135,24 @@ projects:
     expect(md).toContain("### Plain, Acme (2023-01 – 2023-06) [research]");
   });
 });
+
+describe("honors", () => {
+  const withHonors = (honors: string) => `${yaml}
+education:
+  - { id: uni, school: Uni, degree: B.S., start: 2020-08, end: 2024-05 }
+honors:
+${honors}`;
+
+  it("an honor `for` an entry takes its date and shows what it is associated with", () => {
+    const p = loadProfile(withHonors(`  - { title: Summa, org: Uni, for: uni }
+  - { title: Prize, org: Foundation, date: 2023-03, for: a }`));
+    const md = renderTwinContext(p);
+    expect(md).toContain("- Summa, Uni (2024-05)\n");
+    expect(md).toContain("- Prize, Foundation (2023-03), associated with Acme");
+  });
+
+  it("rejects a `for` that matches no entry, and an honor with neither date nor `for`", () => {
+    expect(() => loadProfile(withHonors("  - { title: X, org: Y, for: nope }"))).toThrow(/honors\.0\.for/);
+    expect(() => loadProfile(withHonors("  - { title: X, org: Y }"))).toThrow(/honors\.0\.date/);
+  });
+});

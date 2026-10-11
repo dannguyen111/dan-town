@@ -1,4 +1,4 @@
-import type { Profile } from "@dan-town/profile/schema";
+import { honorsByDate, type Profile } from "@dan-town/profile/schema";
 import data from "../generated/profile.json";
 
 /** The PUBLIC projection of the canonical profile (twin-only and private data are already stripped). */
@@ -15,6 +15,9 @@ export function formatMonth(ym: string | null | undefined): string {
 export const formatRange = (start: string, end: string | null) => `${formatMonth(start)} – ${formatMonth(end)}`;
 
 export const projectsByDate = () => [...profile.projects].sort((a, b) => b.date.localeCompare(a.date));
+
+/** Every honor (school ones included), newest first, with `with`: the org, school or project it is associated with. */
+export const honors = honorsByDate(profile);
 
 export const linkById = (id: string) => profile.links.find((l) => l.id === id && l.url);
 

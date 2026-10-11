@@ -37,7 +37,6 @@ education:
     start: 2021-08
     end: 2025-05
     gpa: "4.0"
-    honors: [Placeholder Honor]
 projects:
   - id: example-project
     title: Example Project
@@ -45,8 +44,11 @@ projects:
     date: 2024-01
     featured: true
     body: Placeholder.
+# Every honor goes here, school ones too. `for` ties it to an experience, education or project id;
+# `date` may be left out when `for` is set (it then takes that entry's end date).
 honors:
-  - { title: Example Award, date: 2024-05, org: Example University }
+  - { title: Placeholder Honor, org: Example University, for: example-school }
+  - { title: Example Award, date: 2024-05, org: Example University, for: example-school }
 research:
   statement: What I want to study next, in a sentence or two.
   interests:

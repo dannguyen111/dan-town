@@ -7,7 +7,7 @@ import StackChip from "../components/StackChip.astro";
 import PixelLogo from "../components/PixelLogo.astro";
 import GitHubStats from "../components/GitHubStats.astro";
 import { existsSync } from "node:fs";
-import { profile, codename, formatMonth, formatRange, orgLogo, projectsByDate } from "../lib/profile";
+import { profile, codename, formatMonth, formatRange, honors, orgLogo, projectsByDate } from "../lib/profile";
 import { logoFor, techUsage } from "../lib/stack";
 
 const first = profile.identity.short_name;
@@ -100,28 +100,29 @@ const entries: Entry[] = [
     status: ed.end === null || ed.end > new Date().toISOString().slice(0, 7) ? ("ACTIVE" as const) : ("COMPLETE" as const),
     research: false,
     objective: [ed.rank && `Rank ${ed.rank}`, ed.end && `Class of ${ed.end.slice(0, 4)}`].filter(Boolean).join(" · "),
-    results: ed.honors,
+    results: honors.filter((h) => h.for === ed.id).map((h) => h.title),
     stack: [],
     links: [],
   })),
-  ...profile.honors.map((h, i) => ({
-    id: `h-${i}`,
-    kind: "honor" as const,
-    code: shortCode(h.title),
-    title: h.title,
-    sub: `${h.org} · ${formatMonth(h.date)}`,
-    start: h.date,
-    end: h.date,
-    status: "AWARDED" as const,
-    research: false,
-    objective: h.description ?? "",
-    results: [],
-    stack: [],
-    links: [],
-  })),
+  // School honors already show on their school's briefing; the timeline gets the standalone awards.
+  ...honors
+    .filter((h) => !profile.education.some((ed) => ed.id === h.for))
+    .map((h, i) => ({
+      id: `h-${i}`,
+      kind: "honor" as const,
+      code: shortCode(h.title),
+      title: h.title,
+      sub: `${h.org}${h.with && h.with !== h.org ? ` · ${h.with}` : ""} · ${formatMonth(h.date)}`,
+      start: h.date,
+      end: h.date,
+      status: "AWARDED" as const,
+      research: false,
+      objective: h.description ?? "",
+      results: [],
+      stack: [],
+      links: [],
+    })),
 ].sort((a, b) => a.start.localeCompare(b.start) || a.kind.localeCompare(b.kind));
-// The newest first, for the Service record.
-const honors = [...profile.honors].sort((a, b) => b.date.localeCompare(a.date));
 // Dan drops his résumé in apps/web/public; the button only shows once it's there.
 // (Astro runs from apps/web, in dev and in builds.)
 const hasResume = existsSync("public/resume.pdf");
@@ -271,7 +272,6 @@ const featured = projectsByDate().filter((p) => p.featured);
                   {ed.rank && <span class="mcp-badge">Rank {ed.rank}</span>}
                 </p>
               )}
-              {ed.honors.length > 0 && <p class="mcp-dim">Honors: {ed.honors.join(" · ")}</p>}
             </article>
           ))
         }
@@ -287,6 +287,7 @@ const featured = projectsByDate().filter((p) => p.featured);
                       {" "}
                       · {h.org} · {formatMonth(h.date)}
                     </span>
+                    {h.with && h.with !== h.org && <p class="mcp-dim">Associated with {h.with}</p>}
                     {h.description && <p class="mcp-dim">{h.description}</p>}
                   </div>
                 </li>

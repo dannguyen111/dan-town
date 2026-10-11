@@ -21,8 +21,8 @@ const stats = [
   { k: "Roles", v: String(profile.experience.length) },
 ].filter((s): s is { k: string; v: string } => Boolean(s));
 
-// School honors first (Summa, Phi Beta Kappa…), then awards.
-const achievements = [...(edu?.honors ?? []), ...profile.honors.map((h) => h.title)];
+// In the order the profile lists them, so the headline ones (Summa, Phi Beta Kappa…) lead.
+const achievements = profile.honors.map((h) => h.title);
 const SHOWN = 5;
 
 // A short loadout; the full stack lives in the Dev Center.
