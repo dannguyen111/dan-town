@@ -31,7 +31,6 @@ import {
   SIGMA,
   SKIES,
   STAR,
-  type Sky,
   TILE_BASE,
   TILE_RED,
   TILE_TEAL,
@@ -39,13 +38,12 @@ import {
   WOOD,
   WOOD_DARK,
   WOOD_LIGHT,
-  easternTime,
   outlined,
   rand,
   rect,
-  skyAt,
   windowView,
 } from "./home.ts";
+import { easternTime, skyAt, type Sky } from "./sky.ts";
 import { TWIN_PALETTE, PHONE_COLOURS } from "./sprites.ts";
 
 export type PovId = "tv" | "couch" | "desk";
@@ -140,7 +138,7 @@ export function nextPoseIn(ms: number): number | null {
   return next ? next[0] - ms : null;
 }
 
-export function drawPov(ctx: Ctx, id: PovId, L: PovLayout, now: Date = new Date(), f: FaceFrame = FACE_IDLE, pose: Pose = PHONES_ON) {
+export function drawPov(ctx: Ctx, id: PovId, L: PovLayout, now?: Date, f: FaceFrame = FACE_IDLE, pose: Pose = PHONES_ON) {
   ctx.imageSmoothingEnabled = false;
   ctx.setTransform(L.s, 0, 0, L.s, L.ox * L.s, L.oy * L.s);
   const b: Bounds = { l: -L.ox, r: L.W - L.ox, t: -L.oy, b: L.H - L.oy };
@@ -979,7 +977,7 @@ export class PovView {
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const since = now - this.startedAt;
     const pose = !this.opts.phonesOff ? PHONES_ON : reduced ? PHONES_OFF : phonesOffPose(since);
-    drawPov(ctx, this.id, this.layout, new Date(), this.id === "couch" ? face.frame(now) : undefined, pose);
+    drawPov(ctx, this.id, this.layout, undefined, this.id === "couch" ? face.frame(now) : undefined, pose);
     const posing = this.opts.phonesOff && !reduced ? nextPoseIn(since) : null;
     const next = this.id === "couch" ? Math.min(face.nextChange(now), 20_000) : 20_000;
     this.schedule(posing === null ? next : Math.min(next, posing));

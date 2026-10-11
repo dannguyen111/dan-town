@@ -9,6 +9,7 @@
  */
 import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
+import { easternTime, lampsLit, skyAt, type Sky } from "./sky.ts";
 import { TWIN_PALETTE, cellColour, compose } from "./sprites.ts";
 
 export const HOME_GROUND = [
@@ -135,26 +136,6 @@ export const HOME_OBJECTS: readonly TownObject[] = [
 ];
 
 export const HOME_SPAWN: Point = { x: 7, y: 17 };
-
-// ───────────────────────────── Eastern Time ─────────────────────────────
-
-const ET = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hourCycle: "h23" });
-
-/** Hours (0–23) and minutes in Dan's time zone, whatever the visitor's own clock says. */
-export function easternTime(now = new Date()) {
-  const parts = ET.formatToParts(now);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-  return { h: get("hour") % 24, m: get("minute") };
-}
-
-/** e.g. "7:42 PM". */
-export function formatEastern(now = new Date()) {
-  const { h, m } = easternTime(now);
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-}
-
-export type Sky = "night" | "dawn" | "day" | "dusk";
-export const skyAt = (t: number): Sky => (t < 5 || t >= 20 ? "night" : t < 7 ? "dawn" : t < 17 ? "day" : "dusk");
 
 // ───────────────────────────── art ─────────────────────────────
 
@@ -975,7 +956,7 @@ export function drawHomeLive(ctx: Ctx, player: Point) {
   hand(ctx, (((h % 12) + m / 60) / 12) * Math.PI * 2 - Math.PI / 2, 3, INK);
   hand(ctx, (m / 60) * Math.PI * 2 - Math.PI / 2, 5, RED);
   rect(ctx, INK, CLOCK.x, CLOCK.y, 1, 1);
-  if (sky === "night" || sky === "dusk") {
+  if (lampsLit(sky)) {
     // Lanterns glow after dark.
     for (const cx of LANTERNS) {
       rect(ctx, "rgba(255, 190, 90, 0.16)", cx - 9, 4, 19, 20);

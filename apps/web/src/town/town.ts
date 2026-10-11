@@ -58,8 +58,12 @@ export class Town {
   private quietObj: string | null = null;
   /** The object whose "press Enter" hint was just shown by walking into it (same idea as quietObj). */
   private hinted: string | null = null;
-  /** Repaints scenes with live art (e.g. the clock at Home) while they are shown. */
+  /** Repaints scenes with live art (e.g. the clock at Home) while they are shown, refreshing their tint. */
   private liveTimer = 0;
+  /** The shown scene's tint, as of the last check. */
+  private tint: string | null = null;
+  /** Each furniture layer with the tint washed over it, remade when the tint changes. */
+  private readonly tintedFronts = new WeakMap<HTMLCanvasElement, { tint: string; img: HTMLCanvasElement }>();
   private readonly live: HTMLElement;
   private readonly reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   /** A close-up view drawn instead of the room (the twin on the couch while you chat), or null. */
@@ -101,6 +105,7 @@ export class Town {
     this.buildLabels();
     this.bindInput();
     new ResizeObserver(() => this.resize()).observe(root);
+    this.startLive();
     this.resize();
   }
 
@@ -138,10 +143,7 @@ export class Town {
     this.root.toggleAttribute("data-retro", !!scene.retro);
     this.placePlayer(scene.spawn, scene.face);
     this.buildLabels();
-    clearInterval(this.liveTimer);
-    if (scene.live) {
-      this.liveTimer = window.setInterval(() => document.hidden || this.draw(performance.now()), scene.live.everyMs);
-    }
+    this.startLive();
     this.resize();
     if (scene.intro) this.showNote(scene.intro.title, scene.intro.text);
     if (!this.reducedMotion.matches) {
@@ -699,6 +701,36 @@ export class Town {
     }
   }
 
+  private startLive() {
+    clearInterval(this.liveTimer);
+    const { live, tint } = this.scene;
+    this.tint = tint?.() ?? null;
+    if (live) {
+      this.liveTimer = window.setInterval(() => {
+        if (document.hidden) return;
+        this.tint = tint?.() ?? null;
+        this.draw(performance.now());
+      }, live.everyMs);
+    }
+  }
+
+  /** `img` with the current tint over its opaque pixels only, so the visitor around it stays untinted. */
+  private tinted(img: HTMLCanvasElement) {
+    if (!this.tint) return img;
+    const cached = this.tintedFronts.get(img);
+    if (cached?.tint === this.tint) return cached.img;
+    const out = document.createElement("canvas");
+    out.width = img.width;
+    out.height = img.height;
+    const c = out.getContext("2d")!;
+    c.drawImage(img, 0, 0);
+    c.globalCompositeOperation = "source-atop";
+    c.fillStyle = this.tint;
+    c.fillRect(0, 0, out.width, out.height);
+    this.tintedFronts.set(img, { tint: this.tint, img: out });
+    return out;
+  }
+
   private draw(now: number) {
     // A close-up draws itself; resizing cleared the canvas, so have it draw again.
     if (this.pov) return this.pov.view.redraw();
@@ -714,6 +746,12 @@ export class Town {
     const oy = Math.round(-this.cam.y * s);
     ctx.setTransform(s, 0, 0, s, ox, oy);
     ctx.drawImage(this.world, 0, 0);
+    if (this.tint) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = this.tint;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(s, 0, 0, s, ox, oy);
+    }
 
     if (this.marker) {
       ctx.fillStyle = "rgba(255,255,255,0.7)";
@@ -730,19 +768,20 @@ export class Town {
     const twinInFront = twin !== undefined && p.y < twin.y * TILE;
     if (twin && !twinInFront) this.drawTwin(twin);
 
-    this.scene.live?.draw(ctx, p);
+    this.scene.live?.draw?.(ctx, p);
     const frame = this.moving && !this.reducedMotion.matches ? ((this.stepCount % 2) + 1) as 1 | 2 : 0;
     this.drawCharacter(this.playerSprites, this.facing, frame, p.x, p.y);
     // Furniture the visitor stands behind goes back on top, with whatever the live layer animates on it.
     for (const f of frontsOf(this.world)) {
       if (!isBehind(p, f)) continue;
-      ctx.drawImage(f.img, f.x, f.y);
-      if (this.scene.live) {
+      ctx.drawImage(this.tinted(f.img), f.x, f.y);
+      const liveDraw = this.scene.live?.draw;
+      if (liveDraw) {
         ctx.save();
         ctx.beginPath();
         ctx.rect(f.x, f.y, f.img.width, f.img.height);
         ctx.clip();
-        this.scene.live.draw(ctx, p);
+        liveDraw(ctx, p);
         ctx.restore();
       }
     }

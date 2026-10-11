@@ -10,7 +10,8 @@
  * Ground legend:  # wall (solid) · . raised floor
  */
 import { PIXEL_FONT } from "../lib/stack-meta.ts";
-import { bitmap, easternTime, rand, rect, type Ctx } from "./home.ts";
+import { bitmap, rand, rect, type Ctx } from "./home.ts";
+import { easternTime } from "./sky.ts";
 import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
 

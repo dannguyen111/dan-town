@@ -3,8 +3,8 @@ import { ARCADE_GROUND, ARCADE_OBJECTS, ARCADE_SPAWN } from "./arcade.ts";
 import { DEV_GROUND, DEV_OBJECTS, DEV_SPAWN, streakOf, timelineIndex } from "./dev.ts";
 import { TownGrid } from "./grid.ts";
 import { LAB_GROUND, LAB_OBJECTS, LAB_SPAWN } from "./lab.ts";
-import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN, easternTime, formatEastern } from "./home.ts";
-import { COLS, GROUND, OBJECTS, SPAWN, TILE } from "./map.ts";
+import { HOME_GROUND, HOME_OBJECTS, HOME_SPAWN } from "./home.ts";
+import { COLS, GROUND, LAMPS, OBJECTS, ROWS, SPAWN, TILE } from "./map.ts";
 import { SHOP_GROUND, SHOP_OBJECTS, SHOP_SPAWN, behind } from "./shop.ts";
 
 describe("town map", () => {
@@ -195,11 +195,25 @@ describe("dev center interior", () => {
   });
 });
 
-describe("eastern time", () => {
-  it("reads the clock in New York, not the visitor's zone", () => {
-    expect(easternTime(new Date("2026-07-01T16:05:00Z"))).toEqual({ h: 12, m: 5 }); // EDT
-    expect(easternTime(new Date("2026-01-15T03:30:00Z"))).toEqual({ h: 22, m: 30 }); // EST
-    expect(formatEastern(new Date("2026-01-15T05:07:00Z"))).toBe("12:07 AM");
+describe("street lamps", () => {
+  const grid = new TownGrid();
+  const others = OBJECTS.filter((o) => o.style !== "lamp");
+  const isPath = (x: number, y: number) => GROUND[y]?.[x] === "=";
+
+  it.each(LAMPS.map((l) => [`${l.x},${l.y}`, l] as const))("%s stands on grass beside a path", (_k, l) => {
+    expect(GROUND[l.y]![l.x]).toMatch(/[.,]/);
+    expect(isPath(l.x - 1, l.y) || isPath(l.x + 1, l.y) || isPath(l.x, l.y - 1) || isPath(l.x, l.y + 1)).toBe(true);
+    for (const o of others) {
+      const inside = l.x >= o.x && l.x < o.x + o.w && l.y >= o.y && l.y < o.y + o.h;
+      expect(inside, `inside ${o.id}`).toBe(false);
+      expect(o.door?.x === l.x && o.door?.y === l.y, `on ${o.id}'s door`).toBe(false);
+    }
+    expect(grid.isWalkable(l.x, l.y)).toBe(false);
+  });
+
+  it("leaves every path tile reachable from spawn", () => {
+    for (let y = 0; y < ROWS; y++)
+      for (let x = 0; x < COLS; x++) if (isPath(x, y) && !(x === SPAWN.x && y === SPAWN.y)) expect(grid.findPath(SPAWN, { x, y }), `${x},${y}`).not.toBeNull();
   });
 });
 

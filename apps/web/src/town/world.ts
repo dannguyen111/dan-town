@@ -3,7 +3,8 @@
  * canvas at 1× resolution, so a frame is a single scaled drawImage plus two sprites.
  */
 import { drawObjects } from "./front.ts";
-import { COLS, GROUND, OBJECTS, ROWS, TILE, type TownObject } from "./map.ts";
+import { COLS, GROUND, LAMPS, OBJECTS, ROWS, TILE, type TownObject } from "./map.ts";
+import { lampsLit, skyNow } from "./sky.ts";
 
 const INK = "#3b2a2a";
 
@@ -341,6 +342,41 @@ function statue(ctx: Ctx, o: TownObject) {
   rect(ctx, "#a34d16", px + 1, py + 2, 5, 1);
 }
 
+/** A lamp's glass, relative to its tile's top-left: the head rises above the tile. */
+const LAMP_GLASS = { x: 5, y: -8, w: 6, h: 4 };
+const IRON = "#3a3f4a";
+
+/** A street lamp, unlit. Its glow is drawn live (drawTownLights). */
+function lampPost(ctx: Ctx, o: TownObject) {
+  const px = o.x * TILE;
+  const py = o.y * TILE;
+  rect(ctx, "rgba(40,60,20,0.18)", px + 4, py + 14, 8, 2);
+  rect(ctx, INK, px + 5, py + 11, 6, 4);
+  rect(ctx, IRON, px + 6, py + 12, 4, 2);
+  rect(ctx, INK, px + 6, py - 3, 4, 14);
+  rect(ctx, IRON, px + 7, py - 3, 2, 14);
+  rect(ctx, INK, px + 5, py - 11, 6, 1);
+  rect(ctx, INK, px + 4, py - 10, 8, 8);
+  rect(ctx, "#cfc8a8", px + LAMP_GLASS.x, py + LAMP_GLASS.y, LAMP_GLASS.w, LAMP_GLASS.h);
+}
+
+/**
+ * The lamps' light after dark: a lit pane, a halo and a pool on the ground. Translucent, so it must be
+ * drawn once per frame (a scene's drawOver), never in a pass that repeats over furniture.
+ */
+export function drawTownLights(ctx: Ctx) {
+  if (!lampsLit(skyNow())) return;
+  for (const { x, y } of LAMPS) {
+    const px = x * TILE;
+    const py = y * TILE;
+    rect(ctx, "rgba(255, 200, 110, 0.12)", px - 2, py + 11, 20, 6);
+    rect(ctx, "rgba(255, 190, 90, 0.16)", px - 1, py - 16, 18, 20);
+    rect(ctx, "rgba(255, 190, 90, 0.14)", px + 2, py - 19, 12, 26);
+    rect(ctx, "#ffd166", px + LAMP_GLASS.x, py + LAMP_GLASS.y, LAMP_GLASS.w, LAMP_GLASS.h);
+    rect(ctx, "#fff6d0", px + LAMP_GLASS.x + 2, py + LAMP_GLASS.y + 1, 2, 2);
+  }
+}
+
 /** Bake the whole static town into one canvas. */
 export function bakeWorld(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -368,6 +404,7 @@ export function bakeWorld(): HTMLCanvasElement {
     else if (o.kind === "signpost") signpost(ctx, o);
     else if (o.kind === "mailbox") mailbox(ctx, o);
     else if (o.kind === "statue") statue(ctx, o);
+    else if (o.style === "lamp") lampPost(ctx, o);
   });
   return canvas;
 }
