@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import { ProfileSchema, type Profile, type Visibility } from "./schema.ts";
+import { honorsByDate, ProfileSchema, type Profile, type Visibility } from "./schema.ts";
 
 export type Audience = "public" | "twin";
 
@@ -93,7 +93,6 @@ export function renderTwinContext(profile: Profile): string {
   for (const e of p.education) {
     const meta = [e.gpa && `GPA ${e.gpa}`, e.rank && `rank ${e.rank}`].filter(Boolean).join(", ");
     lines.push(`### ${e.degree}, ${e.school} (${fmtRange(e.start, e.end)})${meta ? `: ${meta}` : ""}`);
-    if (e.honors.length) lines.push(`Honors: ${e.honors.join(", ")}`);
   }
 
   h("Projects");
@@ -116,7 +115,7 @@ export function renderTwinContext(profile: Profile): string {
   for (const s of p.skills) lines.push(`- ${s.group}: ${s.items.join(", ")}`);
 
   h("Honors");
-  for (const x of p.honors) lines.push(`- ${x.title}, ${x.org} (${x.date})${x.description ? `: ${x.description}` : ""}`);
+  for (const x of honorsByDate(p)) lines.push(`- ${x.title}, ${x.org} (${x.date})${x.with && x.with !== x.org ? `, associated with ${x.with}` : ""}${x.description ? `: ${x.description}` : ""}`);
 
   h("Interests");
   for (const i of p.interests) {

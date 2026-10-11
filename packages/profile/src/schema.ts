@@ -49,7 +49,6 @@ const Education = z.object({
   end: YearMonth.nullable(),
   gpa: z.string().optional(),
   rank: z.string().optional(),
-  honors: z.array(z.string()).default([]),
   visibility: Visibility,
 });
 
@@ -78,11 +77,15 @@ const SkillGroup = z.object({
   visibility: Visibility,
 });
 
+/** Every honor lives here, school ones included. `for` ties it to the experience, education or project it came from. */
 const Honor = z.object({
   title: z.string(),
-  date: YearMonth,
+  /** Optional when unknown; it then takes the date of the entry it is `for`. */
+  date: YearMonth.optional(),
   org: z.string(),
   description: z.string().optional(),
+  /** The id of an experience, education or project entry. */
+  for: z.string().optional(),
   visibility: Visibility,
 });
 
@@ -143,9 +146,32 @@ export const ProfileSchema = z.object({
     .prefault({}),
   /** Never exported. Resume workflows only. */
   private: z.record(z.string(), z.unknown()).optional(),
+}).superRefine((p, ctx) => {
+  const ids = new Set([...p.experience, ...p.education, ...p.projects].map((e) => e.id));
+  p.honors.forEach((h, i) => {
+    if (h.for && !ids.has(h.for)) ctx.addIssue({ code: "custom", path: ["honors", i, "for"], message: `no experience, education or project with id "${h.for}"` });
+    if (!h.date && !h.for) ctx.addIssue({ code: "custom", path: ["honors", i, "date"], message: "needs a date, or a `for` to take one from" });
+  });
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
 export type Project = z.infer<typeof Project>;
 export type Experience = z.infer<typeof Experience>;
 export type Interest = z.infer<typeof Interest>;
+export type Honor = z.infer<typeof Honor>;
+
+/**
+ * An honor with its `for` resolved: what it is associated with (org, school or project title) and its date,
+ * falling back to that entry's end date. `for` may point at an entry the audience can't see; it is then ignored.
+ */
+export function resolveHonor(p: Profile, h: Honor): Honor & { date: string; with?: string } {
+  const exp = p.experience.find((e) => e.id === h.for);
+  const edu = p.education.find((e) => e.id === h.for);
+  const proj = p.projects.find((e) => e.id === h.for);
+  const withLabel = exp?.org ?? edu?.school ?? proj?.title;
+  const fallback = (exp ?? edu)?.end ?? (exp ?? edu)?.start ?? proj?.end ?? proj?.date;
+  return { ...h, date: h.date ?? fallback ?? "", ...(withLabel ? { with: withLabel } : {}) };
+}
+
+/** Every honor, resolved, newest first. */
+export const honorsByDate = (p: Profile) => p.honors.map((h) => resolveHonor(p, h)).sort((a, b) => b.date.localeCompare(a.date));
