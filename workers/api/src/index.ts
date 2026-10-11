@@ -9,6 +9,7 @@ import { readTraces } from "./traces.ts";
 import { handleSearch } from "./spotify.ts";
 import { buildCrate, handleMatch } from "./crate.ts";
 import { handleRequestModerate, handleSongRequest, readBoard } from "./requests.ts";
+import { readWeather } from "./weather.ts";
 
 export { MancalaRecordStore } from "./mancala-store.ts";
 export { FridgeStore } from "./fridge-store.ts";
@@ -31,6 +32,10 @@ export default {
         if (!stats) await refreshIfEmpty(env, ctx);
         // Browsers and the edge may reuse this for 30 minutes; the data changes once a day.
         return json(stats ?? EMPTY_STATS, { headers: { "Cache-Control": "public, max-age=1800" } });
+      }
+      // The town's weather. Ten minutes of browser and edge caching on top of the 30-minute reading.
+      if (url.pathname === "/api/weather" && request.method === "GET") {
+        return json(await readWeather(env, ctx), { headers: { "Cache-Control": "public, max-age=600" } });
       }
       if (url.pathname === "/api/twin" && request.method === "POST") {
         if (request.headers.get("Origin") && new URL(request.headers.get("Origin")!).host !== url.host) {

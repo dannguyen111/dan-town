@@ -61,4 +61,7 @@ export interface Env {
   GOOGLE_REFRESH_TOKEN?: string;
   /** Signs the approve/decline links in meeting-request emails. Any long random string. */
   BOOKING_SECRET?: string;
+  /** Dan's city, to two decimals, for the town's weather (Open-Meteo). Both turn the weather on; kept out of the repo. */
+  WEATHER_LAT?: string;
+  WEATHER_LON?: string;
 }

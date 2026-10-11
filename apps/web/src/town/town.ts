@@ -10,6 +10,8 @@ import { TILE, type Point, type TownObject } from "./map.ts";
 import { PovView, type PovId } from "./pov.ts";
 import { INTERIORS, TOWN, type Scene } from "./scenes.ts";
 import { PLAYER_PALETTE, SPRITE_H, SPRITE_W, TWIN_PALETTE, bakeSprites, type SpriteSheet } from "./sprites.ts";
+import { WEATHER_FRAME_MS, animated, currentWeather, drawWeather, setCurrentWeather } from "./weather.ts";
+import type { Weather } from "@dan-town/api/types";
 
 export interface TownConfig {
   places: Record<string, { name: string; href: string }>;
@@ -60,6 +62,8 @@ export class Town {
   private hinted: string | null = null;
   /** Repaints scenes with live art (e.g. the clock at Home) while they are shown, refreshing their tint. */
   private liveTimer = 0;
+  /** Repaints falling rain or snow while the town is shown. */
+  private weatherTimer = 0;
   /** The shown scene's tint, as of the last check. */
   private tint: string | null = null;
   /** Each furniture layer with the tint washed over it, remade when the tint changes. */
@@ -105,6 +109,10 @@ export class Town {
     this.buildLabels();
     this.bindInput();
     new ResizeObserver(() => this.resize()).observe(root);
+    this.reducedMotion.addEventListener("change", () => {
+      this.syncWeatherTimer();
+      this.draw(performance.now());
+    });
     this.startLive();
     this.resize();
   }
@@ -226,6 +234,14 @@ export class Town {
 
   focus() {
     this.canvas.focus({ preventScroll: true });
+  }
+
+  /** Show the weather in Dan's city (null: clear skies). */
+  setWeather(w: Weather | null) {
+    setCurrentWeather(w);
+    this.tint = this.scene.tint?.() ?? null;
+    this.syncWeatherTimer();
+    this.draw(performance.now());
   }
 
   /** Stop listening to movement keys, e.g. while a full-screen game covers the town. */
@@ -712,6 +728,16 @@ export class Town {
         this.draw(performance.now());
       }, live.everyMs);
     }
+    this.syncWeatherTimer();
+  }
+
+  private syncWeatherTimer() {
+    clearInterval(this.weatherTimer);
+    if (this.scene !== TOWN || !animated(currentWeather()) || this.reducedMotion.matches) return;
+    this.weatherTimer = window.setInterval(() => {
+      if (document.hidden || this.pov || !this.enabled) return;
+      this.draw(performance.now());
+    }, WEATHER_FRAME_MS);
   }
 
   /** `img` with the current tint over its opaque pixels only, so the visitor around it stays untinted. */
@@ -787,6 +813,10 @@ export class Town {
     }
     if (twin && twinInFront) this.drawTwin(twin);
     this.scene.live?.drawOver?.(ctx, p);
+    if (this.scene === TOWN) {
+      const view = { x: this.cam.x, y: this.cam.y, w: canvas.width / s, h: canvas.height / s };
+      drawWeather(ctx, currentWeather(), now, view, this.reducedMotion.matches);
+    }
 
     this.positionLabels();
   }

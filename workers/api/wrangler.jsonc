@@ -163,7 +163,8 @@
 	// Secrets (set with `wrangler secret put`): OPENROUTER_API_KEY, GITHUB_TOKEN,
 	// SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REFRESH_TOKEN, TURNSTILE_SECRET (optional),
 	// FRIDGE_SECRET (also signs request-line links), FRIDGE_NOTIFY_TO, LASTFM_API_KEY (Crate Match), and for meeting requests (scripts/google-auth.mjs):
-	// GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, BOOKING_SECRET
+	// GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, BOOKING_SECRET, and for the town's weather:
+	// WEATHER_LAT, WEATHER_LON (Dan's city, two decimals)
 	"observability": {
 		"enabled": true
 	}
