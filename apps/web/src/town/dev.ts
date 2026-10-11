@@ -11,6 +11,7 @@
  */
 import { PIXEL_FONT } from "../lib/stack-meta.ts";
 import { bitmap, easternTime, rand, rect, type Ctx } from "./home.ts";
+import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
 
 export const DEV_GROUND = [
@@ -475,9 +476,9 @@ export function bakeDev(): HTMLCanvasElement {
   screenGlow(ctx);
   viewscreen(ctx);
   clockBox(ctx);
-  telemetryWall(ctx);
-  for (const o of DEV_OBJECTS) {
+  drawObjects(ctx, DEV_OBJECTS, (ctx, o) => {
     if (o.style === "radar") radarConsole(ctx, o);
+    else if (o.style === "telemetry") telemetryWall(ctx);
     else if (o.style === "console-wasm") flightConsole(ctx, o, "wasm");
     else if (o.style === "console-edge") flightConsole(ctx, o, "edge");
     else if (o.style === "console-static") flightConsole(ctx, o, "static");
@@ -487,7 +488,7 @@ export function bakeDev(): HTMLCanvasElement {
     else if (o.style === "plant") plant(ctx, o);
     else if (o.style === "lebronette") frontDesk(ctx, o);
     else if (o.style === "exit") exitMat(ctx, o);
-  }
+  });
   return canvas;
 }
 

@@ -2,6 +2,7 @@
  * Procedural pixel art for the static world. Everything is drawn ONCE into an offscreen
  * canvas at 1× resolution, so a frame is a single scaled drawImage plus two sprites.
  */
+import { drawObjects } from "./front.ts";
 import { COLS, GROUND, OBJECTS, ROWS, TILE, type TownObject } from "./map.ts";
 
 const INK = "#3b2a2a";
@@ -359,7 +360,7 @@ export function bakeWorld(): HTMLCanvasElement {
   // Doors sit on path-coloured ground.
   for (const o of OBJECTS) if (o.door) pathTile(ctx, o.door.x, o.door.y);
 
-  for (const o of OBJECTS) {
+  drawObjects(ctx, OBJECTS, (ctx, o) => {
     if (o.kind === "building") building(ctx, o);
     else if (o.kind === "garden") garden(ctx, o);
     else if (o.kind === "stall") stall(ctx, o);
@@ -367,6 +368,6 @@ export function bakeWorld(): HTMLCanvasElement {
     else if (o.kind === "signpost") signpost(ctx, o);
     else if (o.kind === "mailbox") mailbox(ctx, o);
     else if (o.kind === "statue") statue(ctx, o);
-  }
+  });
   return canvas;
 }

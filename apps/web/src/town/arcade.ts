@@ -4,6 +4,7 @@
  *
  * Ground legend:  # wall (solid) · . carpet
  */
+import { drawObjects } from "./front.ts";
 import { TILE, type Point, type TownObject } from "./map.ts";
 
 export const ARCADE_GROUND = [
@@ -359,7 +360,7 @@ export function bakeArcade(): HTMLCanvasElement {
   for (let ty = 2; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) carpet(ctx, tx, ty);
   walls(ctx);
   rug(ctx);
-  for (const o of ARCADE_OBJECTS) {
+  drawObjects(ctx, ARCADE_OBJECTS, (ctx, o) => {
     if (o.style === "exit") exitMat(ctx, o);
     else if (o.style === "robot") robotAndTable(ctx, o);
     else if (o.style === "vending") vending(ctx, o);
@@ -367,6 +368,6 @@ export function bakeArcade(): HTMLCanvasElement {
     else if (o.style === "plant") plant(ctx, o);
     else if (o.style === "scoreboard") scoreboard(ctx, o);
     else arcadeCabinet(ctx, o);
-  }
+  });
   return canvas;
 }
