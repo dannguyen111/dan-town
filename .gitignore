@@ -10,4 +10,6 @@ target/
 apps/web/src/generated/
 workers/api/src/generated/
 apps/web/public/wasm/
+# the GitHub profile README, pushed to dannguyen111/dannguyen111 by CI
+readme-out/
 .profile/

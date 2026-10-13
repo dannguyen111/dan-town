@@ -14,13 +14,14 @@
     "engine:build": "node scripts/build-engine.mjs",
     "icons:build": "tsx scripts/make-icons.ts",
     "logos:build": "tsx scripts/pixel-logos.ts",
-    "prebuild": "npm run profile:build && npm run logos:build && npm run engine:build",
+    "readme:build": "tsx packages/readme/src/cli.ts build",
+    "prebuild": "npm run profile:build && npm run logos:build && npm run readme:build && npm run engine:build",
     "build": "npm -w apps/web run build",
     "dev": "npm run prebuild && npm -w apps/web run dev",
     "preview": "npm run build && npm -w workers/api run dev",
     "deploy": "npm run build && npm -w workers/api run deploy",
     "test": "vitest run && cargo test --release --manifest-path engine/mancala/Cargo.toml",
-    "check": "npm -w apps/web run check && npm -w workers/api run check && cargo clippy --manifest-path engine/mancala/Cargo.toml --all-targets -- -D warnings"
+    "check": "npm -w apps/web run check && npm -w workers/api run check && npm -w packages/readme run check && cargo clippy --manifest-path engine/mancala/Cargo.toml --all-targets -- -D warnings"
   },
   "engines": {
     "node": ">=20"

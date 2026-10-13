@@ -9,6 +9,7 @@ import { readTraces } from "./traces.ts";
 import { handleSearch } from "./spotify.ts";
 import { buildCrate, handleMatch } from "./crate.ts";
 import { handleRequestModerate, handleSongRequest, readBoard } from "./requests.ts";
+import { handleOnRepeatCard } from "./readme-card.ts";
 
 export { MancalaRecordStore } from "./mancala-store.ts";
 export { FridgeStore } from "./fridge-store.ts";
@@ -104,6 +105,10 @@ export default {
       // Signed approve/reject links from Dan's request emails. Serves its own small HTML page.
       if (url.pathname === "/api/requests/moderate" && (request.method === "GET" || request.method === "POST")) {
         return await handleRequestModerate(request, env);
+      }
+      // Live card for the GitHub profile README.
+      if (url.pathname === "/api/readme/on-repeat.svg" && request.method === "GET") {
+        return await handleOnRepeatCard(request, env, ctx);
       }
       if (url.pathname.startsWith("/api/")) throw new HttpError(404, "Not found.");
       return env.ASSETS.fetch(request);

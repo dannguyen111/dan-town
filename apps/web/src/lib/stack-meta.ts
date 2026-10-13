@@ -182,3 +182,44 @@ export function luminance(hex: string): number {
   });
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
 }
+
+// ───────────── picking and drawing a logo ─────────────
+
+export interface PixelLogo {
+  /** Brand colour, #rrggbb. */
+  hex: string;
+  /** LOGO_GRID rows. Legend:  # brand colour · o white · . transparent */
+  rows: readonly string[];
+  /** Light brands sit on a dark tile and dark brands on a light one, so every logo shows up. */
+  tile: string;
+}
+
+const LIGHT_TILE = "#f4efe2";
+const DARK_TILE = "#1b1b2a";
+
+/** A tech's logo: hand-drawn, else pixelated from simple-icons (`pixelated`, from stack-logos.json), else a lettered tile. */
+export function pickLogo(name: string, pixelated: Record<string, { hex: string; rows: string[] }>): PixelLogo {
+  const px = pixelated[name] ?? pixelated[canonicalTech(name)];
+  const hex = STACK_HEX[name] ?? px?.hex ?? hashColour(name);
+  const rows = STACK_ROWS[name] ?? px?.rows ?? monogram(name);
+  return { hex, rows, tile: luminance(hex) > 0.45 ? DARK_TILE : LIGHT_TILE };
+}
+
+/** Rects (one per lit cell, merged along rows) for drawing a logo as SVG or on a canvas. */
+export function logoRuns(rows: readonly string[]): { x: number; y: number; w: number; white: boolean }[] {
+  const runs: { x: number; y: number; w: number; white: boolean }[] = [];
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; ) {
+      const c = row[x]!;
+      if (c === ".") {
+        x++;
+        continue;
+      }
+      let w = 1;
+      while (row[x + w] === c) w++;
+      runs.push({ x, y, w, white: c === "o" });
+      x += w;
+    }
+  });
+  return runs;
+}
