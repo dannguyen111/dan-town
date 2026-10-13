@@ -55,6 +55,14 @@ jobs:
       - run: npm test
       - run: npm run check
 
+      # `npm run build` also renders the GitHub profile README into readme-out/ (packages/readme).
+      - name: Upload README preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: readme-preview
+          path: readme-out/
+
       - name: Deploy to Cloudflare
         # Never deploy example data over the real site.
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.HAS_PROFILE_KEY == 'true'
@@ -63,3 +71,20 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx wrangler deploy
+
+      # The profile README lives in the public repo dannguyen111/dannguyen111. Requires the secret
+      # README_PUSH_TOKEN: a fine-grained PAT on that repo with "Contents: Read and write".
+      - name: Publish profile README
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.HAS_PROFILE_KEY == 'true'
+        env:
+          README_PUSH_TOKEN: ${{ secrets.README_PUSH_TOKEN }}
+        run: |
+          if [ -z "$README_PUSH_TOKEN" ]; then echo "README_PUSH_TOKEN not set; skipping."; exit 0; fi
+          git clone --depth 1 "https://x-access-token:${README_PUSH_TOKEN}@github.com/dannguyen111/dannguyen111.git" .readme-repo
+          rm -rf .readme-repo/readme
+          cp -R readme-out/. .readme-repo/
+          cd .readme-repo
+          git add -A README.md readme
+          if git diff --cached --quiet; then echo "README unchanged."; exit 0; fi
+          git -c user.name="dan-town CI" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "README: regenerate from dan-profile (dan-town ${GITHUB_SHA::7})"
+          git push origin HEAD
