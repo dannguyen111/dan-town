@@ -130,7 +130,8 @@ export function renderBanner(d: BannerData, mode: Mode, fonts: FontData): string
     }
     px.rect(148, 4, 6, 6, "#f4efe2");
     px.rect(147, 5, 8, 4, "#f4efe2");
-    px.rect(150, 5, 3, 3, sky[0]!);
+    // Bite out the right side for a crescent.
+    px.rect(151, 3, 5, 6, sky[0]!);
   } else {
     px.rect(147, 3, 8, 8, "#ffc857");
     px.rect(146, 5, 10, 4, "#ffc857");
